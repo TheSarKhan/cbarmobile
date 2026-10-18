@@ -1,0 +1,102 @@
+name: Mobile APK Build, Deploy & Telegram Release
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build-apk-and-publish:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js 24
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: 'npm'
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          java-version: '21'
+          distribution: 'temurin'
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Install dependencies, Lint & Typecheck
+        run: |
+          npm ci
+          npm run lint -- --max-warnings 0
+          npm run typecheck
+
+      - name: Build Signed Release APK
+        env:
+          EXPO_PUBLIC_API_URL: https://apicbar.sarkhan.az/api/v1
+          EXPO_PUBLIC_DEPLOYED: 'true'
+          KAMPUS_HTTPS_ONLY: 'true'
+          NODE_ENV: production
+          KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
+          KAMPUS_KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+        run: |
+          mkdir -p .signing
+          echo "$KEYSTORE_BASE64" | base64 -d > .signing/kampus-release.p12
+          export KAMPUS_KEYSTORE_FILE="$PWD/.signing/kampus-release.p12"
+          npx expo prebuild --platform android --no-install
+          cd android
+          ./gradlew assembleRelease -PreactNativeArchitectures=arm64-v8a --no-daemon
+          cp app/build/outputs/apk/release/app-release.apk ../kampus.apk
+          cd ..
+          shasum -a 256 kampus.apk > kampus.apk.sha256
+          rm -rf .signing
+
+      - name: Upload APK & Update Mobile Web on VPS
+        env:
+          VPS_HOST: ${{ secrets.VPS_HOST }}
+          VPS_USER: ${{ secrets.VPS_USER }}
+          VPS_SSH_KEY: ${{ secrets.VPS_SSH_KEY }}
+        run: |
+          mkdir -p ~/.ssh
+          echo "$VPS_SSH_KEY" > ~/.ssh/id_ed25519
+          chmod 600 ~/.ssh/id_ed25519
+          ssh-keyscan -H "$VPS_HOST" >> ~/.ssh/known_hosts
+          scp kampus.apk kampus.apk.sha256 "$VPS_USER@$VPS_HOST:/opt/cbar/downloads/"
+          rsync -az --delete --exclude=.git --exclude=.github --exclude=node_modules --exclude=.expo --exclude=dist --exclude=android --exclude='*.apk*' ./ "$VPS_USER@$VPS_HOST:/opt/cbar/apps/mobile/"
+          ssh "$VPS_USER@$VPS_HOST" "cd /opt/cbar && docker compose up -d --build --wait --wait-timeout 180 mobile"
+
+      - name: Publish APK to GitHub Releases
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: latest
+          name: "Kampus Mobile Latest APK (${{ github.sha }})"
+          body: "Automated Android Release APK built from commit ${{ github.sha }}.\nDirect download: https://apicbar.sarkhan.az/download/kampus.apk"
+          files: |
+            kampus.apk
+            kampus.apk.sha256
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Share APK via Telegram Bot
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+        run: |
+          COMMIT_MSG=$(git log -1 --pretty=%s)
+          SHA256=$(awk '{print $1}' kampus.apk.sha256)
+          curl -s -F chat_id="${TELEGRAM_CHAT_ID}" \
+            -F document=@"kampus.apk" \
+            -F parse_mode="HTML" \
+            -F caption="📱 <b>Kampus Mobile — Yeni APK Hazırdır!</b>
+
+          🔹 <b>Commit:</b> <code>${GITHUB_SHA::7}</code> — ${COMMIT_MSG}
+          🔹 <b>API:</b> <code>https://apicbar.sarkhan.az/api/v1</code>
+          🔹 <b>SHA-256:</b> <code>${SHA256::16}...</code>
+          🔗 <b>Açıq Yükləmə Linki:</b> https://apicbar.sarkhan.az/download/kampus.apk
+          🌐 <b>Mobil Veb Simulyator:</b> https://apicbar.sarkhan.az" \
+            "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendDocument" >/dev/null

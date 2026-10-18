@@ -1,0 +1,37 @@
+{
+  "expo": {
+    "name": "Kampus",
+    "slug": "kampus",
+    "version": "0.2.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "light",
+    "ios": {
+      "supportsTablet": true
+    },
+    "android": {
+      "package": "az.kampus.wallet",
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#17352e"
+      },
+      "versionCode": 2
+    },
+    "web": {
+      "favicon": "./assets/favicon.png"
+    },
+    "plugins": [
+      "expo-secure-store",
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "Kampus QR ödəniş üçün kameranı istifadə edir.",
+          "recordAudioAndroid": false
+        }
+      ],
+      "./plugins/withDemoNetwork",
+      "./plugins/withReleaseSigning"
+    ],
+    "scheme": "kampus"
+  }
+}
