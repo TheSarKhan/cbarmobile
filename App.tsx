@@ -1020,12 +1020,6 @@ export default function App(){
    ):!token?(
     showOnboarding?(
      <View style={styles.onboardFullScreen}>
-      <Image
-       source={ONBOARDING_SLIDES[onboardIndex].image}
-       style={StyleSheet.absoluteFill}
-       resizeMode="cover"
-      />
-
       <SafeAreaView edges={['top']} style={styles.onboardTopBarFloating}>
        <Text style={[styles.wordmark,{fontSize:26}]}>kampus<Text style={{color:'#7ea84c'}}>.</Text></Text>
        <Pressable
@@ -1043,6 +1037,14 @@ export default function App(){
         <Text style={styles.onboardSkipText}>Ötür</Text>
        </Pressable>
       </SafeAreaView>
+
+      <View style={styles.onboardImageWrap}>
+       <Image
+        source={ONBOARDING_SLIDES[onboardIndex].image}
+        style={styles.onboardHeroImg}
+        resizeMode="contain"
+       />
+      </View>
 
       <LinearGradient
        colors={['rgba(240,244,233,0)', 'rgba(240,244,233,0.45)', 'rgba(240,244,233,0.92)', '#f0f4e9']}
@@ -1587,7 +1589,9 @@ const styles=StyleSheet.create({
  onboardTopBarFloating:{flexDirection:'row',alignItems:'center',justifyContent:'space-between',paddingHorizontal:24,paddingTop:Platform.OS==='web'?16:10,zIndex:10},
  onboardSkipFloatingBtn:{backgroundColor:'rgba(255,255,255,0.85)',paddingHorizontal:16,paddingVertical:7,borderRadius:999,borderWidth:1,borderColor:'rgba(215,224,208,0.7)'},
  onboardSkipText:{fontSize:12,fontWeight:'700',color:C.ink},
- onboardBottomArea:{paddingHorizontal:24,paddingBottom:Platform.OS==='web'?28:40,paddingTop:36,zIndex:10,backgroundColor:'transparent'},
+ onboardImageWrap:{flex:1,alignItems:'center',justifyContent:'center',paddingHorizontal:24,paddingVertical:12},
+ onboardHeroImg:{width:'100%',height:'100%',maxWidth:320,maxHeight:320},
+ onboardBottomArea:{paddingHorizontal:24,paddingBottom:Platform.OS==='web'?28:40,paddingTop:20,zIndex:10,backgroundColor:'transparent'},
  onboardFullTitle:{fontSize:32,fontWeight:'900',color:C.ink,letterSpacing:-1,lineHeight:38,marginBottom:8},
  onboardFullDesc:{fontSize:14,color:C.muted,lineHeight:21,marginBottom:20},
  onboardDotsRow:{flexDirection:'row',alignItems:'center',gap:6,marginBottom:20},
