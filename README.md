@@ -13,7 +13,7 @@ Development API-si emulyatorda `http://10.0.2.2:8080/api/v1`, development vebdə
 
 ## CI/CD
 
-PR-lərdə lint, typecheck və statik veb export işləyir. `main` yoxlamaları keçəndə Android SDK 37 ilə release APK yığılır, mövcud Kampus sertifikatı yoxlanır və yalnız mobil veb servisi yenilənir. Son APK və SHA256 `https://apicbar.sarkhan.az/download/kampus.apk` və `.sha256` ünvanlarına qoyulur; versiyalı GitHub Release də yaradılır.
+PR-lərdə lint, typecheck və statik veb export işləyir. `main` yoxlamaları keçəndə Android platform 37.0 və Build Tools 37.0.0 ilə release APK yığılır, mövcud Kampus sertifikatı yoxlanır və yalnız mobil veb servisi yenilənir. Son APK və SHA256 `https://apicbar.sarkhan.az/download/kampus.apk` və `.sha256` ünvanlarına qoyulur; versiyalı GitHub Release də yaradılır.
 
 Version code `100 + GITHUB_RUN_NUMBER` kimi artır. İmza açarı repoya daxil edilmir; eyni açarla əvvəlki APK-lar yenilənir. Android API 24+, arm64-v8a. APK yenilənməsi istifadəçi quraşdırması tələb edir; mövcud telefondakı tətbiq avtomatik dəyişmir.
 
