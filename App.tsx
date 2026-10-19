@@ -1021,19 +1021,61 @@ export default function App(){
    {boot?(
     <View style={styles.loading}><ActivityIndicator color={C.ink}/></View>
    ):!token?(
-    <SafeAreaView style={S.page}>
-     <ScrollView
-      keyboardShouldPersistTaps="handled"
-      showsVerticalScrollIndicator={false}
-      contentContainerStyle={[S.content,{flexGrow:1,paddingTop:14,paddingBottom:28}]}
-     >
-      {showOnboarding?(
-       <View style={styles.onboardWrapper}>
-        <View style={styles.onboardTopBar}>
-         <Text style={[styles.wordmark,{fontSize:24}]}>kampus<Text style={{color:'#9bc26b'}}>.</Text></Text>
+    showOnboarding?(
+     <View style={styles.onboardFullScreen}>
+      <Image
+       source={ONBOARDING_SLIDES[onboardIndex].image}
+       style={styles.onboardFullImage}
+       resizeMode="contain"
+      />
+
+      <SafeAreaView edges={['top']} style={styles.onboardTopBarFloating}>
+       <Text style={[styles.wordmark,{fontSize:26}]}>kampus<Text style={{color:'#7ea84c'}}>.</Text></Text>
+       <Pressable
+        accessibilityRole="button"
+        accessibilityLabel="Tanışlığı ötür"
+        onPress={()=>{
+         storage.set('onboarding_done','true');
+         setShowOnboarding(false);
+         setSignup(true);
+         setRegStep(1);
+         setError('');
+        }}
+        style={styles.onboardSkipFloatingBtn}
+       >
+        <Text style={styles.onboardSkipText}>Ötür</Text>
+        <Icon name="arrow-forward" size={13} color={C.ink}/>
+       </Pressable>
+      </SafeAreaView>
+
+      <View style={styles.onboardBottomArea}>
+       <View style={styles.onboardTagPill}>
+        <Text style={styles.onboardTagText}>{ONBOARDING_SLIDES[onboardIndex].tag}</Text>
+       </View>
+       <Text style={styles.onboardFullTitle}>{ONBOARDING_SLIDES[onboardIndex].title}</Text>
+       <Text style={styles.onboardFullDesc}>{ONBOARDING_SLIDES[onboardIndex].desc}</Text>
+
+       <View style={styles.onboardDotsRow}>
+        {ONBOARDING_SLIDES.map((_,i)=>(
          <Pressable
+          key={i}
           accessibilityRole="button"
-          accessibilityLabel="Tanışlığı ötür"
+          onPress={()=>setOnboardIndex(i)}
+          style={[styles.onboardDot,onboardIndex===i&&styles.onboardDotActive]}
+         />
+        ))}
+       </View>
+
+       {onboardIndex<2?(
+        <Button
+         title="İrəli →"
+         onPress={()=>setOnboardIndex(i=>Math.min(2,i+1))}
+        />
+       ):(
+        <View style={{gap:10}}>
+         <Button
+          title="Başla 🚀"
+          icon="arrow-forward"
           onPress={()=>{
            storage.set('onboarding_done','true');
            setShowOnboarding(false);
@@ -1041,85 +1083,28 @@ export default function App(){
            setRegStep(1);
            setError('');
           }}
-          style={styles.onboardSkipBtn}
-         >
-          <Text style={styles.onboardSkipText}>Ötür</Text>
-          <Icon name="arrow-forward" size={14} color={C.ink}/>
-         </Pressable>
-        </View>
-
-        <View style={styles.onboardHeroCard}>
-         <Image source={ONBOARDING_SLIDES[onboardIndex].image} style={styles.onboardHeroImg} resizeMode="contain"/>
-        </View>
-
-        <View style={styles.onboardContentCard}>
-         <View style={styles.onboardTagPill}>
-          <Text style={styles.onboardTagText}>{ONBOARDING_SLIDES[onboardIndex].tag}</Text>
-         </View>
-         <Text style={styles.onboardTitle}>{ONBOARDING_SLIDES[onboardIndex].title}</Text>
-         <Text style={styles.onboardDesc}>{ONBOARDING_SLIDES[onboardIndex].desc}</Text>
-
-         <View style={styles.onboardDotsRow}>
-          {ONBOARDING_SLIDES.map((_,i)=>(
-           <Pressable
-            key={i}
-            accessibilityRole="button"
-            onPress={()=>setOnboardIndex(i)}
-            style={[styles.onboardDot,onboardIndex===i&&styles.onboardDotActive]}
-           />
-          ))}
-         </View>
-
-         {onboardIndex<2?(
-          <View style={{flexDirection:'row',gap:10}}>
-           {onboardIndex>0&&(
-            <View style={{flex:1}}>
-             <Button
-              title="Geri"
-              secondary
-              onPress={()=>setOnboardIndex(i=>Math.max(0,i-1))}
-             />
-            </View>
-           )}
-           <View style={{flex:onboardIndex>0?2:1}}>
-            <Button
-             title="Növbəti →"
-             onPress={()=>setOnboardIndex(i=>Math.min(2,i+1))}
-            />
-           </View>
-          </View>
-         ):(
-          <Button
-           title="Başla 🚀"
-           icon="arrow-forward"
-           onPress={()=>{
-            storage.set('onboarding_done','true');
-            setShowOnboarding(false);
-            setSignup(true);
-            setRegStep(1);
-            setError('');
-           }}
-          />
-         )}
-
-         <Pressable
-          accessibilityRole="button"
+         />
+         <Button
+          title="Daxil ol"
+          secondary
           onPress={()=>{
            storage.set('onboarding_done','true');
            setShowOnboarding(false);
            setSignup(false);
            setError('');
           }}
-          style={styles.onboardLoginLink}
-         >
-          <Text style={styles.onboardLoginLinkText}>
-           Artıq hesabın var? <Text style={{fontWeight:'800',color:C.ink}}>Daxil ol</Text>
-          </Text>
-         </Pressable>
+         />
         </View>
-       </View>
-      ):(
-       <>
+       )}
+      </View>
+     </View>
+    ):(
+     <SafeAreaView style={S.page}>
+      <ScrollView
+       keyboardShouldPersistTaps="handled"
+       showsVerticalScrollIndicator={false}
+       contentContainerStyle={[S.content,{flexGrow:1,paddingTop:14,paddingBottom:28}]}
+      >
         <View style={[S.between,{marginBottom:14}]}>
          <Text style={[styles.wordmark,{fontSize:27}]}>kampus<Text style={{color:'#9bc26b'}}>.</Text></Text>
          <View style={S.row}>
@@ -1401,9 +1386,8 @@ export default function App(){
            </View>
           )}
          </>
+
         )}
-       </>
-      )}
 
       <Sheet title="API bağlantısını tənzimlə" visible={showConfig} onClose={()=>setShowConfig(false)}>
        <Field label="Backend API ünvanı" value={base} onChange={setBase} placeholder="http://192.168.1.10:8080/api/v1"/>
@@ -1411,6 +1395,7 @@ export default function App(){
       </Sheet>
      </ScrollView>
     </SafeAreaView>
+    )
    ):!data?(
     <View style={styles.loading}>
      <ActivityIndicator color={C.ink}/>
@@ -1602,22 +1587,19 @@ const styles=StyleSheet.create({
  simaOneTapCard:{flexDirection:'row',alignItems:'center',gap:12,backgroundColor:'#f7f8f3',borderRadius:18,padding:12,marginBottom:10,borderWidth:1.5,borderColor:C.line},
  simaOneTapCardActive:{backgroundColor:'#eef6e2',borderColor:C.ink},
  simaOneTapImg:{width:52,height:52,borderRadius:14},
- onboardWrapper:{flex:1,paddingHorizontal:2},
- onboardTopBar:{flexDirection:'row',alignItems:'center',justifyContent:'space-between',marginBottom:14},
- onboardSkipBtn:{flexDirection:'row',alignItems:'center',gap:4,backgroundColor:'#ebf0e2',paddingHorizontal:12,paddingVertical:6,borderRadius:999},
- onboardSkipText:{fontSize:12,fontWeight:'700',color:C.ink},
- onboardHeroCard:{backgroundColor:'#f0f4e9',borderRadius:28,overflow:'hidden',height:270,borderWidth:1,borderColor:C.line,alignItems:'center',justifyContent:'center',marginBottom:16},
- onboardHeroImg:{width:'88%',height:'88%'},
- onboardContentCard:{backgroundColor:'#FFFFFF',borderRadius:26,padding:20,borderWidth:1,borderColor:C.line,shadowColor:'#17352e',shadowOffset:{width:0,height:4},shadowOpacity:0.04,shadowRadius:12,elevation:2},
- onboardTagPill:{backgroundColor:'#e5f3d6',alignSelf:'flex-start',paddingHorizontal:10,paddingVertical:4,borderRadius:8,marginBottom:10},
+ onboardFullScreen:{flex:1,backgroundColor:'#f0f4e9',justifyContent:'space-between',position:'relative',overflow:'hidden'},
+ onboardFullImage:{position:'absolute',top:20,left:0,right:0,width:'100%',height:'58%',alignSelf:'center'},
+ onboardTopBarFloating:{flexDirection:'row',alignItems:'center',justifyContent:'space-between',paddingHorizontal:22,paddingTop:Platform.OS==='web'?16:10,zIndex:10},
+ onboardSkipFloatingBtn:{flexDirection:'row',alignItems:'center',gap:4,backgroundColor:'rgba(255,255,255,0.85)',paddingHorizontal:14,paddingVertical:7,borderRadius:999,borderWidth:1,borderColor:'rgba(215,224,208,0.7)'},
+ onboardSkipText:{fontSize:12,fontWeight:'800',color:C.ink},
+ onboardBottomArea:{paddingHorizontal:24,paddingBottom:Platform.OS==='web'?30:44,paddingTop:16,zIndex:10,backgroundColor:'#f0f4e9'},
+ onboardTagPill:{backgroundColor:'#e2ecd2',alignSelf:'flex-start',paddingHorizontal:10,paddingVertical:4,borderRadius:8,marginBottom:10},
  onboardTagText:{fontSize:11,fontWeight:'800',color:'#2d581e',letterSpacing:0.8,textTransform:'uppercase'},
- onboardTitle:{fontSize:25,fontWeight:'900',color:C.ink,letterSpacing:-0.7,lineHeight:31,marginBottom:8},
- onboardDesc:{fontSize:13,color:C.muted,lineHeight:20,marginBottom:18},
- onboardDotsRow:{flexDirection:'row',alignItems:'center',gap:6,marginBottom:18},
- onboardDot:{width:8,height:8,borderRadius:4,backgroundColor:'#dce4d2'},
- onboardDotActive:{width:26,borderRadius:13,backgroundColor:C.forest},
- onboardLoginLink:{paddingVertical:12,alignItems:'center',marginTop:4},
- onboardLoginLinkText:{fontSize:13,color:C.muted},
+ onboardFullTitle:{fontSize:30,fontWeight:'900',color:C.ink,letterSpacing:-0.9,lineHeight:36,marginBottom:8},
+ onboardFullDesc:{fontSize:13.5,color:C.muted,lineHeight:20,marginBottom:20},
+ onboardDotsRow:{flexDirection:'row',alignItems:'center',gap:6,marginBottom:20},
+ onboardDot:{width:7,height:7,borderRadius:4,backgroundColor:'#ccd6bf'},
+ onboardDotActive:{width:28,borderRadius:4,backgroundColor:C.forest},
  onboardReplayChip:{flexDirection:'row',alignItems:'center',gap:5,backgroundColor:'#eaf2de',paddingHorizontal:10,paddingVertical:6,borderRadius:12,marginRight:8},
  onboardReplayChipText:{fontSize:11,fontWeight:'700',color:C.forest},
  demoKycRow:{flexDirection:'row',gap:8,marginBottom:14},
