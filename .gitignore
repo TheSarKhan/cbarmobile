@@ -39,3 +39,15 @@ yarn-error.*
 # generated native folders
 /ios
 /android
+
+# Release credentials and build outputs
+.env
+.env.*
+.signing/
+*.apk
+*.apk.sha256
+*.idsig
+
+# MediaPipe WASM runtime is copied from node_modules by scripts/copy-mediapipe.js
+/public/mediapipe/wasm/
+/public/mediapipe/vision_bundle.mjs

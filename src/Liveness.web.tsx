@@ -1,9 +1,9 @@
 import React,{useEffect,useRef,useState} from 'react';
 import {ActivityIndicator,Text,View} from 'react-native';
+import type {FaceLandmarker} from '@mediapipe/tasks-vision';
 import {Button,C,S} from './ui';
 import {ACTION_TEXT} from './livenessTypes';
 import type {LivenessProps} from './livenessTypes';
-type FaceLandmarker = any;
 
 // Thresholds are tuned by eye; keep them together so they are easy to adjust after real-face testing.
 const STEP_SECONDS=10;       // time allowed per action
@@ -17,7 +17,7 @@ const FRONTAL_FRAMES=10;
 const MAX_WIDTH=640;
 
 // Metro rejects the library's own dynamic import(), so the browser loads it from /public (copied by scripts/copy-mediapipe.js).
-const importModule=new Function('url','return import(url)') as (url:string)=>Promise<any>;
+const importModule=new Function('url','return import(url)') as (url:string)=>Promise<typeof import('@mediapipe/tasks-vision')>;
 
 type Pose={ratio:number;blink:number;smile:number};
 

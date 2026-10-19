@@ -1,11 +1,11 @@
 import React,{useState,useEffect} from 'react';
 import {View,Text,Pressable,StyleSheet,ActivityIndicator,Animated,Easing,Image} from 'react-native';
-import {C,S,CARD_IMAGES,useApp,fmtDate,fmtDateTime,statusLabel,statusTone,Icon,Button,Field,Check,Badge,Box,Empty,Sheet,Tx} from './ui';
+import {C,S,CARD_IMAGES,useApp,fmtDate,fmtDateTime,statusLabel,statusTone,Icon,Button,Field,Check,Badge,Box,Empty,Sheet,Tx,EXPENSE_CATEGORIES} from './ui';
 import {CardTransferForm} from './CardTransferSheet';
 import {CardsSection,CreditSection,CryptoSection} from './HubSections';
+import {BanksSection} from './BanksSection';
 import {minor,money,Row} from './api';
 
-const CATEGORIES=['Yemək','Abunəliklər','Köçürmələr','Nəqliyyat','Əyləncə'];
 
 export function Operations({sheet,close,hidden=false}:{sheet:string;close:()=>void;hidden?:boolean}){
  const a=useApp();
@@ -62,6 +62,7 @@ export function Operations({sheet,close,hidden=false}:{sheet:string;close:()=>vo
   notifications:'Bildirişlər',
   history:'Əməliyyat tarixçəsi',
   'tx-detail':'Əməliyyat detalları',
+  'banks-hub':'Digər banklar',
   'card-transfer':'Karta köçürmə',
   split:'Hesabı böl',
   'split-view':'Hesabın irəliləyişi',
@@ -105,7 +106,7 @@ export function Operations({sheet,close,hidden=false}:{sheet:string;close:()=>vo
   ?'lnbc1kampus'+String(a.data.user?.id||'u1').toLowerCase()+'p994azn'
   :'bc1qkampus'+String(a.data.user?.id||'u1').toLowerCase()+'segwit994';
 
- const txItem=kind==='tx-detail'?(a.data.transactions||[]).find((x:Row)=>String(x.id)===paramId):null;
+ const txItem=kind==='tx-detail'?[...(a.data.transactions||[]),...(a.external||[])].find((x:Row)=>String(x.id)===paramId):null;
 
  return (
   <Sheet title={title[kind]||'Kampus'} visible={!!sheet&&(!hidden||kind==='card-transfer')} onClose={close}>
@@ -114,6 +115,7 @@ export function Operations({sheet,close,hidden=false}:{sheet:string;close:()=>vo
    {kind==='cards-hub'&&<CardsSection/>}
    {kind==='credit-hub'&&<CreditSection/>}
    {kind==='crypto-hub'&&<CryptoSection/>}
+   {kind==='banks-hub'&&<BanksSection/>}
 
    {kind==='my-qr'&&(
     <>
@@ -137,7 +139,7 @@ export function Operations({sheet,close,hidden=false}:{sheet:string;close:()=>vo
       <Box style={{alignItems:'center',paddingVertical:22}}>
        <View style={[S.tile,{width:56,height:56,borderRadius:20,backgroundColor:txItem.direction==='IN'?'#e7f4d7':'#eef2e6',marginBottom:12}]}>
         <Icon
-         name={txItem.type==='QR'?'cafe-outline':txItem.type==='CRYPTO'?'logo-bitcoin':txItem.direction==='IN'?'arrow-down-outline':'arrow-up-outline'}
+         name={txItem.source==='OPEN_BANKING'?'business-outline':txItem.type==='QR'?'cafe-outline':txItem.type==='CRYPTO'?'logo-bitcoin':txItem.direction==='IN'?'arrow-down-outline':'arrow-up-outline'}
          color={txItem.direction==='IN'?C.green:C.ink}
          size={26}
         />
@@ -154,16 +156,24 @@ export function Operations({sheet,close,hidden=false}:{sheet:string;close:()=>vo
        <Text style={[S.label,{marginBottom:10}]}>ƏMƏLİYYAT MƏLUMATLARI</Text>
        <View style={[S.between,{marginBottom:8}]}>
         <Text style={S.muted}>Növ</Text>
-        <Text style={S.h3}>{txItem.type||'ÖDƏNİŞ'}</Text>
+        <Text style={S.h3}>{txItem.source==='OPEN_BANKING'?'DİGƏR BANK':(txItem.type||'ÖDƏNİŞ')}</Text>
        </View>
+       {txItem.source==='OPEN_BANKING'&&(
+        <View style={[S.between,{marginBottom:8}]}>
+         <Text style={S.muted}>Bank</Text>
+         <Text style={S.h3}>{txItem.bankName}</Text>
+        </View>
+       )}
        <View style={[S.between,{marginBottom:8}]}>
         <Text style={S.muted}>Kateqoriya</Text>
         <Text style={S.h3}>{txItem.category||'Digər'}</Text>
        </View>
-       <View style={[S.between,{marginBottom:8}]}>
-        <Text style={S.muted}>Komissiya</Text>
-        <Text style={S.h3}>0.00 ₼</Text>
-       </View>
+       {txItem.source!=='OPEN_BANKING'&&(
+        <View style={[S.between,{marginBottom:8}]}>
+         <Text style={S.muted}>Komissiya</Text>
+         <Text style={S.h3}>0.00 ₼</Text>
+        </View>
+       )}
        <View style={S.between}>
         <Text style={S.muted}>Əməliyyat kodu</Text>
         <Text style={[S.muted,{fontWeight:'700',color:C.ink}]}>#{String(txItem.id).slice(0,12)}</Text>
@@ -173,7 +183,7 @@ export function Operations({sheet,close,hidden=false}:{sheet:string;close:()=>vo
       <Box>
        <Text style={[S.label,{marginBottom:10}]}>KATEQORİYANI DƏYİŞ</Text>
        <View style={{flexDirection:'row',flexWrap:'wrap',gap:8}}>
-        {CATEGORIES.map(c=>(
+        {EXPENSE_CATEGORIES.map(c=>(
          <Pressable
           key={c}
           accessibilityRole="button"
