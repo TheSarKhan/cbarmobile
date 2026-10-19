@@ -786,23 +786,20 @@ const ONBOARDING_SLIDES = [
  {
   key: 'wallet',
   image: CARD_IMAGES.onboarding1,
-  tag: 'SÜRƏTLİ & 0% KOMİSSİYA',
   title: 'Tələbələr üçün\nrəqəmsal cüzdan',
-  desc: 'Kampusda və şəhərdə 0% komissiya ilə dərhal P2P köçürmələr və təmassız EMVCo QR ödənişləri.'
+  desc: '0% komissiya ilə dərhal P2P köçürmələr və təmassız QR ödənişləri.'
  },
  {
   key: 'cards',
   image: CARD_IMAGES.onboarding2,
-  tag: 'ABUNƏLİKLƏRDƏ 0 RİSK',
   title: 'Satıcıya kilidli\nvirtual kartlar',
-  desc: 'Yalnız seçdiyin xidmətdə işləyən kartlar. Abunəlik fırıldaqlarına və icazəsiz kart çıxılmalarına birdəfəlik son!'
+  desc: 'Yalnız seçdiyin xidmətdə işləyən kartlarla abunəliklərini təhlükəsiz saxla.'
  },
  {
   key: 'split',
   image: CARD_IMAGES.onboarding3,
-  tag: 'DOSTLARLA BİRGƏ & DƏSTƏK',
   title: 'Hesabı böl və\nSonra ödə',
-  desc: 'Kafedə hesabı dostlarla saniyələr içində bölüşdür. Ehtiyac olduqda isə 50 ₼-dək faizsiz Sonra ödə ilə rahat xərclə.'
+  desc: 'Hesabı dostlarla dərhal bölüşdür və faizsiz Sonra ödə imkanından faydalan.'
  }
 ];
 
@@ -1025,8 +1022,8 @@ export default function App(){
      <View style={styles.onboardFullScreen}>
       <Image
        source={ONBOARDING_SLIDES[onboardIndex].image}
-       style={styles.onboardFullImage}
-       resizeMode="contain"
+       style={StyleSheet.absoluteFill}
+       resizeMode="cover"
       />
 
       <SafeAreaView edges={['top']} style={styles.onboardTopBarFloating}>
@@ -1044,14 +1041,14 @@ export default function App(){
         style={styles.onboardSkipFloatingBtn}
        >
         <Text style={styles.onboardSkipText}>Ötür</Text>
-        <Icon name="arrow-forward" size={13} color={C.ink}/>
        </Pressable>
       </SafeAreaView>
 
-      <View style={styles.onboardBottomArea}>
-       <View style={styles.onboardTagPill}>
-        <Text style={styles.onboardTagText}>{ONBOARDING_SLIDES[onboardIndex].tag}</Text>
-       </View>
+      <LinearGradient
+       colors={['rgba(240,244,233,0)', 'rgba(240,244,233,0.45)', 'rgba(240,244,233,0.92)', '#f0f4e9']}
+       locations={[0, 0.2, 0.55, 1]}
+       style={styles.onboardBottomArea}
+      >
        <Text style={styles.onboardFullTitle}>{ONBOARDING_SLIDES[onboardIndex].title}</Text>
        <Text style={styles.onboardFullDesc}>{ONBOARDING_SLIDES[onboardIndex].desc}</Text>
 
@@ -1068,14 +1065,13 @@ export default function App(){
 
        {onboardIndex<2?(
         <Button
-         title="İrəli →"
+         title="İrəli"
          onPress={()=>setOnboardIndex(i=>Math.min(2,i+1))}
         />
        ):(
         <View style={{gap:10}}>
          <Button
-          title="Başla 🚀"
-          icon="arrow-forward"
+          title="Başla"
           onPress={()=>{
            storage.set('onboarding_done','true');
            setShowOnboarding(false);
@@ -1096,7 +1092,7 @@ export default function App(){
          />
         </View>
        )}
-      </View>
+      </LinearGradient>
      </View>
     ):(
      <SafeAreaView style={S.page}>
@@ -1207,7 +1203,7 @@ export default function App(){
           />
           <View style={{marginTop:8}}>
            <Button
-            title="✨ Tətbiqin imkanları (3D Slaydlar)"
+            title="Tətbiqin imkanları (Slaydlar)"
             secondary
             onPress={()=>{
              setShowOnboarding(true);
@@ -1475,7 +1471,7 @@ export default function App(){
    {Platform.OS==='web'&&winWidth>500?(
     <View style={styles.webBackdrop}>
      <View style={styles.webToolbar}>
-      <Text style={{color:'#c8d6c1',fontSize:12,fontWeight:'600'}}>📱 Kampus Mobil Simulyator (393 × 852)</Text>
+      <Text style={{color:'#c8d6c1',fontSize:12,fontWeight:'600'}}>Kampus Mobil Simulyator (393 × 852)</Text>
       <Pressable onPress={()=>setPhoneFrame(!phoneFrame)} style={styles.frameToggleBtn}>
        <Icon name={phoneFrame?'expand-outline':'phone-portrait-outline'} size={15} color={C.ink}/>
        <Text style={{fontSize:11,fontWeight:'700',color:C.ink}}>{phoneFrame?'Tam ekran':'Telefon çərçivəsi'}</Text>
@@ -1588,15 +1584,12 @@ const styles=StyleSheet.create({
  simaOneTapCardActive:{backgroundColor:'#eef6e2',borderColor:C.ink},
  simaOneTapImg:{width:52,height:52,borderRadius:14},
  onboardFullScreen:{flex:1,backgroundColor:'#f0f4e9',justifyContent:'space-between',position:'relative',overflow:'hidden'},
- onboardFullImage:{position:'absolute',top:20,left:0,right:0,width:'100%',height:'58%',alignSelf:'center'},
- onboardTopBarFloating:{flexDirection:'row',alignItems:'center',justifyContent:'space-between',paddingHorizontal:22,paddingTop:Platform.OS==='web'?16:10,zIndex:10},
- onboardSkipFloatingBtn:{flexDirection:'row',alignItems:'center',gap:4,backgroundColor:'rgba(255,255,255,0.85)',paddingHorizontal:14,paddingVertical:7,borderRadius:999,borderWidth:1,borderColor:'rgba(215,224,208,0.7)'},
- onboardSkipText:{fontSize:12,fontWeight:'800',color:C.ink},
- onboardBottomArea:{paddingHorizontal:24,paddingBottom:Platform.OS==='web'?30:44,paddingTop:16,zIndex:10,backgroundColor:'#f0f4e9'},
- onboardTagPill:{backgroundColor:'#e2ecd2',alignSelf:'flex-start',paddingHorizontal:10,paddingVertical:4,borderRadius:8,marginBottom:10},
- onboardTagText:{fontSize:11,fontWeight:'800',color:'#2d581e',letterSpacing:0.8,textTransform:'uppercase'},
- onboardFullTitle:{fontSize:30,fontWeight:'900',color:C.ink,letterSpacing:-0.9,lineHeight:36,marginBottom:8},
- onboardFullDesc:{fontSize:13.5,color:C.muted,lineHeight:20,marginBottom:20},
+ onboardTopBarFloating:{flexDirection:'row',alignItems:'center',justifyContent:'space-between',paddingHorizontal:24,paddingTop:Platform.OS==='web'?16:10,zIndex:10},
+ onboardSkipFloatingBtn:{backgroundColor:'rgba(255,255,255,0.85)',paddingHorizontal:16,paddingVertical:7,borderRadius:999,borderWidth:1,borderColor:'rgba(215,224,208,0.7)'},
+ onboardSkipText:{fontSize:12,fontWeight:'700',color:C.ink},
+ onboardBottomArea:{paddingHorizontal:24,paddingBottom:Platform.OS==='web'?28:40,paddingTop:36,zIndex:10,backgroundColor:'transparent'},
+ onboardFullTitle:{fontSize:32,fontWeight:'900',color:C.ink,letterSpacing:-1,lineHeight:38,marginBottom:8},
+ onboardFullDesc:{fontSize:14,color:C.muted,lineHeight:21,marginBottom:20},
  onboardDotsRow:{flexDirection:'row',alignItems:'center',gap:6,marginBottom:20},
  onboardDot:{width:7,height:7,borderRadius:4,backgroundColor:'#ccd6bf'},
  onboardDotActive:{width:28,borderRadius:4,backgroundColor:C.forest},
