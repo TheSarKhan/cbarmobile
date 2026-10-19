@@ -782,6 +782,30 @@ function CustomTabBar({state,descriptors,navigation}:any){
  );
 }
 
+const ONBOARDING_SLIDES = [
+ {
+  key: 'wallet',
+  image: CARD_IMAGES.onboarding1,
+  tag: 'SÜRƏTLİ & 0% KOMİSSİYA',
+  title: 'Tələbələr üçün\nrəqəmsal cüzdan',
+  desc: 'Kampusda və şəhərdə 0% komissiya ilə dərhal P2P köçürmələr və təmassız EMVCo QR ödənişləri.'
+ },
+ {
+  key: 'cards',
+  image: CARD_IMAGES.onboarding2,
+  tag: 'ABUNƏLİKLƏRDƏ 0 RİSK',
+  title: 'Satıcıya kilidli\nvirtual kartlar',
+  desc: 'Yalnız seçdiyin xidmətdə işləyən kartlar. Abunəlik fırıldaqlarına və icazəsiz kart çıxılmalarına birdəfəlik son!'
+ },
+ {
+  key: 'split',
+  image: CARD_IMAGES.onboarding3,
+  tag: 'DOSTLARLA BİRGƏ & DƏSTƏK',
+  title: 'Hesabı böl və\nSonra ödə',
+  desc: 'Kafedə hesabı dostlarla saniyələr içində bölüşdür. Ehtiyac olduqda isə 50 ₼-dək faizsiz Sonra ödə ilə rahat xərclə.'
+ }
+];
+
 export default function App(){
  const {width:winWidth,height:winHeight}=useWindowDimensions();
  const [phoneFrame,setPhoneFrame]=useState(true);
@@ -798,6 +822,10 @@ export default function App(){
   [scaPin,setScaPin]=useState(''),
   [phone,setPhone]=useState('+994501000001'),
   [pin,setPin]=useState(process.env.EXPO_PUBLIC_DEPLOYED==='true'?'':'123456'),
+  [showOnboarding,setShowOnboarding]=useState(true),
+  [onboardIndex,setOnboardIndex]=useState(0),
+  [regStep,setRegStep]=useState<1|2|3>(1),
+  [docNumber,setDocNumber]=useState('AZE12345678'),
   [signup,setSignup]=useState(false),
   [otp,setOtp]=useState<Row|null>(null),
   [code,setCode]=useState(''),
@@ -818,6 +846,7 @@ export default function App(){
   setSheet('');
   setError('');
   storage.remove('token');
+   setShowOnboarding(false);
  },[base,token,device]);
 
  useEffect(()=>{
@@ -852,7 +881,13 @@ export default function App(){
     }
     setBase(candidate);
     const saved=await storage.get('token');
-    if(saved)setToken(saved);
+    if(saved){
+     setToken(saved);
+     setShowOnboarding(false);
+    }else{
+     const seen=await storage.get('onboarding_done');
+     setShowOnboarding(seen!=='true');
+    }
    }finally{setBoot(false);}
   })();
  },[]);
@@ -929,7 +964,13 @@ export default function App(){
  async function register(){
   setBusy(true);setError('');
   try{
-   if(!otp){const r=await request(base,'',device,'auth/otp',{phone});setOtp(r);setCode(r.demoCode);return;}
+   if(!otp){
+    const r=await request(base,'',device,'auth/otp',{phone});
+    setOtp(r);
+    setCode(r.demoCode);
+    setRegStep(3);
+    return;
+   }
    const r=await request(base,'',device,'auth/register',{
     otpId:otp.id||otp.otpId,
     otp:code,
@@ -949,6 +990,8 @@ export default function App(){
    setToken(r.accessToken);
    setPin('');
    setSignup(false);
+   setShowOnboarding(false);
+   await storage.set('onboarding_done','true');
    setOtp(null);
   }catch(e){setError((e as Error).message);}
   finally{setBusy(false);}
@@ -985,217 +1028,369 @@ export default function App(){
       showsVerticalScrollIndicator={false}
       contentContainerStyle={[S.content,{flexGrow:1,paddingTop:14,paddingBottom:28}]}
      >
-      <View style={[S.between,{marginBottom:14}]}>
-       <Text style={[styles.wordmark,{fontSize:27}]}>kampus<Text style={{color:'#9bc26b'}}>.</Text></Text>
-       <View style={S.row}>
-        <Badge text="DEMO"/>
-        <Pressable
-         accessibilityRole="button"
-         accessibilityLabel="API bağlantısını tənzimlə"
-         onPress={()=>setShowConfig(true)}
-         style={styles.authGearBtn}
-        >
-         <Icon name="options-outline" size={19} color={C.ink}/>
-        </Pressable>
-       </View>
-      </View>
-
-      <View style={styles.authHeroCard}>
-       <Image source={CARD_IMAGES.authHero} style={styles.authHeroImg} resizeMode="cover"/>
-       <View style={styles.authHeroContent}>
-        <Text style={styles.authHeroTitle}>
-         {signup?'Rəqəmsal tələbə hesabın':'Pulun da səninlə olsun'}
-        </Text>
-        <Text style={styles.authHeroSub}>
-         {signup
-          ?'SİMA və eKYC ilə saniyələr içində hesab aç, dərhal istifadəyə başla.'
-          :'Komissiyasız köçürmə, 0% Sonra ödə və virtual kartlar tək tətbiqdə.'}
-        </Text>
-       </View>
-      </View>
-
-      <View style={styles.authVisualRow}>
-       <View style={styles.authVisualMiniCard}>
-        <Image source={CARD_IMAGES.credit} style={styles.authVisualMiniImg} resizeMode="cover"/>
-        <Text style={styles.authVisualMiniTitle}>0% Sonra ödə</Text>
-        <Text style={styles.authVisualMiniSub}>1 500 ₼-dək</Text>
-       </View>
-       <View style={styles.authVisualMiniCard}>
-        <Image source={CARD_IMAGES.virtualCard} style={styles.authVisualMiniImg} resizeMode="cover"/>
-        <Text style={styles.authVisualMiniTitle}>Virtual kart</Text>
-        <Text style={styles.authVisualMiniSub}>Ani rəqəmsal</Text>
-       </View>
-       <View style={styles.authVisualMiniCard}>
-        <Image source={CARD_IMAGES.split} style={styles.authVisualMiniImg} resizeMode="cover"/>
-        <Text style={styles.authVisualMiniTitle}>Hesabı böl</Text>
-        <Text style={styles.authVisualMiniSub}>Dostlarla 50/50</Text>
-       </View>
-      </View>
-
-      <View style={styles.authSegmentWrap}>
-       <Pressable
-        accessibilityRole="button"
-        onPress={()=>{setSignup(false);setOtp(null);setError('');}}
-        style={[styles.authSegmentBtn,!signup&&styles.authSegmentBtnActive]}
-       >
-        <Text style={[styles.authSegmentText,!signup&&styles.authSegmentTextActive]}>Daxil ol</Text>
-       </Pressable>
-       <Pressable
-        accessibilityRole="button"
-        onPress={()=>{setSignup(true);setOtp(null);setError('');}}
-        style={[styles.authSegmentBtn,signup&&styles.authSegmentBtnActive]}
-       >
-        <Text style={[styles.authSegmentText,signup&&styles.authSegmentTextActive]}>Yeni hesab</Text>
-       </Pressable>
-      </View>
-
-      {error&&<View style={S.error}><Text style={S.errorText}>{error}</Text></View>}
-
-      {!signup?(
-       <View style={styles.authFormCard}>
-        <Text style={[S.label,{marginBottom:10}]}>TƏLƏBƏ HESABINI SEÇ (1 TOXUNUŞLA)</Text>
-        <View style={styles.demoPeopleRow}>
-         {([
-          ['Aytən','+994501000001','I kurs',CARD_IMAGES.credit],
-          ['Murad','+994501000002','III kurs',CARD_IMAGES.virtualCard],
-          ['Leyla','+994501000003','Magistr',CARD_IMAGES.split]
-         ] as const).map(([n,p,role,img])=>{
-          const active=phone===p;
-          return (
-           <Pressable
-            key={p}
-            accessibilityRole="button"
-            onPress={()=>{setPhone(p);setPin(process.env.EXPO_PUBLIC_DEPLOYED==='true'?'':'123456');setError('');}}
-            style={[styles.demoPersonCard,active&&styles.demoPersonCardActive]}
-           >
-            <Image source={img} style={styles.demoPersonBgImg} resizeMode="cover"/>
-            <View style={S.between}>
-             <View style={[styles.demoPersonAvatar,active&&{backgroundColor:C.lime}]}>
-              <Text style={[styles.demoPersonAvatarText,active&&{color:C.ink}]}>{n[0]}</Text>
-             </View>
-             <Icon
-              name={active?'checkmark-circle':'ellipse-outline'}
-              size={18}
-              color={active?C.ink:C.muted}
-             />
-            </View>
-            <Text style={styles.demoPersonName}>{n}</Text>
-            <Text style={styles.demoPersonSub} numberOfLines={1}>{role}</Text>
-           </Pressable>
-          );
-         })}
+      {showOnboarding?(
+       <View style={styles.onboardWrapper}>
+        <View style={styles.onboardTopBar}>
+         <Text style={[styles.wordmark,{fontSize:24}]}>kampus<Text style={{color:'#9bc26b'}}>.</Text></Text>
+         <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="Tanışlığı ötür"
+          onPress={()=>{
+           storage.set('onboarding_done','true');
+           setShowOnboarding(false);
+           setSignup(true);
+           setRegStep(1);
+           setError('');
+          }}
+          style={styles.onboardSkipBtn}
+         >
+          <Text style={styles.onboardSkipText}>Ötür</Text>
+          <Icon name="arrow-forward" size={14} color={C.ink}/>
+         </Pressable>
         </View>
 
-        <View style={[S.line,{marginVertical:14}]}/>
+        <View style={styles.onboardHeroCard}>
+         <Image source={ONBOARDING_SLIDES[onboardIndex].image} style={styles.onboardHeroImg} resizeMode="contain"/>
+        </View>
 
-        <Field label="Telefon nömrəsi" value={phone} onChange={setPhone} placeholder="+994501000001"/>
-        <Field label="6 rəqəmli PIN" value={pin} onChange={setPin} secure numeric placeholder="••••••"/>
-        <Button
-         title={busy?'Daxil olunur…':'Daxil ol'}
-         icon="arrow-forward"
-         disabled={busy}
-         onPress={login}
-        />
+        <View style={styles.onboardContentCard}>
+         <View style={styles.onboardTagPill}>
+          <Text style={styles.onboardTagText}>{ONBOARDING_SLIDES[onboardIndex].tag}</Text>
+         </View>
+         <Text style={styles.onboardTitle}>{ONBOARDING_SLIDES[onboardIndex].title}</Text>
+         <Text style={styles.onboardDesc}>{ONBOARDING_SLIDES[onboardIndex].desc}</Text>
+
+         <View style={styles.onboardDotsRow}>
+          {ONBOARDING_SLIDES.map((_,i)=>(
+           <Pressable
+            key={i}
+            accessibilityRole="button"
+            onPress={()=>setOnboardIndex(i)}
+            style={[styles.onboardDot,onboardIndex===i&&styles.onboardDotActive]}
+           />
+          ))}
+         </View>
+
+         {onboardIndex<2?(
+          <View style={{flexDirection:'row',gap:10}}>
+           {onboardIndex>0&&(
+            <View style={{flex:1}}>
+             <Button
+              title="Geri"
+              secondary
+              onPress={()=>setOnboardIndex(i=>Math.max(0,i-1))}
+             />
+            </View>
+           )}
+           <View style={{flex:onboardIndex>0?2:1}}>
+            <Button
+             title="Növbəti →"
+             onPress={()=>setOnboardIndex(i=>Math.min(2,i+1))}
+            />
+           </View>
+          </View>
+         ):(
+          <Button
+           title="Başla 🚀"
+           icon="arrow-forward"
+           onPress={()=>{
+            storage.set('onboarding_done','true');
+            setShowOnboarding(false);
+            setSignup(true);
+            setRegStep(1);
+            setError('');
+           }}
+          />
+         )}
+
+         <Pressable
+          accessibilityRole="button"
+          onPress={()=>{
+           storage.set('onboarding_done','true');
+           setShowOnboarding(false);
+           setSignup(false);
+           setError('');
+          }}
+          style={styles.onboardLoginLink}
+         >
+          <Text style={styles.onboardLoginLinkText}>
+           Artıq hesabın var? <Text style={{fontWeight:'800',color:C.ink}}>Daxil ol</Text>
+          </Text>
+         </Pressable>
+        </View>
        </View>
       ):(
        <>
-        {!otp?(
+        <View style={[S.between,{marginBottom:14}]}>
+         <Text style={[styles.wordmark,{fontSize:27}]}>kampus<Text style={{color:'#9bc26b'}}>.</Text></Text>
+         <View style={S.row}>
+          <Pressable
+           accessibilityRole="button"
+           onPress={()=>{setShowOnboarding(true);setOnboardIndex(0);setError('');}}
+           style={styles.onboardReplayChip}
+          >
+           <Icon name="sparkles-outline" size={13} color={C.forest}/>
+           <Text style={styles.onboardReplayChipText}>Slaydlar</Text>
+          </Pressable>
+          <Pressable
+           accessibilityRole="button"
+           accessibilityLabel="API bağlantısını tənzimlə"
+           onPress={()=>setShowConfig(true)}
+           style={styles.authGearBtn}
+          >
+           <Icon name="options-outline" size={19} color={C.ink}/>
+          </Pressable>
+         </View>
+        </View>
+
+        <View style={styles.authHeroCard}>
+         <Image source={CARD_IMAGES.authHero} style={styles.authHeroImg} resizeMode="cover"/>
+         <View style={styles.authHeroContent}>
+          <Text style={styles.authHeroTitle}>
+           {signup?'Rəqəmsal tələbə hesabın':'Pulun da səninlə olsun'}
+          </Text>
+          <Text style={styles.authHeroSub}>
+           {signup
+            ?'SİMA və eKYC ilə saniyələr içində hesab aç, dərhal istifadəyə başla.'
+            :'Komissiyasız köçürmə, 0% Sonra ödə və virtual kartlar tək tətbiqdə.'}
+          </Text>
+         </View>
+        </View>
+
+        <View style={styles.authSegmentWrap}>
+         <Pressable
+          accessibilityRole="button"
+          onPress={()=>{setSignup(false);setOtp(null);setError('');}}
+          style={[styles.authSegmentBtn,!signup&&styles.authSegmentBtnActive]}
+         >
+          <Text style={[styles.authSegmentText,!signup&&styles.authSegmentTextActive]}>Daxil ol</Text>
+         </Pressable>
+         <Pressable
+          accessibilityRole="button"
+          onPress={()=>{setSignup(true);setRegStep(1);setOtp(null);setError('');}}
+          style={[styles.authSegmentBtn,signup&&styles.authSegmentBtnActive]}
+         >
+          <Text style={[styles.authSegmentText,signup&&styles.authSegmentTextActive]}>Yeni hesab</Text>
+         </Pressable>
+        </View>
+
+        {error&&<View style={S.error}><Text style={S.errorText}>{error}</Text></View>}
+
+        {!signup?(
          <View style={styles.authFormCard}>
-          <View style={styles.signupStepHeader}>
-           <View style={{flex:1,paddingRight:10}}>
-            <Badge text="ADDIM 1 / 2" tone="success"/>
-            <Text style={[S.h2,{marginTop:8}]}>Nömrəni daxil et</Text>
-            <Text style={[S.muted,{marginTop:4}]}>
-             Yalnız mobil nömrə kifayətdir — kimlik məlumatları SİMA-dan avtomatik gələcək.
-            </Text>
-           </View>
-           <Image source={CARD_IMAGES.topupCard} style={styles.signupStepImg} resizeMode="cover"/>
+          <Text style={[S.label,{marginBottom:10}]}>TƏLƏBƏ HESABINI SEÇ (1 TOXUNUŞLA)</Text>
+          <View style={styles.demoPeopleRow}>
+           {([
+            ['Aytən','+994501000001','I kurs',CARD_IMAGES.credit],
+            ['Murad','+994501000002','III kurs',CARD_IMAGES.virtualCard],
+            ['Leyla','+994501000003','Magistr',CARD_IMAGES.split]
+           ] as const).map(([n,p,role,img])=>{
+            const active=phone===p;
+            return (
+             <Pressable
+              key={p}
+              accessibilityRole="button"
+              onPress={()=>{setPhone(p);setPin(process.env.EXPO_PUBLIC_DEPLOYED==='true'?'145434':'123456');setError('');}}
+              style={[styles.demoPersonCard,active&&styles.demoPersonCardActive]}
+             >
+              <Image source={img} style={styles.demoPersonBgImg} resizeMode="cover"/>
+              <View style={S.between}>
+               <View style={[styles.demoPersonAvatar,active&&{backgroundColor:C.lime}]}>
+                <Text style={[styles.demoPersonAvatarText,active&&{color:C.ink}]}>{n[0]}</Text>
+               </View>
+               <Icon
+                name={active?'checkmark-circle':'ellipse-outline'}
+                size={18}
+                color={active?C.ink:C.muted}
+               />
+              </View>
+              <Text style={styles.demoPersonName}>{n}</Text>
+              <Text style={styles.demoPersonSub} numberOfLines={1}>{role}</Text>
+             </Pressable>
+            );
+           })}
           </View>
 
+          <View style={[S.line,{marginVertical:14}]}/>
+
           <Field label="Telefon nömrəsi" value={phone} onChange={setPhone} placeholder="+994501000001"/>
+          <Field label="6 rəqəmli PIN" value={pin} onChange={setPin} secure numeric placeholder="••••••"/>
           <Button
-           title={busy?'Göndərilir…':'SMS kodu al'}
-           icon="chatbubble-ellipses-outline"
+           title={busy?'Daxil olunur…':'Daxil ol'}
+           icon="arrow-forward"
            disabled={busy}
-           onPress={register}
+           onPress={login}
           />
          </View>
         ):(
-         <View style={styles.authFormCard}>
-          <View style={styles.signupStepHeader}>
-           <View style={{flex:1,paddingRight:10}}>
-            <Badge text="SMS + EKYC SİMULYASİYASI" tone="success"/>
-            <Text style={[S.h3,{marginTop:8}]}>SMS kod ({otp.demoCode}) təsdiqləndi</Text>
-            <Text style={[S.muted,{marginTop:4,fontSize:11}]}>
-             SİMA FİN: {fin} · Doğum: {birth}
-            </Text>
-           </View>
-           <Image source={CARD_IMAGES.topupBank} style={styles.signupStepImg} resizeMode="cover"/>
-          </View>
+         <>
+          {regStep===1&&(
+           <View style={styles.authFormCard}>
+            <View style={styles.signupStepHeader}>
+             <View style={{flex:1,paddingRight:10}}>
+              <Badge text="ADDIM 1 / 3 · ŞƏXSİYYƏT VƏ FİN" tone="success"/>
+              <Text style={[S.h2,{marginTop:8}]}>FİN və ŞV seriyası</Text>
+              <Text style={[S.muted,{marginTop:4,fontSize:12}]}>
+               Mərkəzi Bankın məsafədən eKYC yoxlaması tələbinə uyğun olaraq şəxsiyyət vəsiqəsi məlumatlarını daxil edin.
+              </Text>
+             </View>
+             <Image source={CARD_IMAGES.onboarding1} style={styles.signupStepImg} resizeMode="contain"/>
+            </View>
 
-          <Field label="Ad və soyad" value={name} onChange={setName} placeholder="Məsələn, Əli Vəliyev"/>
-          <Field label="6 rəqəmli PIN təyin et" value={pin} onChange={setPin} secure numeric placeholder="••••••"/>
+            <Field label="FİN kod (7 simvol)" value={fin} onChange={v=>setFin(v.toUpperCase().trim())} placeholder="Məsələn: 7AZ9999"/>
+            <Field label="ŞV seriya və nömrəsi" value={docNumber} onChange={setDocNumber} placeholder="Məsələn: AZE12345678 və ya AA1234567"/>
+            <Field label="Doğum tarixi · YYYY-MM-DD" value={birth} onChange={setBirth} placeholder="2003-03-15"/>
 
-          <Pressable
-           accessibilityRole="button"
-           onPress={()=>{
-            const next=!(livenessDone&&simaSigned&&consent);
-            setLivenessDone(next);
-            setSimaSigned(next);
-            setConsent(next);
-           }}
-           style={[
-            styles.simaOneTapCard,
-            livenessDone&&simaSigned&&consent&&styles.simaOneTapCardActive
-           ]}
-          >
-           <Image source={CARD_IMAGES.topupTerminal} style={styles.simaOneTapImg} resizeMode="cover"/>
-           <View style={{flex:1}}>
-            <Text style={{fontSize:13,fontWeight:'800',color:C.ink}}>
-             SİMA İmza və Canlılıq təsdiqi
-            </Text>
-            <Text style={{fontSize:11,color:C.muted,marginTop:2,lineHeight:16}}>
-             Demo canlılıq addımını, SİMA elektron imzanı və xidmət şərtlərini təsdiqləyirəm (kamera və ML Kit yoxlaması aparılmır).
-            </Text>
-           </View>
-           <Icon
-            name={livenessDone&&simaSigned&&consent?'checkmark-circle':'ellipse-outline'}
-            size={24}
-            color={livenessDone&&simaSigned&&consent?C.ink:C.muted}
-           />
-          </Pressable>
+            <View style={styles.demoKycRow}>
+             <Pressable
+              accessibilityRole="button"
+              onPress={()=>{setFin('7AZ9999');setDocNumber('AZE12345678');setBirth('2003-03-15');setName('Aysel Məmmədova');}}
+              style={styles.demoKycChip}
+             >
+              <Text style={styles.demoKycChipText}>Aysel (7AZ9999)</Text>
+             </Pressable>
+             <Pressable
+              accessibilityRole="button"
+              onPress={()=>{setFin('17YASLI');setDocNumber('AZE87654321');setBirth('2005-06-20');setName('Murad Əliyev');}}
+              style={styles.demoKycChip}
+             >
+              <Text style={styles.demoKycChipText}>Murad (17YASLI)</Text>
+             </Pressable>
+            </View>
 
-          <Pressable
-           accessibilityRole="button"
-           onPress={()=>setShowAdvSignup(!showAdvSignup)}
-           style={{paddingVertical:8,alignItems:'center',marginBottom:4}}
-          >
-           <Text style={[S.link,{fontSize:11}]}>
-            {showAdvSignup?'Test parametrlərini gizlət ▲':'FİN / SMS kodunu əllə dəyiş (Test) ▼'}
-           </Text>
-          </Pressable>
-
-          {showAdvSignup&&(
-           <View style={{backgroundColor:'#f7f8f3',borderRadius:16,padding:12,marginBottom:12,borderWidth:1,borderColor:C.line}}>
-            <Field label="SMS kodu" value={code} onChange={setCode} numeric/>
-            <Field label="FİN kod (7 simvol · 17YASLI və ya LOWFACE)" value={fin} onChange={setFin}/>
-            <Field label="Doğum tarixi · YYYY-MM-DD" value={birth} onChange={setBirth}/>
+            <Button
+             title="Davam et →"
+             disabled={fin.length!==7||!docNumber.trim()}
+             onPress={()=>{
+              setError('');
+              setRegStep(2);
+             }}
+            />
+            <Button
+             title="Tanışlıq slaydlarına bax"
+             secondary
+             onPress={()=>setShowOnboarding(true)}
+            />
            </View>
           )}
 
-          <Button
-           title={busy?'Yaradılır…':'SİMA ilə təsdiqlə və yarat'}
-           icon="shield-checkmark-outline"
-           disabled={busy||!consent||!livenessDone||!simaSigned}
-           onPress={register}
-          />
-          <Button
-           title="Nömrəni dəyiş"
-           secondary
-           disabled={busy}
-           onPress={()=>setOtp(null)}
-          />
-         </View>
+          {regStep===2&&(
+           <View style={styles.authFormCard}>
+            <View style={styles.signupStepHeader}>
+             <View style={{flex:1,paddingRight:10}}>
+              <Badge text="ADDIM 2 / 3 · MOBİL NÖMRƏ" tone="success"/>
+              <Text style={[S.h2,{marginTop:8}]}>Mobil nömrəni daxil et</Text>
+              <Text style={[S.muted,{marginTop:4,fontSize:12}]}>
+               FİN: {fin} · ŞV: {docNumber} təsdiqləndi. SMS təsdiq kodu üçün telefon nömrənizi qeyd edin.
+              </Text>
+             </View>
+             <Image source={CARD_IMAGES.topupCard} style={styles.signupStepImg} resizeMode="cover"/>
+            </View>
+
+            <Field label="Mobil telefon nömrəsi" value={phone} onChange={setPhone} placeholder="+994501000001"/>
+
+            <Button
+             title={busy?'Göndərilir…':'SMS kodu al'}
+             icon="chatbubble-ellipses-outline"
+             disabled={busy||!phone.trim()}
+             onPress={async()=>{
+              setBusy(true);setError('');
+              try{
+               const r=await request(base,'',device,'auth/otp',{phone});
+               setOtp(r);
+               setCode(r.demoCode);
+               setRegStep(3);
+              }catch(e){setError((e as Error).message);}
+              finally{setBusy(false);}
+             }}
+            />
+            <Button
+             title="← Geri (FİN dəyiş)"
+             secondary
+             disabled={busy}
+             onPress={()=>setRegStep(1)}
+            />
+           </View>
+          )}
+
+          {regStep===3&&(
+           <View style={styles.authFormCard}>
+            <View style={styles.signupStepHeader}>
+             <View style={{flex:1,paddingRight:10}}>
+              <Badge text="ADDIM 3 / 3 · SİMA VƏ CANLILIQ" tone="success"/>
+              <Text style={[S.h3,{marginTop:8}]}>SMS kod ({otp?.demoCode}) təsdiqləndi</Text>
+              <Text style={[S.muted,{marginTop:4,fontSize:11}]}>
+               SİMA FİN: {fin} · ŞV: {docNumber} · Doğum: {birth}
+              </Text>
+             </View>
+             <Image source={CARD_IMAGES.topupBank} style={styles.signupStepImg} resizeMode="cover"/>
+            </View>
+
+            <Field label="Ad və soyad" value={name} onChange={setName} placeholder="Məsələn, Əli Vəliyev"/>
+            <Field label="6 rəqəmli PIN təyin et" value={pin} onChange={setPin} secure numeric placeholder="••••••"/>
+
+            <Pressable
+             accessibilityRole="button"
+             onPress={()=>{
+              const next=!(livenessDone&&simaSigned&&consent);
+              setLivenessDone(next);
+              setSimaSigned(next);
+              setConsent(next);
+             }}
+             style={[
+              styles.simaOneTapCard,
+              livenessDone&&simaSigned&&consent&&styles.simaOneTapCardActive
+             ]}
+            >
+             <Image source={CARD_IMAGES.topupTerminal} style={styles.simaOneTapImg} resizeMode="cover"/>
+             <View style={{flex:1}}>
+              <Text style={{fontSize:13,fontWeight:'800',color:C.ink}}>
+               SİMA İmza və Canlılıq təsdiqi
+              </Text>
+              <Text style={{fontSize:11,color:C.muted,marginTop:2,lineHeight:16}}>
+               Demo canlılıq addımını, SİMA elektron imzanı və xidmət şərtlərini təsdiqləyirəm (kamera və ML Kit yoxlaması aparılmır).
+              </Text>
+             </View>
+             <Icon
+              name={livenessDone&&simaSigned&&consent?'checkmark-circle':'ellipse-outline'}
+              size={24}
+              color={livenessDone&&simaSigned&&consent?C.ink:C.muted}
+             />
+            </Pressable>
+
+            <Pressable
+             accessibilityRole="button"
+             onPress={()=>setShowAdvSignup(!showAdvSignup)}
+             style={{paddingVertical:8,alignItems:'center',marginBottom:4}}
+            >
+             <Text style={[S.link,{fontSize:11}]}>
+              {showAdvSignup?'Test parametrlərini gizlət ▲':'FİN / SMS kodunu əllə dəyiş (Test) ▼'}
+             </Text>
+            </Pressable>
+
+            {showAdvSignup&&(
+             <View style={{backgroundColor:'#f7f8f3',borderRadius:16,padding:12,marginBottom:12,borderWidth:1,borderColor:C.line}}>
+              <Field label="SMS kodu" value={code} onChange={setCode} numeric/>
+              <Field label="FİN kod (7 simvol)" value={fin} onChange={setFin}/>
+              <Field label="Doğum tarixi · YYYY-MM-DD" value={birth} onChange={setBirth}/>
+             </View>
+            )}
+
+            <Button
+             title={busy?'Yaradılır…':'SİMA ilə təsdiqlə və hesabı aç'}
+             icon="shield-checkmark-outline"
+             disabled={busy||!consent||!livenessDone||!simaSigned||pin.length!==6}
+             onPress={register}
+            />
+            <Button
+             title="← Nömrəni dəyiş"
+             secondary
+             disabled={busy}
+             onPress={()=>setRegStep(2)}
+            />
+           </View>
+          )}
+         </>
         )}
        </>
       )}
@@ -1378,11 +1573,6 @@ const styles=StyleSheet.create({
  authHeroContent:{paddingHorizontal:18,paddingTop:14,paddingBottom:16},
  authHeroTitle:{fontSize:22,fontWeight:'800',color:'#FFFFFF',letterSpacing:-0.6},
  authHeroSub:{fontSize:12,color:'#bfd1b6',lineHeight:18,marginTop:5},
- authVisualRow:{flexDirection:'row',gap:8,marginBottom:14},
- authVisualMiniCard:{flex:1,backgroundColor:'#FFFFFF',borderRadius:18,padding:10,borderWidth:1,borderColor:C.line,overflow:'hidden',minHeight:92,justifyContent:'flex-end'},
- authVisualMiniImg:{position:'absolute',right:-6,top:-6,width:52,height:52,borderRadius:12},
- authVisualMiniTitle:{fontSize:11,fontWeight:'800',color:C.ink,letterSpacing:-0.2,marginTop:28},
- authVisualMiniSub:{fontSize:10,color:C.muted,marginTop:1},
  authSegmentWrap:{flexDirection:'row',backgroundColor:'#e8eee0',borderRadius:16,padding:4,marginBottom:14},
  authSegmentBtn:{flex:1,minHeight:44,borderRadius:13,alignItems:'center',justifyContent:'center'},
  authSegmentBtnActive:{backgroundColor:'#FFFFFF',shadowColor:'#17352e',shadowOffset:{width:0,height:2},shadowOpacity:0.06,shadowRadius:4,elevation:2},
@@ -1401,5 +1591,26 @@ const styles=StyleSheet.create({
  signupStepImg:{width:68,height:68,borderRadius:14},
  simaOneTapCard:{flexDirection:'row',alignItems:'center',gap:12,backgroundColor:'#f7f8f3',borderRadius:18,padding:12,marginBottom:10,borderWidth:1.5,borderColor:C.line},
  simaOneTapCardActive:{backgroundColor:'#eef6e2',borderColor:C.ink},
- simaOneTapImg:{width:52,height:52,borderRadius:14}
+ simaOneTapImg:{width:52,height:52,borderRadius:14},
+ onboardWrapper:{flex:1,paddingHorizontal:2},
+ onboardTopBar:{flexDirection:'row',alignItems:'center',justifyContent:'space-between',marginBottom:14},
+ onboardSkipBtn:{flexDirection:'row',alignItems:'center',gap:4,backgroundColor:'#ebf0e2',paddingHorizontal:12,paddingVertical:6,borderRadius:999},
+ onboardSkipText:{fontSize:12,fontWeight:'700',color:C.ink},
+ onboardHeroCard:{backgroundColor:'#f0f4e9',borderRadius:28,overflow:'hidden',height:270,borderWidth:1,borderColor:C.line,alignItems:'center',justifyContent:'center',marginBottom:16},
+ onboardHeroImg:{width:'88%',height:'88%'},
+ onboardContentCard:{backgroundColor:'#FFFFFF',borderRadius:26,padding:20,borderWidth:1,borderColor:C.line,shadowColor:'#17352e',shadowOffset:{width:0,height:4},shadowOpacity:0.04,shadowRadius:12,elevation:2},
+ onboardTagPill:{backgroundColor:'#e5f3d6',alignSelf:'flex-start',paddingHorizontal:10,paddingVertical:4,borderRadius:8,marginBottom:10},
+ onboardTagText:{fontSize:11,fontWeight:'800',color:'#2d581e',letterSpacing:0.8,textTransform:'uppercase'},
+ onboardTitle:{fontSize:25,fontWeight:'900',color:C.ink,letterSpacing:-0.7,lineHeight:31,marginBottom:8},
+ onboardDesc:{fontSize:13,color:C.muted,lineHeight:20,marginBottom:18},
+ onboardDotsRow:{flexDirection:'row',alignItems:'center',gap:6,marginBottom:18},
+ onboardDot:{width:8,height:8,borderRadius:4,backgroundColor:'#dce4d2'},
+ onboardDotActive:{width:26,borderRadius:13,backgroundColor:C.forest},
+ onboardLoginLink:{paddingVertical:12,alignItems:'center',marginTop:4},
+ onboardLoginLinkText:{fontSize:13,color:C.muted},
+ onboardReplayChip:{flexDirection:'row',alignItems:'center',gap:5,backgroundColor:'#eaf2de',paddingHorizontal:10,paddingVertical:6,borderRadius:12,marginRight:8},
+ onboardReplayChipText:{fontSize:11,fontWeight:'700',color:C.forest},
+ demoKycRow:{flexDirection:'row',gap:8,marginBottom:14},
+ demoKycChip:{flex:1,backgroundColor:'#f7f8f3',borderWidth:1,borderColor:C.line,borderRadius:12,paddingVertical:8,alignItems:'center'},
+ demoKycChipText:{fontSize:11,fontWeight:'700',color:C.ink}
 });

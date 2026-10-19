@@ -28,7 +28,10 @@ export const CARD_IMAGES={
  btcOnchain:require('../assets/cards/btc-onchain.jpg'),
  topupCard:require('../assets/cards/topup-card.jpg'),
  topupBank:require('../assets/cards/topup-bank.jpg'),
- topupTerminal:require('../assets/cards/topup-terminal.jpg')
+ topupTerminal:require('../assets/cards/topup-terminal.jpg'),
+ onboarding1:require('../assets/cards/onboarding-wallet-qr.jpg'),
+ onboarding2:require('../assets/cards/onboarding-virtual-shield.jpg'),
+ onboarding3:require('../assets/cards/onboarding-split-bnpl.jpg')
 };
 
 export type AppContextType={

@@ -39,11 +39,3 @@ yarn-error.*
 # generated native folders
 /ios
 /android
-
-# Release credentials and build outputs
-.env
-.env.*
-.signing/
-*.apk
-*.apk.sha256
-*.idsig
