@@ -1,42 +1,57 @@
-name: Mobile APK Build, Deploy & Telegram Release
-
+name: Mobile CI, signed APK and deployment
 on:
+  pull_request:
   push:
     branches: [main]
   workflow_dispatch:
-
 permissions:
-  contents: write
-
+  contents: read
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
 jobs:
-  build-apk-and-publish:
+  checks:
+    name: Mobile checks
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Set up Node.js 24
-        uses: actions/setup-node@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
           node-version: '24'
-          cache: 'npm'
-
-      - name: Set up JDK 21
-        uses: actions/setup-java@v4
+          cache: npm
+      - run: npm ci
+      - run: npm run lint -- --max-warnings 0
+      - run: npm run typecheck
+      - run: npm run export:web
+        env:
+          EXPO_PUBLIC_DEPLOYED: 'true'
+  release:
+    needs: checks
+    if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    environment: production
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
+          node-version: '24'
+          cache: npm
+      - uses: actions/setup-java@cf277c60eb25467037889841efdb72551f06f6c3 # v4
+        with:
+          distribution: temurin
           java-version: '21'
-          distribution: 'temurin'
-
-      - name: Accept Android SDK Licenses
-        run: yes | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --licenses >/dev/null || true
-
-      - name: Install dependencies, Lint & Typecheck
+      - run: npm ci
+      - name: Install Android SDK components
         run: |
-          npm ci
-          npm run lint -- --max-warnings 0
-          npm run typecheck
-
-      - name: Build Signed Release APK
+          set +o pipefail
+          yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --licenses >/dev/null
+          set -o pipefail
+          "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" 'platforms;android-37' 'build-tools;37.0.0'
+      - name: Build and verify signed APK
         env:
           EXPO_PUBLIC_API_URL: https://apicbar.sarkhan.az/api/v1
           EXPO_PUBLIC_DEPLOYED: 'true'
@@ -45,58 +60,33 @@ jobs:
           KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
           KAMPUS_KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
         run: |
-          mkdir -p .signing
-          echo "$KEYSTORE_BASE64" | base64 -d > .signing/kampus-release.p12
-          export KAMPUS_KEYSTORE_FILE="$PWD/.signing/kampus-release.p12"
+          signing="$RUNNER_TEMP/kampus-signing"
+          mkdir -m 700 "$signing"
+          trap 'rm -rf "$signing"' EXIT
+          printf '%s' "$KEYSTORE_BASE64" | base64 --decode > "$signing/release.p12"
+          chmod 600 "$signing/release.p12"
+          export KAMPUS_KEYSTORE_FILE="$signing/release.p12"
+          node -e "const fs=require('fs');const a=JSON.parse(fs.readFileSync('app.json'));a.expo.android.versionCode=100+Number(process.env.GITHUB_RUN_NUMBER);fs.writeFileSync('app.json',JSON.stringify(a,null,2)+'\n')"
           npx expo prebuild --platform android --no-install
-          cd android
-          ./gradlew assembleRelease -PreactNativeArchitectures=arm64-v8a --no-daemon
-          cp app/build/outputs/apk/release/app-release.apk ../kampus.apk
-          cd ..
-          shasum -a 256 kampus.apk > kampus.apk.sha256
-          rm -rf .signing
-
-      - name: Upload APK & Update Mobile Web on VPS
+          (cd android && ./gradlew assembleRelease -PreactNativeArchitectures=arm64-v8a --no-daemon)
+          cp android/app/build/outputs/apk/release/app-release.apk kampus.apk
+          "$ANDROID_HOME/build-tools/37.0.0/apksigner" verify --print-certs kampus.apk | tee "$RUNNER_TEMP/apk-cert.txt"
+          grep -F '8a85984cba1c86a7f62a79fd2a23cbd85f0ac1cdb13de084eaa7ab1b677fd040' "$RUNNER_TEMP/apk-cert.txt"
+          sha256sum kampus.apk > kampus.apk.sha256
+      - name: Deploy checked release
         env:
           VPS_HOST: ${{ secrets.VPS_HOST }}
           VPS_USER: ${{ secrets.VPS_USER }}
-          VPS_SSH_KEY: ${{ secrets.VPS_SSH_KEY }}
-        run: |
-          mkdir -p ~/.ssh
-          echo "$VPS_SSH_KEY" > ~/.ssh/id_ed25519
-          chmod 600 ~/.ssh/id_ed25519
-          ssh-keyscan -H "$VPS_HOST" >> ~/.ssh/known_hosts
-          scp kampus.apk kampus.apk.sha256 "$VPS_USER@$VPS_HOST:/opt/cbar/downloads/"
-          rsync -az --delete --exclude=.git --exclude=.github --exclude=node_modules --exclude=.expo --exclude=dist --exclude=android --exclude='*.apk*' ./ "$VPS_USER@$VPS_HOST:/opt/cbar/apps/mobile/"
-          ssh "$VPS_USER@$VPS_HOST" "cd /opt/cbar && docker compose up -d --build --wait --wait-timeout 180 mobile"
-
-      - name: Publish APK to GitHub Releases
-        uses: softprops/action-gh-release@v2
-        with:
-          tag_name: latest
-          name: "Kampus Mobile Latest APK (${{ github.sha }})"
-          body: "Automated Android Release APK built from commit ${{ github.sha }}.\nDirect download: https://apicbar.sarkhan.az/download/kampus.apk"
-          files: |
-            kampus.apk
-            kampus.apk.sha256
+          VPS_SSH_KEY: ${{ secrets.KAMPUS_DEPLOY_KEY }}
+          VPS_KNOWN_HOSTS: ${{ secrets.KAMPUS_KNOWN_HOSTS }}
+        run: ./scripts/ci-deploy.sh
+      - name: Publish versioned Android release
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Share APK via Telegram Bot
-        env:
-          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
-          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          GH_TOKEN: ${{ github.token }}
         run: |
-          COMMIT_MSG=$(git log -1 --pretty=%s)
-          SHA256=$(awk '{print $1}' kampus.apk.sha256)
-          curl -s -F chat_id="${TELEGRAM_CHAT_ID}" \
-            -F document=@"kampus.apk" \
-            -F parse_mode="HTML" \
-            -F caption="📱 <b>Kampus Mobile — Yeni APK Hazırdır!</b>
-
-          🔹 <b>Commit:</b> <code>${GITHUB_SHA::7}</code> — ${COMMIT_MSG}
-          🔹 <b>API:</b> <code>https://apicbar.sarkhan.az/api/v1</code>
-          🔹 <b>SHA-256:</b> <code>${SHA256::16}...</code>
-          🔗 <b>Açıq Yükləmə Linki:</b> https://apicbar.sarkhan.az/download/kampus.apk
-          🌐 <b>Mobil Veb Simulyator:</b> https://apicbar.sarkhan.az" \
-            "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendDocument" >/dev/null
+          tag="android-$GITHUB_RUN_NUMBER"
+          if gh release view "$tag" >/dev/null 2>&1; then
+            gh release upload "$tag" kampus.apk kampus.apk.sha256 --clobber
+          else
+            gh release create "$tag" kampus.apk kampus.apk.sha256 --target "$GITHUB_SHA" --title "Kampus Android $GITHUB_RUN_NUMBER" --notes "Signed Android demo. API: https://apicbar.sarkhan.az/api/v1"
+          fi

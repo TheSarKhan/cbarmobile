@@ -845,7 +845,12 @@ export default function App(){
     if(!d){d='mobile-'+Date.now()+'-'+Math.random().toString(36).slice(2);await storage.set('device',d);}
     setDevice(d);
     const url=await storage.get('api');
-    if(url)setBase(url);
+    // Web deployments stay on their configured origin. Native API changes are explicit.
+    let candidate=DEFAULT_API;
+    if(url&&!(process.env.EXPO_PUBLIC_DEPLOYED==='true'&&Platform.OS==='web')){
+     try{const parsed=new URL(url);if(['http:','https:'].includes(parsed.protocol))candidate=url;}catch{}
+    }
+    setBase(candidate);
     const saved=await storage.get('token');
     if(saved)setToken(saved);
    }finally{setBoot(false);}
