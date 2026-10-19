@@ -64,7 +64,7 @@ function Home(){
    <View style={styles.refBalanceCard}>
     <View style={S.between}>
      <Text style={styles.refBalanceLabel}>Mövcud balans</Text>
-     {d.user?.name&&(
+     {!!d.user?.name&&(
       <Text style={{fontSize:12,fontWeight:'600',color:C.muted}} numberOfLines={1}>
        {d.user.name}
       </Text>
@@ -885,8 +885,7 @@ export default function App(){
      setToken(saved);
      setShowOnboarding(false);
     }else{
-     const seen=await storage.get('onboarding_done');
-     setShowOnboarding(seen!=='true');
+     setShowOnboarding(true);
     }
    }finally{setBoot(false);}
   })();
@@ -1174,7 +1173,7 @@ export default function App(){
          </Pressable>
         </View>
 
-        {error&&<View style={S.error}><Text style={S.errorText}>{error}</Text></View>}
+        {!!error&&<View style={S.error}><Text style={S.errorText}>{error}</Text></View>}
 
         {!signup?(
          <View style={styles.authFormCard}>
@@ -1221,6 +1220,17 @@ export default function App(){
            disabled={busy}
            onPress={login}
           />
+          <View style={{marginTop:8}}>
+           <Button
+            title="✨ Tətbiqin imkanları (3D Slaydlar)"
+            secondary
+            onPress={()=>{
+             setShowOnboarding(true);
+             setOnboardIndex(0);
+             setError('');
+            }}
+           />
+          </View>
          </View>
         ):(
          <>
@@ -1404,7 +1414,7 @@ export default function App(){
    ):!data?(
     <View style={styles.loading}>
      <ActivityIndicator color={C.ink}/>
-     {error&&(
+     {!!error&&(
       <View style={{width:'100%',maxWidth:340,marginTop:16}}>
        <Text style={[S.errorText,{marginBottom:16,textAlign:'center'}]}>{error}</Text>
        <Button title="Yenidən yoxla" onPress={refresh}/>
@@ -1441,10 +1451,10 @@ export default function App(){
         <Icon name="shield-checkmark-outline" color="#7fa157" size={25}/>
         <Text style={[S.muted,{flex:1}]}>Təhlükəsizlik üçün bu əməliyyatı 6 rəqəmli PIN ilə təsdiqlə.</Text>
        </View>
-       {sca?.body.amountMinor&&<Text style={[S.amount,{fontSize:32,marginTop:18}]}>{money(sca.body.amountMinor)}</Text>}
-       {sca?.body.totalMinor&&<Text style={[S.muted,{marginTop:8}]}>Komissiya daxil cəmi: {money(sca.body.totalMinor)}</Text>}
-       {sca?.body.recipientName&&<Text style={[S.muted,{marginTop:8}]}>Alan: {sca.body.recipientName}</Text>}
-       {sca?.body.phone&&<Text style={[S.muted,{marginTop:8}]}>Alan: {sca.body.phone}</Text>}
+       {!!sca?.body.amountMinor&&<Text style={[S.amount,{fontSize:32,marginTop:18}]}>{money(sca.body.amountMinor)}</Text>}
+       {!!sca?.body.totalMinor&&<Text style={[S.muted,{marginTop:8}]}>Komissiya daxil cəmi: {money(sca.body.totalMinor)}</Text>}
+       {!!sca?.body.recipientName&&<Text style={[S.muted,{marginTop:8}]}>Alan: {sca.body.recipientName}</Text>}
+       {!!sca?.body.phone&&<Text style={[S.muted,{marginTop:8}]}>Alan: {sca.body.phone}</Text>}
        {sca?.body.fundingSource&&(
         <Text style={[S.muted,{marginTop:8}]}>
          Ödəniş: {({BNPL:'Sonra ödə',WALLET:'Kampus balansı',CRYPTO:'USDT · Pilot'} as any)[sca.body.fundingSource]}
@@ -1454,7 +1464,7 @@ export default function App(){
         <Text style={[S.muted,{marginTop:8}]}>Partnyorun demo kredit müqaviləsinin qəbulunu təsdiqləyirsən.</Text>
        )}
       </Box>
-      {error&&<View style={S.error}><Text style={S.errorText}>{error}</Text></View>}
+      {!!error&&<View style={S.error}><Text style={S.errorText}>{error}</Text></View>}
       <Field label="6 rəqəmli PIN" value={scaPin} onChange={setScaPin} secure numeric/>
       <Button
        title="Təsdiqlə"

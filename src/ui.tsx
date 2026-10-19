@@ -130,7 +130,7 @@ export function Button({
    <Text numberOfLines={1} style={[S.buttonText,secondary&&{color:C.ink},danger&&{color:C.red}]}>
     {title}
    </Text>
-   {icon&&<Icon name={icon} size={19} color={danger?C.red:secondary?C.ink:'white'}/>}
+   {!!icon&&<Icon name={icon} size={19} color={danger?C.red:secondary?C.ink:'white'}/>}
   </Pressable>
  );
 }
