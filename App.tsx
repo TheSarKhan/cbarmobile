@@ -1020,8 +1020,14 @@ export default function App(){
    ):!token?(
     showOnboarding?(
      <View style={styles.onboardFullScreen}>
+      <Image
+       source={ONBOARDING_SLIDES[onboardIndex].image}
+       style={StyleSheet.absoluteFill}
+       resizeMode="cover"
+      />
+
       <SafeAreaView edges={['top']} style={styles.onboardTopBarFloating}>
-       <Text style={[styles.wordmark,{fontSize:26}]}>kampus<Text style={{color:'#7ea84c'}}>.</Text></Text>
+       <Text style={[styles.wordmark,{fontSize:26,color:'#FFFFFF'}]}>kampus<Text style={{color:C.lime}}>.</Text></Text>
        <Pressable
         accessibilityRole="button"
         accessibilityLabel="Tanışlığı ötür"
@@ -1037,18 +1043,9 @@ export default function App(){
         <Text style={styles.onboardSkipText}>Ötür</Text>
        </Pressable>
       </SafeAreaView>
-
-      <View style={styles.onboardImageWrap}>
-       <Image
-        source={ONBOARDING_SLIDES[onboardIndex].image}
-        style={styles.onboardHeroImg}
-        resizeMode="contain"
-       />
-      </View>
-
       <LinearGradient
-       colors={['rgba(240,244,233,0)', 'rgba(240,244,233,0.45)', 'rgba(240,244,233,0.92)', '#f0f4e9']}
-       locations={[0, 0.2, 0.55, 1]}
+       colors={['transparent', 'rgba(10,25,20,0.5)', 'rgba(10,25,20,0.92)', '#0a1914']}
+       locations={[0, 0.25, 0.65, 1]}
        style={styles.onboardBottomArea}
       >
        <Text style={styles.onboardFullTitle}>{ONBOARDING_SLIDES[onboardIndex].title}</Text>
@@ -1066,14 +1063,17 @@ export default function App(){
        </View>
 
        {onboardIndex<2?(
-        <Button
-         title="İrəli"
+        <Pressable
+         accessibilityRole="button"
          onPress={()=>setOnboardIndex(i=>Math.min(2,i+1))}
-        />
+         style={styles.onboardPrimaryBtn}
+        >
+         <Text style={styles.onboardPrimaryBtnText}>İrəli</Text>
+        </Pressable>
        ):(
         <View style={{gap:10}}>
-         <Button
-          title="Başla"
+         <Pressable
+          accessibilityRole="button"
           onPress={()=>{
            storage.set('onboarding_done','true');
            setShowOnboarding(false);
@@ -1081,17 +1081,22 @@ export default function App(){
            setRegStep(1);
            setError('');
           }}
-         />
-         <Button
-          title="Daxil ol"
-          secondary
+          style={styles.onboardPrimaryBtn}
+         >
+          <Text style={styles.onboardPrimaryBtnText}>Başla</Text>
+         </Pressable>
+         <Pressable
+          accessibilityRole="button"
           onPress={()=>{
            storage.set('onboarding_done','true');
            setShowOnboarding(false);
            setSignup(false);
            setError('');
           }}
-         />
+          style={styles.onboardSecondaryBtn}
+         >
+          <Text style={styles.onboardSecondaryBtnText}>Daxil ol</Text>
+         </Pressable>
         </View>
        )}
       </LinearGradient>
@@ -1467,9 +1472,10 @@ export default function App(){
   </View>
  );
 
+ const isOnboardMode=!token&&showOnboarding;
  return (
   <SafeAreaProvider>
-   <StatusBar style="dark"/>
+   <StatusBar style={isOnboardMode?'light':'dark'}/>
    {Platform.OS==='web'&&winWidth>500?(
     <View style={styles.webBackdrop}>
      <View style={styles.webToolbar}>
@@ -1480,18 +1486,20 @@ export default function App(){
       </Pressable>
      </View>
      {showSimulator?(
-      <View style={[styles.phoneShell,{height:Math.min(852,winHeight-68)}]}>
-       <View style={styles.phoneStatusBar}>
-        <Text style={{fontSize:12,fontWeight:'700',color:C.ink}}>9:41</Text>
-        <View style={styles.dynamicIsland}/>
+      <View style={[styles.phoneShell,{height:Math.min(852,winHeight-68)},isOnboardMode&&{backgroundColor:'#0b1e18'}]}>
+       <View style={[styles.phoneStatusBar,isOnboardMode&&{backgroundColor:'#0b1e18'}]}>
+        <Text style={[{fontSize:12,fontWeight:'700',color:C.ink},isOnboardMode&&{color:'#FFFFFF'}]}>9:41</Text>
+        <View style={[styles.dynamicIsland,isOnboardMode&&{backgroundColor:'#06100d'}]}/>
         <View style={{flexDirection:'row',alignItems:'center',gap:5}}>
-         <Icon name="cellular" size={13} color={C.ink}/>
-         <Icon name="wifi" size={14} color={C.ink}/>
-         <Icon name="battery-full" size={16} color={C.ink}/>
+         <Icon name="cellular" size={13} color={isOnboardMode?'#FFFFFF':C.ink}/>
+         <Icon name="wifi" size={14} color={isOnboardMode?'#FFFFFF':C.ink}/>
+         <Icon name="battery-full" size={16} color={isOnboardMode?'#FFFFFF':C.ink}/>
         </View>
        </View>
        <View style={{flex:1,overflow:'hidden'}}>{appBody}</View>
-       <View style={styles.homeIndicatorWrap}><View style={styles.homeIndicator}/></View>
+       <View style={[styles.homeIndicatorWrap,isOnboardMode&&{backgroundColor:'#0a1914'}]}>
+        <View style={[styles.homeIndicator,isOnboardMode&&{backgroundColor:'rgba(255,255,255,0.35)'}]}/>
+       </View>
       </View>
      ):(
       <View style={{flex:1,width:'100%'}}>{appBody}</View>
@@ -1585,18 +1593,20 @@ const styles=StyleSheet.create({
  simaOneTapCard:{flexDirection:'row',alignItems:'center',gap:12,backgroundColor:'#f7f8f3',borderRadius:18,padding:12,marginBottom:10,borderWidth:1.5,borderColor:C.line},
  simaOneTapCardActive:{backgroundColor:'#eef6e2',borderColor:C.ink},
  simaOneTapImg:{width:52,height:52,borderRadius:14},
- onboardFullScreen:{flex:1,backgroundColor:'#f0f4e9',justifyContent:'space-between',position:'relative',overflow:'hidden'},
+ onboardFullScreen:{flex:1,backgroundColor:'#0b1e18',justifyContent:'space-between',position:'relative',overflow:'hidden'},
  onboardTopBarFloating:{flexDirection:'row',alignItems:'center',justifyContent:'space-between',paddingHorizontal:24,paddingTop:Platform.OS==='web'?16:10,zIndex:10},
- onboardSkipFloatingBtn:{backgroundColor:'rgba(255,255,255,0.85)',paddingHorizontal:16,paddingVertical:7,borderRadius:999,borderWidth:1,borderColor:'rgba(215,224,208,0.7)'},
- onboardSkipText:{fontSize:12,fontWeight:'700',color:C.ink},
- onboardImageWrap:{flex:1,alignItems:'center',justifyContent:'center',paddingHorizontal:24,paddingVertical:12},
- onboardHeroImg:{width:'100%',height:'100%',maxWidth:320,maxHeight:320},
- onboardBottomArea:{paddingHorizontal:24,paddingBottom:Platform.OS==='web'?28:40,paddingTop:20,zIndex:10,backgroundColor:'transparent'},
- onboardFullTitle:{fontSize:32,fontWeight:'900',color:C.ink,letterSpacing:-1,lineHeight:38,marginBottom:8},
- onboardFullDesc:{fontSize:14,color:C.muted,lineHeight:21,marginBottom:20},
- onboardDotsRow:{flexDirection:'row',alignItems:'center',gap:6,marginBottom:20},
- onboardDot:{width:7,height:7,borderRadius:4,backgroundColor:'#ccd6bf'},
- onboardDotActive:{width:28,borderRadius:4,backgroundColor:C.forest},
+ onboardSkipFloatingBtn:{backgroundColor:'rgba(255,255,255,0.18)',paddingHorizontal:16,paddingVertical:7,borderRadius:999,borderWidth:1,borderColor:'rgba(255,255,255,0.3)'},
+ onboardSkipText:{fontSize:12,fontWeight:'700',color:'#FFFFFF'},
+ onboardBottomArea:{paddingHorizontal:24,paddingBottom:Platform.OS==='web'?32:44,paddingTop:60,zIndex:10},
+ onboardFullTitle:{fontSize:32,fontWeight:'900',color:'#FFFFFF',letterSpacing:-1,lineHeight:38,marginBottom:8},
+ onboardFullDesc:{fontSize:14,color:'rgba(255,255,255,0.85)',lineHeight:21,marginBottom:22},
+ onboardDotsRow:{flexDirection:'row',alignItems:'center',gap:8,marginBottom:22},
+ onboardDot:{width:8,height:8,borderRadius:4,backgroundColor:'rgba(255,255,255,0.35)'},
+ onboardDotActive:{width:30,borderRadius:4,backgroundColor:C.lime},
+ onboardPrimaryBtn:{minHeight:52,backgroundColor:C.lime,borderRadius:16,alignItems:'center',justifyContent:'center'},
+ onboardPrimaryBtnText:{color:'#0d231b',fontSize:15,fontWeight:'800'},
+ onboardSecondaryBtn:{minHeight:52,backgroundColor:'rgba(255,255,255,0.14)',borderRadius:16,alignItems:'center',justifyContent:'center',borderWidth:1,borderColor:'rgba(255,255,255,0.3)'},
+ onboardSecondaryBtnText:{color:'#FFFFFF',fontSize:15,fontWeight:'700'},
  onboardReplayChip:{flexDirection:'row',alignItems:'center',gap:5,backgroundColor:'#eaf2de',paddingHorizontal:10,paddingVertical:6,borderRadius:12,marginRight:8},
  onboardReplayChipText:{fontSize:11,fontWeight:'700',color:C.forest},
  demoKycRow:{flexDirection:'row',gap:8,marginBottom:14},
