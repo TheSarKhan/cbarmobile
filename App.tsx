@@ -1020,12 +1020,6 @@ export default function App(){
    ):!token?(
     showOnboarding?(
      <View style={styles.onboardFullScreen}>
-      <Image
-       source={ONBOARDING_SLIDES[onboardIndex].image}
-       style={StyleSheet.absoluteFill}
-       resizeMode="cover"
-      />
-
       <SafeAreaView edges={['top']} style={styles.onboardTopBarFloating}>
        <Text style={[styles.wordmark,{fontSize:26,color:'#FFFFFF'}]}>kampus<Text style={{color:C.lime}}>.</Text></Text>
        <Pressable
@@ -1043,11 +1037,16 @@ export default function App(){
         <Text style={styles.onboardSkipText}>Ötür</Text>
        </Pressable>
       </SafeAreaView>
-      <LinearGradient
-       colors={['transparent', 'rgba(10,25,20,0.5)', 'rgba(10,25,20,0.92)', '#0a1914']}
-       locations={[0, 0.25, 0.65, 1]}
-       style={styles.onboardBottomArea}
-      >
+
+      <View style={styles.onboardHeroWrap}>
+       <Image
+        source={ONBOARDING_SLIDES[onboardIndex].image}
+        style={styles.onboardHeroImg}
+        resizeMode="contain"
+       />
+      </View>
+
+      <View style={styles.onboardBottomArea}>
        <Text style={styles.onboardFullTitle}>{ONBOARDING_SLIDES[onboardIndex].title}</Text>
        <Text style={styles.onboardFullDesc}>{ONBOARDING_SLIDES[onboardIndex].desc}</Text>
 
@@ -1099,7 +1098,7 @@ export default function App(){
          </Pressable>
         </View>
        )}
-      </LinearGradient>
+      </View>
      </View>
     ):(
      <SafeAreaView style={S.page}>
@@ -1486,10 +1485,10 @@ export default function App(){
       </Pressable>
      </View>
      {showSimulator?(
-      <View style={[styles.phoneShell,{height:Math.min(852,winHeight-68)},isOnboardMode&&{backgroundColor:'#0b1e18'}]}>
-       <View style={[styles.phoneStatusBar,isOnboardMode&&{backgroundColor:'#0b1e18'}]}>
+      <View style={[styles.phoneShell,{height:Math.min(852,winHeight-68)},isOnboardMode&&{backgroundColor:'#091d1b'}]}>
+       <View style={[styles.phoneStatusBar,isOnboardMode&&{backgroundColor:'#091d1b'}]}>
         <Text style={[{fontSize:12,fontWeight:'700',color:C.ink},isOnboardMode&&{color:'#FFFFFF'}]}>9:41</Text>
-        <View style={[styles.dynamicIsland,isOnboardMode&&{backgroundColor:'#06100d'}]}/>
+        <View style={[styles.dynamicIsland,isOnboardMode&&{backgroundColor:'#051210'}]}/>
         <View style={{flexDirection:'row',alignItems:'center',gap:5}}>
          <Icon name="cellular" size={13} color={isOnboardMode?'#FFFFFF':C.ink}/>
          <Icon name="wifi" size={14} color={isOnboardMode?'#FFFFFF':C.ink}/>
@@ -1497,7 +1496,7 @@ export default function App(){
         </View>
        </View>
        <View style={{flex:1,overflow:'hidden'}}>{appBody}</View>
-       <View style={[styles.homeIndicatorWrap,isOnboardMode&&{backgroundColor:'#0a1914'}]}>
+       <View style={[styles.homeIndicatorWrap,isOnboardMode&&{backgroundColor:'#091d1b'}]}>
         <View style={[styles.homeIndicator,isOnboardMode&&{backgroundColor:'rgba(255,255,255,0.35)'}]}/>
        </View>
       </View>
@@ -1593,19 +1592,21 @@ const styles=StyleSheet.create({
  simaOneTapCard:{flexDirection:'row',alignItems:'center',gap:12,backgroundColor:'#f7f8f3',borderRadius:18,padding:12,marginBottom:10,borderWidth:1.5,borderColor:C.line},
  simaOneTapCardActive:{backgroundColor:'#eef6e2',borderColor:C.ink},
  simaOneTapImg:{width:52,height:52,borderRadius:14},
- onboardFullScreen:{flex:1,backgroundColor:'#0b1e18',justifyContent:'space-between',position:'relative',overflow:'hidden'},
+ onboardFullScreen:{flex:1,backgroundColor:'#091d1b',justifyContent:'space-between'},
  onboardTopBarFloating:{flexDirection:'row',alignItems:'center',justifyContent:'space-between',paddingHorizontal:24,paddingTop:Platform.OS==='web'?16:10,zIndex:10},
- onboardSkipFloatingBtn:{backgroundColor:'rgba(255,255,255,0.18)',paddingHorizontal:16,paddingVertical:7,borderRadius:999,borderWidth:1,borderColor:'rgba(255,255,255,0.3)'},
+ onboardSkipFloatingBtn:{backgroundColor:'rgba(255,255,255,0.14)',paddingHorizontal:16,paddingVertical:7,borderRadius:999,borderWidth:1,borderColor:'rgba(255,255,255,0.22)'},
  onboardSkipText:{fontSize:12,fontWeight:'700',color:'#FFFFFF'},
- onboardBottomArea:{paddingHorizontal:24,paddingBottom:Platform.OS==='web'?32:44,paddingTop:60,zIndex:10},
- onboardFullTitle:{fontSize:32,fontWeight:'900',color:'#FFFFFF',letterSpacing:-1,lineHeight:38,marginBottom:8},
- onboardFullDesc:{fontSize:14,color:'rgba(255,255,255,0.85)',lineHeight:21,marginBottom:22},
+ onboardHeroWrap:{flex:1,alignItems:'center',justifyContent:'center',paddingHorizontal:20,minHeight:240},
+ onboardHeroImg:{width:'100%',maxWidth:320,height:270,maxHeight:'90%'},
+ onboardBottomArea:{paddingHorizontal:24,paddingBottom:Platform.OS==='web'?28:38},
+ onboardFullTitle:{fontSize:28,fontWeight:'900',color:'#FFFFFF',letterSpacing:-0.8,lineHeight:34,marginBottom:8},
+ onboardFullDesc:{fontSize:14,color:'rgba(255,255,255,0.8)',lineHeight:20,marginBottom:20},
  onboardDotsRow:{flexDirection:'row',alignItems:'center',gap:8,marginBottom:22},
- onboardDot:{width:8,height:8,borderRadius:4,backgroundColor:'rgba(255,255,255,0.35)'},
+ onboardDot:{width:8,height:8,borderRadius:4,backgroundColor:'rgba(255,255,255,0.3)'},
  onboardDotActive:{width:30,borderRadius:4,backgroundColor:C.lime},
  onboardPrimaryBtn:{minHeight:52,backgroundColor:C.lime,borderRadius:16,alignItems:'center',justifyContent:'center'},
- onboardPrimaryBtnText:{color:'#0d231b',fontSize:15,fontWeight:'800'},
- onboardSecondaryBtn:{minHeight:52,backgroundColor:'rgba(255,255,255,0.14)',borderRadius:16,alignItems:'center',justifyContent:'center',borderWidth:1,borderColor:'rgba(255,255,255,0.3)'},
+ onboardPrimaryBtnText:{color:'#091d1b',fontSize:15,fontWeight:'800'},
+ onboardSecondaryBtn:{minHeight:52,backgroundColor:'rgba(255,255,255,0.12)',borderRadius:16,alignItems:'center',justifyContent:'center',borderWidth:1,borderColor:'rgba(255,255,255,0.22)'},
  onboardSecondaryBtnText:{color:'#FFFFFF',fontSize:15,fontWeight:'700'},
  onboardReplayChip:{flexDirection:'row',alignItems:'center',gap:5,backgroundColor:'#eaf2de',paddingHorizontal:10,paddingVertical:6,borderRadius:12,marginRight:8},
  onboardReplayChipText:{fontSize:11,fontWeight:'700',color:C.forest},
