@@ -1,0 +1,92 @@
+name: Mobile CI, signed APK and deployment
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+jobs:
+  checks:
+    name: Mobile checks
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: '24'
+          cache: npm
+      - run: npm ci
+      - run: npm run lint -- --max-warnings 0
+      - run: npm run typecheck
+      - run: npm run export:web
+        env:
+          EXPO_PUBLIC_DEPLOYED: 'true'
+  release:
+    needs: checks
+    if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    environment: production
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: '24'
+          cache: npm
+      - uses: actions/setup-java@cf277c60eb25467037889841efdb72551f06f6c3 # v4
+        with:
+          distribution: temurin
+          java-version: '21'
+      - run: npm ci
+      - name: Install Android SDK components
+        run: |
+          set +o pipefail
+          yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --licenses >/dev/null
+          set -o pipefail
+          "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" 'platforms;android-37.0' 'build-tools;37.0.0'
+      - name: Build and verify signed APK
+        env:
+          EXPO_PUBLIC_API_URL: https://apicbar.sarkhan.az/api/v1
+          EXPO_PUBLIC_DEPLOYED: 'true'
+          KAMPUS_HTTPS_ONLY: 'true'
+          NODE_ENV: production
+          KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
+          KAMPUS_KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+        run: |
+          signing="$RUNNER_TEMP/kampus-signing"
+          mkdir -m 700 "$signing"
+          trap 'rm -rf "$signing"' EXIT
+          printf '%s' "$KEYSTORE_BASE64" | base64 --decode > "$signing/release.p12"
+          chmod 600 "$signing/release.p12"
+          export KAMPUS_KEYSTORE_FILE="$signing/release.p12"
+          node -e "const fs=require('fs');const a=JSON.parse(fs.readFileSync('app.json'));a.expo.android.versionCode=100+Number(process.env.GITHUB_RUN_NUMBER);fs.writeFileSync('app.json',JSON.stringify(a,null,2)+'\n')"
+          npx expo prebuild --platform android --no-install
+          (cd android && ./gradlew assembleRelease -PreactNativeArchitectures=arm64-v8a --no-daemon)
+          cp android/app/build/outputs/apk/release/app-release.apk kampus.apk
+          "$ANDROID_HOME/build-tools/37.0.0/apksigner" verify --print-certs kampus.apk | tee "$RUNNER_TEMP/apk-cert.txt"
+          grep -F '8a85984cba1c86a7f62a79fd2a23cbd85f0ac1cdb13de084eaa7ab1b677fd040' "$RUNNER_TEMP/apk-cert.txt"
+          sha256sum kampus.apk > kampus.apk.sha256
+      - name: Deploy checked release
+        env:
+          VPS_HOST: ${{ secrets.VPS_HOST }}
+          VPS_USER: ${{ secrets.VPS_USER }}
+          VPS_SSH_KEY: ${{ secrets.KAMPUS_DEPLOY_KEY }}
+          VPS_KNOWN_HOSTS: ${{ secrets.KAMPUS_KNOWN_HOSTS }}
+        run: ./scripts/ci-deploy.sh
+      - name: Publish versioned Android release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          tag="android-$GITHUB_RUN_NUMBER"
+          if gh release view "$tag" >/dev/null 2>&1; then
+            gh release upload "$tag" kampus.apk kampus.apk.sha256 --clobber
+          else
+            gh release create "$tag" kampus.apk kampus.apk.sha256 --target "$GITHUB_SHA" --title "Kampus Android $GITHUB_RUN_NUMBER" --notes "Signed Android demo. API: https://apicbar.sarkhan.az/api/v1"
+          fi
