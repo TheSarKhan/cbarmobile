@@ -28,7 +28,10 @@ export const CARD_IMAGES={
  btcOnchain:require('../assets/cards/btc-onchain.jpg'),
  topupCard:require('../assets/cards/topup-card.jpg'),
  topupBank:require('../assets/cards/topup-bank.jpg'),
- topupTerminal:require('../assets/cards/topup-terminal.jpg')
+ topupTerminal:require('../assets/cards/topup-terminal.jpg'),
+ onboarding1:require('../assets/cards/onboarding-wallet-qr.png'),
+ onboarding2:require('../assets/cards/onboarding-virtual-shield.png'),
+ onboarding3:require('../assets/cards/onboarding-split-bnpl.png')
 };
 
 export type AppContextType={
@@ -128,7 +131,7 @@ export function Button({
    <Text numberOfLines={1} style={[S.buttonText,secondary&&{color:C.ink},danger&&{color:C.red}]}>
     {title}
    </Text>
-   {icon&&<Icon name={icon} size={19} color={danger?C.red:secondary?C.ink:'white'}/>}
+   {!!icon&&<Icon name={icon} size={19} color={danger?C.red:secondary?C.ink:'white'}/>}
   </Pressable>
  );
 }
