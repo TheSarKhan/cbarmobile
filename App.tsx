@@ -1021,7 +1021,7 @@ export default function App(){
     showOnboarding?(
      <View style={styles.onboardFullScreen}>
       <SafeAreaView edges={['top']} style={styles.onboardTopBarFloating}>
-       <Text style={[styles.wordmark,{fontSize:26,color:'#FFFFFF'}]}>kampus<Text style={{color:C.lime}}>.</Text></Text>
+       <Text style={[styles.wordmark,{fontSize:34,letterSpacing:-1.8,color:'#FFFFFF'}]}>kampus<Text style={{color:C.lime,fontSize:38}}>.</Text></Text>
        <Pressable
         accessibilityRole="button"
         accessibilityLabel="Tanışlığı ötür"
@@ -1592,12 +1592,12 @@ const styles=StyleSheet.create({
  simaOneTapCard:{flexDirection:'row',alignItems:'center',gap:12,backgroundColor:'#f7f8f3',borderRadius:18,padding:12,marginBottom:10,borderWidth:1.5,borderColor:C.line},
  simaOneTapCardActive:{backgroundColor:'#eef6e2',borderColor:C.ink},
  simaOneTapImg:{width:52,height:52,borderRadius:14},
- onboardFullScreen:{flex:1,backgroundColor:'#091d1b',justifyContent:'space-between'},
- onboardTopBarFloating:{flexDirection:'row',alignItems:'center',justifyContent:'space-between',paddingHorizontal:24,paddingTop:Platform.OS==='web'?16:10,zIndex:10},
- onboardSkipFloatingBtn:{backgroundColor:'rgba(255,255,255,0.14)',paddingHorizontal:16,paddingVertical:7,borderRadius:999,borderWidth:1,borderColor:'rgba(255,255,255,0.22)'},
- onboardSkipText:{fontSize:12,fontWeight:'700',color:'#FFFFFF'},
- onboardHeroWrap:{flex:1,alignItems:'center',justifyContent:'center',paddingHorizontal:20,minHeight:240},
- onboardHeroImg:{width:'100%',maxWidth:320,height:270,maxHeight:'90%'},
+ onboardFullScreen:{flex:1,backgroundColor:'#091d1b',justifyContent:'space-between',overflow:'hidden'},
+ onboardTopBarFloating:{flexDirection:'row',alignItems:'center',justifyContent:'space-between',paddingHorizontal:24,paddingTop:Platform.OS==='web'?20:12,zIndex:10},
+ onboardSkipFloatingBtn:{backgroundColor:'rgba(255,255,255,0.14)',paddingHorizontal:18,paddingVertical:8,borderRadius:999,borderWidth:1,borderColor:'rgba(255,255,255,0.22)'},
+ onboardSkipText:{fontSize:13,fontWeight:'700',color:'#FFFFFF'},
+ onboardHeroWrap:{flex:1,justifyContent:'center',alignItems:'flex-end',overflow:'visible',marginRight:-35,marginTop:6,marginBottom:6},
+ onboardHeroImg:{width:390,height:390,maxWidth:440,transform:[{rotate:'-5deg'}]},
  onboardBottomArea:{paddingHorizontal:24,paddingBottom:Platform.OS==='web'?28:38},
  onboardFullTitle:{fontSize:28,fontWeight:'900',color:'#FFFFFF',letterSpacing:-0.8,lineHeight:34,marginBottom:8},
  onboardFullDesc:{fontSize:14,color:'rgba(255,255,255,0.8)',lineHeight:20,marginBottom:20},
