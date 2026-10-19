@@ -29,9 +29,9 @@ export const CARD_IMAGES={
  topupCard:require('../assets/cards/topup-card.jpg'),
  topupBank:require('../assets/cards/topup-bank.jpg'),
  topupTerminal:require('../assets/cards/topup-terminal.jpg'),
- onboarding1:require('../assets/cards/onboarding-wallet-qr.jpg'),
- onboarding2:require('../assets/cards/onboarding-virtual-shield.jpg'),
- onboarding3:require('../assets/cards/onboarding-split-bnpl.jpg')
+ onboarding1:require('../assets/cards/onboarding-wallet-qr.png'),
+ onboarding2:require('../assets/cards/onboarding-virtual-shield.png'),
+ onboarding3:require('../assets/cards/onboarding-split-bnpl.png')
 };
 
 export type AppContextType={
