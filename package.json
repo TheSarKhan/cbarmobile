@@ -4,6 +4,7 @@
   "main": "index.ts",
   "dependencies": {
     "@expo/vector-icons": "^15.0.2",
+    "@mediapipe/tasks-vision": "^1.1.1",
     "@react-navigation/bottom-tabs": "^7.21.0",
     "@react-navigation/native": "^7.5.1",
     "expo": "~58.0.14",
@@ -28,12 +29,12 @@
     "typescript": "~6.0.3"
   },
   "scripts": {
-    "start": "expo start",
+    "start": "node scripts/copy-mediapipe.js && expo start",
     "android": "expo run:android",
     "ios": "expo run:ios",
-    "web": "expo start --web",
+    "web": "node scripts/copy-mediapipe.js && expo start --web",
     "typecheck": "tsc --noEmit",
-    "export:web": "expo export --platform web",
+    "export:web": "node scripts/copy-mediapipe.js && expo export --platform web",
     "lint": "expo lint"
   },
   "private": true

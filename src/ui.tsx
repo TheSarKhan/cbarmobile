@@ -42,6 +42,7 @@ export type AppContextType={
  logout:()=>void;
  error:string;
  message:string;
+ external:Row[];
  setError:(e:string)=>void;
  setMessage:(s:string)=>void;
 };
@@ -50,7 +51,7 @@ export const Context=createContext<AppContextType>(null!);
 export const useApp=()=>useContext(Context);
 
 export const AZ_MONTHS=['Yan','Fev','Mar','Apr','May','İyn','İyl','Avq','Sen','Okt','Noy','Dek'];
-export const EXPENSE_CATEGORIES=['Yemək','Abunəliklər','Köçürmələr','Nəqliyyat','Əyləncə'];
+export const EXPENSE_CATEGORIES=['Yemək','Abunəliklər','Köçürmələr','Nəqliyyat','Əyləncə','Alış-veriş','Kommunal','Digər'];
 
 export function fmtDate(v:any){
  const d=new Date(v);
@@ -244,18 +245,25 @@ export function Sheet({title,visible,onClose,children}:{title:string;visible:boo
 
 export function Tx({t,onPress}:{t:Row;onPress?:()=>void}){
  const isIn=t.direction==='IN';
+ const external=t.source==='OPEN_BANKING';
  const content=(
   <View style={S.listRow}>
-   <View style={[S.tile,isIn&&{backgroundColor:'#e8f3d8'}]}>
-    <Icon
-     name={t.type==='QR'?'cafe-outline':t.type==='CRYPTO'?'logo-bitcoin':isIn?'arrow-down-outline':'arrow-up-outline'}
-     color={isIn?'#4e7a27':C.ink}
-     size={19}
-    />
-   </View>
+   {external?(
+    <View style={[S.tile,{backgroundColor:t.bankColor||C.ink}]}>
+     <Text style={{color:'#fff',fontSize:12,fontWeight:'800'}}>{t.bankInitials||'B'}</Text>
+    </View>
+   ):(
+    <View style={[S.tile,isIn&&{backgroundColor:'#e8f3d8'}]}>
+     <Icon
+      name={t.type==='QR'?'cafe-outline':t.type==='CRYPTO'?'logo-bitcoin':isIn?'arrow-down-outline':'arrow-up-outline'}
+      color={isIn?'#4e7a27':C.ink}
+      size={19}
+     />
+    </View>
+   )}
    <View style={{flex:1,minWidth:0}}>
     <Text numberOfLines={1} style={{fontSize:13,color:C.ink,fontWeight:'600'}}>{t.name}</Text>
-    <Text numberOfLines={1} style={[S.muted,{fontSize:11,marginTop:2}]}>{fmtDate(t.createdAt)} · {t.category}</Text>
+    <Text numberOfLines={1} style={[S.muted,{fontSize:11,marginTop:2}]}>{fmtDate(t.createdAt)} · {t.category}{external?' · '+t.bankName:''}</Text>
    </View>
    <View style={{alignItems:'flex-end'}}>
     <Text style={{fontWeight:'700',fontSize:13,color:isIn?'#4e7a27':C.ink}}>

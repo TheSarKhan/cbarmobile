@@ -8,6 +8,12 @@ export const storage = {
  async set(key:string,value:string) {if(Platform.OS==='web')sessionStorage.setItem(key,value);else await SecureStore.setItemAsync(key,value);},
  async remove(key:string) {if(Platform.OS==='web')sessionStorage.removeItem(key);else await SecureStore.deleteItemAsync(key);}
 };
+/** Public address of the partner simulator's hosted pages: the gateway origin, or port 8081 when the API runs on 8080 locally. */
+export function simPublicUrl(base:string){
+ if(process.env.EXPO_PUBLIC_SIM_URL)return process.env.EXPO_PUBLIC_SIM_URL;
+ const api=new URL(base);
+ return api.port==='8080'?api.protocol+'//'+api.hostname+':8081':api.origin;
+}
 export const CONNECTION_ERROR_MESSAGE="Serverlə bağlantı qurulmadı. API ünvanını və Wi-Fi bağlantısını yoxlayın.";
 export class ApiError extends Error {constructor(public code:string,message:string,public status:number){super(message);}}
 export function request(base:string,token:string,device:string,path:string,body?:Row,proof?:string,key?:string){
