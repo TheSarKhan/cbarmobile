@@ -90,3 +90,16 @@ jobs:
           else
             gh release create "$tag" kampus.apk kampus.apk.sha256 --target "$GITHUB_SHA" --title "Kampus Android $GITHUB_RUN_NUMBER" --notes "Signed Android demo. API: https://apicbar.sarkhan.az/api/v1"
           fi
+      - name: Send the verified APK to Telegram
+        continue-on-error: true # a Telegram outage must never fail an already deployed release
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+        run: |
+          esc() { sed -e 's/&/\&amp;/g' -e 's/</\&lt;/g' -e 's/>/\&gt;/g'; }
+          commit_msg=$(git log -1 --pretty=%s | esc)
+          sha=$(awk '{print $1}' kampus.apk.sha256)
+          caption=$(printf '📱 <b>Kampus Mobile — yeni APK hazırdır</b>\n\n🔹 <b>Commit:</b> <code>%s</code> — %s\n🔹 <b>SHA-256:</b> <code>%s…</code>\n🔗 <b>Yükləmə:</b> https://apicbar.sarkhan.az/download/kampus.apk\n🌐 <b>Mobil veb:</b> https://apicbar.sarkhan.az' "${GITHUB_SHA::7}" "$commit_msg" "${sha::16}")
+          status=$(curl -s -o /dev/null -w '%{http_code}' -F chat_id="$TELEGRAM_CHAT_ID" -F document=@kampus.apk -F parse_mode=HTML -F caption="$caption" "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendDocument")
+          echo "Telegram responded with HTTP $status"
+          [ "$status" = "200" ]
