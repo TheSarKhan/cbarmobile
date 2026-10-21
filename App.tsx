@@ -11,6 +11,8 @@ import {Operations} from './src/OperationsSheet';
 import AuthFlow from './src/AuthFlow';
 import Onboarding from './src/Onboarding';
 import PinPad from './src/PinPad';
+import Liveness from './src/Liveness';
+import type {LivenessResult} from './src/livenessTypes';
 import {DEFAULT_API,storage,request,ApiError,minor,money,Row,hashPhones,CONNECTION_ERROR_MESSAGE} from './src/api';
 
 const Tab=createBottomTabNavigator();
@@ -844,6 +846,7 @@ export default function App(){
   [sca,setSca]=useState<{path:string;body:Row;resolve:(s:string)=>void;reject:(e:Error)=>void}|null>(null),
   [scaPin,setScaPin]=useState(''),
   [scaBusy,setScaBusy]=useState(false),
+  [kycStep,setKycStep]=useState<{proof:string;actions:string[]}|null>(null),
   [showOnboarding,setShowOnboarding]=useState(true),
   [external,setExternal]=useState<Row[]>([]),
   [showConfig,setShowConfig]=useState(false);
@@ -983,12 +986,32 @@ export default function App(){
   setScaBusy(true);
   try{
    const r=await call('auth/sca',{pin:pinValue,payload:{action:sca.path,data:sca.body}});
-   sca.resolve(r.proof);
-   setSca(null);
-   setError('');
+   if(r.kycRequired){
+    // Large amount: the PIN is only the first step, a fresh face check follows.
+    setKycStep({proof:r.proof,actions:r.kycActions||[]});
+    setError('');
+   }else{
+    sca.resolve(r.proof);
+    setSca(null);
+    setError('');
+   }
   }catch(e){setError((e as Error).message);}
   finally{setScaPin('');setScaBusy(false);}
  };
+
+ const finishKyc=async(result:LivenessResult)=>{
+  if(!sca||!kycStep)return;
+  try{
+   await call('auth/sca/kyc',{proof:kycStep.proof,selfie:result.selfie,livenessMode:result.mode,livenessActions:result.actions,facesCount:result.facesCount});
+   sca.resolve(kycStep.proof);
+   setSca(null);setKycStep(null);setError('');
+  }catch(e){
+   // The proof is spent or refused: end this attempt with the reason, the person starts again with the PIN.
+   sca.reject(e as Error);
+   setSca(null);setKycStep(null);
+  }
+ };
+ const cancelKyc=()=>{sca?.reject(new Error('Ləğv edildi'));setSca(null);setKycStep(null);};
 
  const context:AppContextType={
   base,
@@ -1048,7 +1071,18 @@ export default function App(){
       </Pressable>
      )}
      {!!sheet&&<Operations key={sheet} hidden={!!sca} sheet={sheet} close={()=>{setSheet('');setError('');}}/>}
-     <Sheet title="Əməliyyatı təsdiqlə" visible={!!sca} onClose={()=>{sca?.reject(new Error('Ləğv edildi'));setSca(null);}}>
+     <Sheet title="Üzünü təsdiqlə" visible={!!kycStep} onClose={cancelKyc}>
+      <Box>
+       <View style={S.row}>
+        <Icon name="scan-outline" color="#7fa157" size={25}/>
+        <Text style={[S.muted,{flex:1}]}>Məbləğ böyük olduğu üçün PIN-dən sonra üzünü də təsdiqləməlisən.</Text>
+       </View>
+       {sca?.body.amountMinor&&<Text style={[S.amount,{fontSize:28,marginTop:14}]}>{money(sca.body.amountMinor)}</Text>}
+      </Box>
+      {!!error&&<View style={S.error}><Text style={S.errorText}>{error}</Text></View>}
+      {kycStep&&<Liveness actions={kycStep.actions} onDone={finishKyc} onCancel={cancelKyc}/>}
+     </Sheet>
+     <Sheet title="Əməliyyatı təsdiqlə" visible={!!sca&&!kycStep} onClose={()=>{sca?.reject(new Error('Ləğv edildi'));setSca(null);}}>
       <Box>
        <View style={S.row}>
         <Icon name="shield-checkmark-outline" color="#7fa157" size={25}/>
