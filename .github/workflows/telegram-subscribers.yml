@@ -1,0 +1,27 @@
+name: Telegram subscribers
+# Anyone who presses /start in the release bot is added here within minutes, not only when the next release runs.
+on:
+  schedule:
+    - cron: '*/10 * * * *'
+  workflow_dispatch:
+permissions:
+  contents: write
+concurrency:
+  group: telegram-subscribers
+  cancel-in-progress: false
+jobs:
+  sync:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - name: Add new subscribers and greet them
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          OFFSET_FILE: ${{ runner.temp }}/telegram-offset.txt
+        run: |
+          subs="$RUNNER_TEMP/subscribers.json"
+          ./scripts/telegram-subscribers.sh load "$subs"
+          python3 scripts/telegram_notify.py sync "$subs"
+          ./scripts/telegram-subscribers.sh save "$subs"
+          python3 scripts/telegram_notify.py confirm "$OFFSET_FILE"
