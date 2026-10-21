@@ -30,7 +30,8 @@
         }
       ],
       "./plugins/withDemoNetwork",
-      "./plugins/withReleaseSigning"
+      "./plugins/withReleaseSigning",
+      "expo-sharing"
     ],
     "scheme": "kampus"
   }

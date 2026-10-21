@@ -1,7 +1,7 @@
 import React,{useEffect,useMemo,useState} from 'react';
 import {Modal,Pressable,ScrollView,StyleSheet,Text,TextInput,View} from 'react-native';
 import {SafeAreaProvider,SafeAreaView} from 'react-native-safe-area-context';
-import {Avatar,BackBar,Button,C,ErrorPopup,Icon,ResultArt,S,useApp,useModalHost} from './ui';
+import {Avatar,BackBar,Button,C,ErrorPopup,Icon,ResultArt,S,cardLabel,linkedCards,useApp,useModalHost} from './ui';
 import {minor,money,Row} from './api';
 
 type Contact={name:string;phone:string};
@@ -30,6 +30,9 @@ function typeAmount(current:string,key:string){
 export function TransferFlow({initialPhone,hidden,close}:{initialPhone:string;hidden:boolean;close:()=>void}){
  const a=useApp();
  useModalHost(!hidden);
+ // it slides in once; coming back from the PIN sheet it simply reappears (a second slide-in leaves the web layout collapsed)
+ const [opened,setOpened]=useState(false);
+ if(!hidden&&!opened)setOpened(true);
  const self=a.data.user?.phone;
  const [step,setStep]=useState<'pick'|'amount'|'confirm'|'result'>(initialPhone?'amount':'pick');
  const [target,setTarget]=useState<Contact|null>(initialPhone?{name:initialPhone,phone:initialPhone}:null);
@@ -42,6 +45,7 @@ export function TransferFlow({initialPhone,hidden,close}:{initialPhone:string;hi
   [busy,setBusy]=useState(false),
   [result,setResult]=useState<Row|null>(null),
   [failure,setFailure]=useState(''),
+  [source,setSource]=useState('WALLET'),
   [count,setCount]=useState(5);
 
  const contacts=useMemo(()=>{
@@ -52,6 +56,7 @@ export function TransferFlow({initialPhone,hidden,close}:{initialPhone:string;hi
   FRIENDS.forEach(f=>add(f.name,f.phone));
   return out;
  },[a.data.trustedBeneficiaries,self]);
+ const cards=linkedCards(a.data);
  const frequent=contacts.slice(0,3);
  const needle=search.trim().toLowerCase();
  const shown=needle?contacts.filter(c=>c.name.toLowerCase().includes(needle)||c.phone.includes(needle)):contacts;
@@ -83,7 +88,7 @@ export function TransferFlow({initialPhone,hidden,close}:{initialPhone:string;hi
   if(!target)return;
   setBusy(true);setLocal('');
   try{
-   const t=await a.act('transfers',{phone:target.phone,amountMinor:parsed,note});
+   const t=await a.act('transfers',{phone:target.phone,amountMinor:parsed,note,...(source!=='WALLET'?{fundingAccountId:source}:{})});
    setResult(t);setFailure('');setStep('result');
   }catch(e){
    const message=(e as Error).message;
@@ -96,7 +101,7 @@ export function TransferFlow({initialPhone,hidden,close}:{initialPhone:string;hi
  const tone:'success'|'failed'|'review'=failure?'failed':result?.status==='UNDER_REVIEW'?'review':'success';
 
  return (
-  <Modal visible={!hidden} animationType="slide" onRequestClose={close}>
+  <Modal visible={!hidden} animationType={opened?'none':'slide'} onRequestClose={close}>
    {/* a Modal is its own native window: without its own provider the top inset is 0 on the first screen and the back button sits under the status bar */}
    <SafeAreaProvider style={{flex:1}}>
    <SafeAreaView style={t.screen}>
@@ -191,6 +196,18 @@ export function TransferFlow({initialPhone,hidden,close}:{initialPhone:string;hi
        <Text style={t.hint}>Məbləğ</Text>
        <View style={t.amountWrap}><Text style={t.amountText}>{money(parsed)}</Text></View>
        <View style={{alignSelf:'stretch',marginTop:26}}>
+        {cards.length>0&&(
+         <View style={{marginBottom:16}}>
+          <Text style={[S.label,{marginBottom:8}]}>Haradan köçürülsün</Text>
+          <View style={{flexDirection:'row',flexWrap:'wrap',gap:8}}>
+           {[{id:'WALLET',label:'Kampus balansı'},...cards.map(x=>({id:String(x.id),label:cardLabel(x)}))].map(o=>(
+            <Pressable key={o.id} accessibilityRole="button" accessibilityState={{selected:source===o.id}} onPress={()=>setSource(o.id)} style={[t.sourceChip,source===o.id&&{backgroundColor:C.primary,borderColor:C.primary}]}>
+             <Text style={[t.sourceText,source===o.id&&{color:'#fff'}]}>{o.label}</Text>
+            </Pressable>
+           ))}
+          </View>
+         </View>
+        )}
         <TextInput
          accessibilityLabel="Qeyd"
          value={note}
@@ -310,5 +327,7 @@ const t=StyleSheet.create({
  details:{alignSelf:'stretch',gap:8,marginBottom:14},
  detail:{borderWidth:1,borderColor:'#ebe8f4',borderRadius:10,paddingHorizontal:14,paddingVertical:10},
  detailLabel:{fontSize:11,color:'#76738a'},
+ sourceChip:{minHeight:42,paddingHorizontal:14,borderRadius:12,borderWidth:1.5,borderColor:'#dedaeb',alignItems:'center',justifyContent:'center'},
+ sourceText:{fontSize:13,fontWeight:'700',color:C.ink},
  detailValue:{fontSize:14,fontWeight:'700',color:C.ink,marginTop:3}
 });

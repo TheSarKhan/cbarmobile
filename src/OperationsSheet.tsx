@@ -5,6 +5,7 @@ import {CardTransferForm} from './CardTransferSheet';
 import {CreditSection,CryptoSection} from './HubSections';
 import {BanksSection} from './BanksSection';
 import {TransferFlow} from './TransferFlow';
+import {LinkBankFlow} from './LinkBankFlow';
 import {minor,money,Row} from './api';
 
 
@@ -17,7 +18,7 @@ export function Operations({sheet,close,hidden=false}:{sheet:string;close:()=>vo
   [btcNet,setBtcNet]=useState<'LIGHTNING'|'ONCHAIN'>('LIGHTNING'),
   [copied,setCopied]=useState(false),
   [selCard,setSelCard]=useState('KAPITAL'),
-  [selBank,setSelBank]=useState('KAPITAL'),
+  [selAcc,setSelAcc]=useState(''),
   [termCode,setTermCode]=useState<Row|null>(null),
   [recipient,setRecipient]=useState<Row|null>(null),
   [transfer,setTransfer]=useState<Row|null>(null),
@@ -47,7 +48,7 @@ export function Operations({sheet,close,hidden=false}:{sheet:string;close:()=>vo
   '':'Balans artımı',
   CARD:'Bank kartı ilə artım',
   BITCOIN:'Bitcoin ilə artım',
-  OPEN_BANKING:'Bank hesabından artım',
+  OPEN_BANKING:'Bank kartından artım',
   TERMINAL:'Ödəniş terminalı'
  };
  const title:Record<string,string>={
@@ -100,6 +101,7 @@ export function Operations({sheet,close,hidden=false}:{sheet:string;close:()=>vo
 
  const txItem=kind==='tx-detail'?[...(a.data.transactions||[]),...(a.external||[])].find((x:Row)=>String(x.id)===paramId):null;
 
+ if(kind==='link-bank')return <LinkBankFlow hidden={hidden} close={close}/>;
  if(kind==='send')return <TransferFlow initialPhone={sheet.startsWith('send:')?sheet.split(':')[1]:''} hidden={hidden} close={close}/>;
 
  return (
@@ -115,7 +117,7 @@ export function Operations({sheet,close,hidden=false}:{sheet:string;close:()=>vo
       ['PIN-i unutdum','Telefon nömrənlə daxil ol, PIN səhifəsində “Başqa nömrə ilə daxil ol” seçib yenidən qeydiyyatdan keç. Hesabın bloklanıbsa, bir neçə dəqiqə sonra yenidən yoxla.'],
       ['Köçürmə niyə gecikir?','Köçürmələr 5 saniyəlik ləğv pəncərəsindən sonra icra olunur. Böyük məbləğlər və yeni cihaz yoxlamaya düşə bilər, bu halda vəsait rezerv edilir.'],
       ['Böyük məbləğ üçün üz yoxlaması','500 ₼ və yuxarı köçürmələr PIN-dən sonra qısa üz yoxlaması istəyir.'],
-      ['Digər bankların kartları','“Daha çox” bölməsində “Digər banklar” vasitəsilə hesab və kartlarını yalnız oxumaq üçün bağlaya bilərsən.']
+      ['Digər bankların kartları','“Kartlar” tabında “Kart əlavə et” ilə bank seçib kartlarını bağlaya, xərclərini izləyə və onlardan ödəniş edə bilərsən. Müddəti və aylıq limiti özün seçirsən.']
      ].map(([q,r])=>(
       <Box key={q}>
        <Text style={S.h3}>{q}</Text>
@@ -242,7 +244,7 @@ export function Operations({sheet,close,hidden=false}:{sheet:string;close:()=>vo
         <View style={os.bentoRow}>
          <Pressable accessibilityRole="button" onPress={()=>switchSource('CARD')} style={os.topupMethodCard}>
           <View style={{zIndex:2}}>
-           <Text style={os.topupMethodTitle}>Bank kartı</Text>
+           <Text style={os.topupMethodTitle}>Yeni kart</Text>
            <Text style={os.topupMethodSub}>Visa · Mastercard</Text>
           </View>
           <Image source={CARD_IMAGES.topupCard} style={os.topupMethodImg} resizeMode="cover"/>
@@ -260,8 +262,8 @@ export function Operations({sheet,close,hidden=false}:{sheet:string;close:()=>vo
         <View style={os.bentoRow}>
          <Pressable accessibilityRole="button" onPress={()=>switchSource('OPEN_BANKING')} style={os.topupMethodCard}>
           <View style={{zIndex:2}}>
-           <Text style={os.topupMethodTitle}>Bank hesabı</Text>
-           <Text style={os.topupMethodSub}>IBAN · Açıq Bank</Text>
+           <Text style={os.topupMethodTitle}>Bağlı kart</Text>
+           <Text style={os.topupMethodSub}>Açıq bankçılıq kartı</Text>
           </View>
           <Image source={CARD_IMAGES.topupBank} style={os.topupMethodImg} resizeMode="cover"/>
          </Pressable>
@@ -438,60 +440,61 @@ export function Operations({sheet,close,hidden=false}:{sheet:string;close:()=>vo
         </>
        )}
 
-       {source==='OPEN_BANKING'&&(
-        <>
-         <View style={os.flowHeroWhite}>
-          <View style={{flex:1,paddingRight:12}}>
-           <Text style={os.flowHeroTitleDark}>Bank hesabından köçürmə</Text>
-           <Text style={os.flowHeroSubDark}>Açıq Bankçılıq ilə bağlı cari hesabınızdan birbaşa mədaxil edin.</Text>
+       {source==='OPEN_BANKING'&&(()=>{
+        const live=new Set<string>((a.data.openBanking?.consents||[]).filter((c:Row)=>c.status==='AUTHORIZED').map((c:Row)=>c.id));
+        const linked:Row[]=(a.data.openBanking?.accounts||[]).filter((x:Row)=>x.type==='CARD'&&live.has(x.consentId));
+        const picked=linked.find(x=>x.id===selAcc)||linked[0];
+        return (
+         <>
+          <View style={os.flowHeroWhite}>
+           <View style={{flex:1,paddingRight:12}}>
+            <Text style={os.flowHeroTitleDark}>Bank kartından artım</Text>
+            <Text style={os.flowHeroSubDark}>Açıq bankçılıqla bağladığınız kartdan Kampus balansına vəsait köçürün. Kartın aylıq limiti keçərlidir.</Text>
+           </View>
+           <Image source={CARD_IMAGES.topupBank} style={os.flowHeroSideImg} resizeMode="cover"/>
           </View>
-          <Image source={CARD_IMAGES.topupBank} style={os.flowHeroSideImg} resizeMode="cover"/>
-         </View>
-
-         <Text style={S.label}>Bank hesabını seçin</Text>
-         <View style={{gap:10,marginBottom:18}}>
-          {[
-           ['KAPITAL','Kapital Bank','AZ21 NABZ 0000 •••• 4410 · Cari hesab'],
-           ['ABB','ABB (Azərbaycan Beynəlxalq Bankı)','AZ74 IBAZ 0000 •••• 8821 · Cari hesab'],
-           ['PASA','PAŞA Bank','AZ59 PASB 0000 •••• 1904 · Cari hesab']
-          ].map(([id,name,sub])=>(
-           <Pressable
-            key={id}
-            accessibilityRole="button"
-            onPress={()=>setSelBank(id)}
-            style={[os.selectRowCard,selBank===id&&os.selectRowCardActive]}
-           >
-            <View style={os.selectRowIcon}>
-             <Icon name="business-outline" size={20} color={C.ink}/>
+          {!linked.length?(
+           <>
+            <Empty text="Hələ bağlı bank kartın yoxdur. Kartı bağla, sonra buradan balansı artır." icon="card-outline"/>
+            <Button title="Bank kartı əlavə et" icon="add" onPress={()=>a.open('link-bank')}/>
+           </>
+          ):(
+           <>
+            <Text style={S.label}>Kartı seçin</Text>
+            <View style={{gap:10,marginBottom:18}}>
+             {linked.map(x=>(
+              <Pressable key={x.id} accessibilityRole="button" accessibilityLabel={x.bankName+' '+x.masked} onPress={()=>setSelAcc(x.id)} style={[os.selectRowCard,picked?.id===x.id&&os.selectRowCardActive]}>
+               <View style={os.selectRowIcon}><Icon name="card-outline" size={20} color={C.ink}/></View>
+               <View style={{flex:1}}>
+                <Text style={{fontSize:13,fontWeight:'700',color:C.ink}}>{x.bankName}</Text>
+                <Text style={{fontSize:11,color:C.muted,marginTop:2}}>{x.name} · {x.masked} · {money(x.balanceMinor)}</Text>
+               </View>
+               <Icon name={picked?.id===x.id?'checkmark-circle':'ellipse-outline'} size={20} color={picked?.id===x.id?C.ink:C.muted}/>
+              </Pressable>
+             ))}
             </View>
-            <View style={{flex:1}}>
-             <Text style={{fontSize:13,fontWeight:'700',color:C.ink}}>{name}</Text>
-             <Text style={{fontSize:11,color:C.muted,marginTop:2}}>{sub}</Text>
-            </View>
-            <Icon name={selBank===id?'checkmark-circle':'ellipse-outline'} size={20} color={selBank===id?C.ink:C.muted}/>
-           </Pressable>
-          ))}
-         </View>
-
-         <Field label="Məbləğ · AZN" value={amount} onChange={setAmount} numeric/>
-         <Box style={{backgroundColor:'#ede9f8',borderColor:'#c1b6e2'}}>
-          <View style={[S.between,{marginBottom:4}]}>
-           <Text style={S.muted}>Açıq Bankçılıq komissiyası</Text>
-           <Text style={S.h3}>0.00 ₼</Text>
-          </View>
-          <View style={S.between}>
-           <Text style={S.muted}>Yekun mədaxil</Text>
-           <Text style={S.h3}>{parsedAzn.toFixed(2)} ₼</Text>
-          </View>
-         </Box>
-         <Button
-          title={`Bank hesabından +${parsedAzn.toFixed(2)} ₼ artır`}
-          disabled={a.busy||parsedAzn<=0}
-          icon="arrow-forward"
-          onPress={()=>run(async()=>{await a.act('topups',{amountMinor:minor(amount),source:'OPEN_BANKING'});close();})}
-         />
-        </>
-       )}
+            <Field label="Məbləğ · AZN" value={amount} onChange={setAmount} numeric/>
+            <Box style={{backgroundColor:'#ede9f8',borderColor:'#c1b6e2'}}>
+             <View style={[S.between,{marginBottom:4}]}>
+              <Text style={S.muted}>Komissiya</Text>
+              <Text style={S.h3}>0.00 ₼</Text>
+             </View>
+             <View style={S.between}>
+              <Text style={S.muted}>Yekun mədaxil</Text>
+              <Text style={S.h3}>{parsedAzn.toFixed(2)} ₼</Text>
+             </View>
+            </Box>
+            <Button
+             title={`Kartdan +${parsedAzn.toFixed(2)} ₼ artır`}
+             disabled={a.busy||parsedAzn<=0||!picked}
+             icon="arrow-forward"
+             onPress={()=>run(async()=>{await a.act('topups',{amountMinor:minor(amount),source:'BANK_CARD',accountId:picked.id});close();})}
+            />
+           </>
+          )}
+         </>
+        );
+       })()}
 
        {source==='TERMINAL'&&(
         <>

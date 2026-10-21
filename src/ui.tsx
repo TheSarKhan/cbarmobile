@@ -224,10 +224,20 @@ export type AppContextType={
  external:Row[];
  setError:(e:string)=>void;
  setMessage:(s:string)=>void;
+ goTo:(route:string)=>void;
 };
 
 export const Context=createContext<AppContextType>(null!);
 export const useApp=()=>useContext(Context);
+
+/** Bank cards shared with Kampus under a live consent: these can fund payments, transfers and top-ups. */
+export function linkedCards(data:Row):Row[]{
+ const live=new Set<string>((data.openBanking?.consents||[]).filter((c:Row)=>c.status==='AUTHORIZED').map((c:Row)=>c.id));
+ return (data.openBanking?.accounts||[]).filter((x:Row)=>x.type==='CARD'&&live.has(x.consentId));
+}
+
+/** Short name of a shared card for pickers: bank and last four digits. */
+export const cardLabel=(x:Row)=>String(x.bankName).split(' ')[0]+' · '+String(x.masked).replace(/\D/g,'').slice(-4);
 
 export const AZ_MONTHS=['Yan','Fev','Mar','Apr','May','İyn','İyl','Avq','Sen','Okt','Noy','Dek'];
 export const EXPENSE_CATEGORIES=['Yemək','Abunəliklər','Köçürmələr','Nəqliyyat','Əyləncə','Alış-veriş','Kommunal','Digər'];

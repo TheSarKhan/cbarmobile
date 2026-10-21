@@ -14,7 +14,7 @@ const SLIDES=[
   key:'cards',
   image:require('../assets/cards/onboarding-virtual-shield.png'),
   title:'Bütün bankların\nkartları bir yerdə',
-  desc:'Digər bankların hesab və kartlarını yalnız oxumaq icazəsi ilə bağla, xərclərini izlə.'
+  desc:'Digər bankların kartlarını bankın tətbiqində icazə verərək bağla, xərclərini izlə və kartlarından ödəniş et.'
  },
  {
   key:'split',

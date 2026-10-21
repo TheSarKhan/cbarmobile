@@ -2,11 +2,11 @@ import React,{useState,useEffect,useRef,useCallback} from 'react';
 import {View,Text,ScrollView,Pressable,StyleSheet,Platform,RefreshControl,AppState,ActivityIndicator,useWindowDimensions,Animated,Easing,BackHandler,TextInput} from 'react-native';
 import {StatusBar} from 'expo-status-bar';
 import {SafeAreaProvider,SafeAreaView} from 'react-native-safe-area-context';
-import {NavigationContainer,useFocusEffect,useIsFocused,useNavigation} from '@react-navigation/native';
+import {NavigationContainer,createNavigationContainerRef,useFocusEffect,useIsFocused,useNavigation} from '@react-navigation/native';
 import {createBottomTabNavigator} from '@react-navigation/bottom-tabs';
 import {LinearGradient} from 'expo-linear-gradient';
 import {CameraView,useCameraPermissions} from 'expo-camera';
-import {C,S,Avatar,BackBar,ErrorPopup,fmtDate,fmtDateTime,AppContextType,Context,useApp,statusLabel,statusTone,Icon,Button,Field,Check,Badge,Box,Empty,Sheet,Tx,EXPENSE_CATEGORIES} from './src/ui';
+import {C,S,Avatar,BackBar,ErrorPopup,fmtDate,fmtDateTime,cardLabel,linkedCards,AppContextType,Context,useApp,statusLabel,statusTone,Icon,Button,Field,Check,Badge,Box,Empty,Sheet,Tx,EXPENSE_CATEGORIES} from './src/ui';
 import {Operations} from './src/OperationsSheet';
 import AuthFlow from './src/AuthFlow';
 import Onboarding from './src/Onboarding';
@@ -17,6 +17,7 @@ import type {LivenessResult} from './src/livenessTypes';
 import {DEFAULT_API,storage,request,ApiError,minor,money,Row,hashPhones,errorCode,CONNECTION_ERROR_MESSAGE} from './src/api';
 
 const Tab=createBottomTabNavigator();
+const navRef=createNavigationContainerRef();
 
 function Page({children,title,back,onBack}:{children:React.ReactNode;title?:string;back?:boolean;onBack?:()=>void}){
  const a=useApp();
@@ -397,7 +398,7 @@ function QrTab(){
 
      <Text style={S.label}>Ödəniş mənbəyi</Text>
      <View style={{flexDirection:'row',gap:8,marginBottom:16,flexWrap:'wrap'}}>
-      {[['WALLET','Balans'],['BNPL','Sonra ödə'],...(a.data.cryptoEnabled?[['CRYPTO','USDT · Pilot']]:[])].map(([id,label])=>(
+      {[['WALLET','Balans'],['BNPL','Sonra ödə'],...(a.data.cryptoEnabled?[['CRYPTO','USDT · Pilot']]:[]),...linkedCards(a.data).map((x:Row)=>['CARD:'+x.id,cardLabel(x)])].map(([id,label])=>(
        <Pressable
         key={id}
         accessibilityRole="button"
@@ -446,7 +447,8 @@ function QrTab(){
          qrPayload:qr.qrPayload,
          paymentToken:qr.paymentToken,
          amountMinor:effectiveMinor,
-         fundingSource:funding,
+         fundingSource:funding.startsWith('CARD:')?'BANK_CARD':funding,
+         ...(funding.startsWith('CARD:')?{accountId:funding.slice(5)}:{}),
          ...(funding==='CRYPTO'?{riskAccepted:risk}:{})
         });
         setQrPaid(paid);
@@ -593,7 +595,7 @@ function CardsTab(){
     <View style={{height:8}}/>
     <WalletCard name={account.name||consent.bankName||'Bank kartı'} last4={lastDigits(account.masked)} label={consent.bankName||'Balans'} value={money(account.balanceMinor)} look={bankLook(consent.bankColor)}/>
     <View style={[S.between,{marginTop:14}]}>
-     <Badge text={expired?'İCAZƏNİN VAXTI BİTİB':'YALNIZ OXUMAQ'} tone={expired?'danger':'success'}/>
+     <Badge text={expired?'İCAZƏNİN VAXTI BİTİB':'KAMPUS-A BAĞLI'} tone={expired?'danger':'success'}/>
      <Text style={S.muted}>{consent.lastSyncAt?'Yenilənib: '+fmtDateTime(consent.lastSyncAt):'Hələ yenilənməyib'}</Text>
     </View>
     {expired?(
@@ -623,7 +625,7 @@ function CardsTab(){
   <Page>
    <View style={[S.between,{marginBottom:18}]}>
     <Text style={[styles.pageTitle,{marginBottom:0}]}>Kartlarım</Text>
-    <Pressable accessibilityRole="button" accessibilityLabel="Bank kartı əlavə et" onPress={()=>a.open('banks-hub')} hitSlop={10}>
+    <Pressable accessibilityRole="button" accessibilityLabel="Bank kartı əlavə et" onPress={()=>a.open('link-bank')} hitSlop={10}>
      <Text style={styles.addCard}>Kart əlavə et  +</Text>
     </Pressable>
    </View>
@@ -632,8 +634,8 @@ function CardsTab(){
     <View style={styles.emptyCards}>
      <View style={styles.connectIcon}><Icon name="card-outline" size={30} color={C.primary}/></View>
      <Text style={styles.emptyTitle}>Bank kartın hələ əlavə olunmayıb</Text>
-     <Text style={[S.muted,{textAlign:'center',marginTop:6,marginBottom:18}]}>Kapital, PAŞA, ABB və Rabitəbank kartlarını yalnız oxumaq icazəsi ilə bağla, balans və xərclərini bir yerdə izlə.</Text>
-     <Button title="Bank kartı əlavə et" icon="add" onPress={()=>a.open('banks-hub')}/>
+     <Text style={[S.muted,{textAlign:'center',marginTop:6,marginBottom:18}]}>Kapital, PAŞA, ABB və Rabitəbank kartlarını bağla, balans və xərclərini bir yerdə izlə və kartlarından ödəniş et.</Text>
+     <Button title="Bank kartı əlavə et" icon="add" onPress={()=>a.open('link-bank')}/>
     </View>
    )}
 
@@ -685,11 +687,11 @@ function CardsTab(){
     );
    })}
    {consents.length>0&&(
-    <Pressable accessibilityRole="button" onPress={()=>a.open('banks-hub')} style={styles.connectBank}>
+    <Pressable accessibilityRole="button" onPress={()=>a.open('link-bank')} style={styles.connectBank}>
      <View style={styles.connectIcon}><Icon name="business-outline" size={22} color={C.primary}/></View>
      <View style={{flex:1}}>
       <Text style={styles.moreLabel}>Başqa bank əlavə et</Text>
-      <Text style={styles.moreSub}>Kapital, PAŞA, ABB, Rabitəbank · yalnız oxumaq</Text>
+      <Text style={styles.moreSub}>Kapital, PAŞA, ABB, Rabitəbank</Text>
      </View>
      <Icon name="add" size={22} color={C.primary}/>
     </Pressable>
@@ -1139,7 +1141,8 @@ export default function App(){
   message,
   external,
   setError,
-  setMessage
+  setMessage,
+  goTo:(route:string)=>{if(navRef.isReady())navRef.navigate(route as never);}
  };
  const showSimulator=Platform.OS==='web'&&winWidth>500&&phoneFrame;
 
@@ -1163,7 +1166,7 @@ export default function App(){
     </>
    ):(
     <Context.Provider value={context}>
-     <NavigationContainer>
+     <NavigationContainer ref={navRef}>
       <Tab.Navigator tabBar={props=><CustomTabBar {...props}/>} screenOptions={{headerShown:false}}>
        <Tab.Screen name="Home" component={Home} options={{title:'Əsas'}}/>
        <Tab.Screen name="History" component={HistoryTab} options={{title:'Tarixçə'}}/>
@@ -1204,7 +1207,7 @@ export default function App(){
        {sca?.body.phone&&<Text style={[S.muted,{marginTop:8}]}>Alan: {sca.body.phone}</Text>}
        {sca?.body.fundingSource&&(
         <Text style={[S.muted,{marginTop:8}]}>
-         Ödəniş: {({BNPL:'Sonra ödə',WALLET:'Kampus balansı',CRYPTO:'USDT · Pilot'} as any)[sca.body.fundingSource]}
+         Ödəniş: {({BNPL:'Sonra ödə',WALLET:'Kampus balansı',CRYPTO:'USDT · Pilot',BANK_CARD:'Bank kartı'} as any)[sca.body.fundingSource]}
         </Text>
        )}
        {sca?.path.includes('loan-offers/')&&(
