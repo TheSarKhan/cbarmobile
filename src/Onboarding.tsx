@@ -13,8 +13,8 @@ const SLIDES=[
  {
   key:'cards',
   image:require('../assets/cards/onboarding-virtual-shield.png'),
-  title:'Satıcıya kilidli\nvirtual kartlar',
-  desc:'Yalnız seçdiyin xidmətdə işləyən kartlarla abunəliklərini təhlükəsiz saxla.'
+  title:'Bütün bankların\nkartları bir yerdə',
+  desc:'Digər bankların hesab və kartlarını yalnız oxumaq icazəsi ilə bağla, xərclərini izlə.'
  },
  {
   key:'split',

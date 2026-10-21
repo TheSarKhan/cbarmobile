@@ -2,7 +2,7 @@ import React,{useState,useEffect} from 'react';
 import {View,Text,Pressable,StyleSheet,ActivityIndicator,Animated,Easing,Image} from 'react-native';
 import {C,S,CARD_IMAGES,useApp,fmtDate,fmtDateTime,statusLabel,statusTone,Icon,Button,Field,Check,Badge,Box,Empty,Sheet,Tx,EXPENSE_CATEGORIES} from './ui';
 import {CardTransferForm} from './CardTransferSheet';
-import {CardsSection,CreditSection,CryptoSection} from './HubSections';
+import {CreditSection,CryptoSection} from './HubSections';
 import {BanksSection} from './BanksSection';
 import {TransferFlow} from './TransferFlow';
 import {minor,money,Row} from './api';
@@ -22,10 +22,6 @@ export function Operations({sheet,close,hidden=false}:{sheet:string;close:()=>vo
   [recipient,setRecipient]=useState<Row|null>(null),
   [transfer,setTransfer]=useState<Row|null>(null),
   [count,setCount]=useState(5);
- const [cardName,setCardName]=useState(''),
-  [cardType,setCardType]=useState('STANDARD'),
-  [merchant,setMerchant]=useState(''),
-  [limit,setLimit]=useState('100');
  const [detail,setDetail]=useState<any>(null),
   [selected,setSelected]=useState<string[]>(['+994501000002','+994501000003','+994501000004'].filter(p=>p!==a.data.user?.phone)),
   [splitMode,setSplitMode]=useState<'EQUAL'|'CUSTOM'>('EQUAL'),
@@ -59,7 +55,6 @@ export function Operations({sheet,close,hidden=false}:{sheet:string;close:()=>vo
   send:'Pul göndər',
   request:'Pul istə',
   'my-qr':'Mənim QR kodum',
-  'new-card':'Yeni virtual kart',
   notifications:'Bildirişlər',
   history:'Əməliyyat tarixçəsi',
   'tx-detail':'Əməliyyat detalları',
@@ -68,7 +63,6 @@ export function Operations({sheet,close,hidden=false}:{sheet:string;close:()=>vo
   split:'Hesabı böl',
   'split-view':'Hesabın irəliləyişi',
   schedule:'Ödəniş qrafiki',
-  'cards-hub':'Virtual kartlarım',
   'credit-hub':'Sonra ödə və Kredit',
   'crypto-hub':'Kripto cüzdanı (Pilot)',
   help:'Kömək',
@@ -111,7 +105,6 @@ export function Operations({sheet,close,hidden=false}:{sheet:string;close:()=>vo
  return (
   <Sheet title={title[kind]||'Kampus'} visible={!!sheet&&(!hidden||kind==='card-transfer')} onClose={close}>
    {kind==='card-transfer'&&<CardTransferForm {...a}/>}
-   {kind==='cards-hub'&&<CardsSection/>}
    {kind==='credit-hub'&&<CreditSection/>}
    {kind==='crypto-hub'&&<CryptoSection/>}
    {kind==='banks-hub'&&<BanksSection/>}
@@ -146,7 +139,7 @@ export function Operations({sheet,close,hidden=false}:{sheet:string;close:()=>vo
    {kind==='about'&&(
     <Box>
      <Text style={S.h3}>Kampus.</Text>
-     <Text style={[S.muted,{marginTop:8}]}>Kampus tələbələr üçün rəqəmsal cüzdandır: pul köçürmələri, QR ödənişləri, virtual kartlar, hesabı bölmək və digər bankların kartlarını bir yerdə izləmək.</Text>
+     <Text style={[S.muted,{marginTop:8}]}>Kampus tələbələr üçün rəqəmsal cüzdandır: pul köçürmələri, QR ödənişləri, hesabı bölmək və digər bankların kartlarını bir yerdə izləmək. Kampus bank deyil, kart buraxmır.</Text>
      <Text style={[S.muted,{marginTop:8}]}>Bu proqram nümayiş mühitində işləyir. Bank və ödəniş şəbəkəsi qoşulmaları simulyasiyadır.</Text>
     </Box>
    )}
@@ -763,45 +756,6 @@ export function Operations({sheet,close,hidden=false}:{sheet:string;close:()=>vo
       </Box>
      ))}
      {!detail&&<ActivityIndicator color={C.ink}/>}
-    </>
-   )}
-
-   {kind==='new-card'&&(
-    <>
-     <Text style={S.label}>Kart növü</Text>
-     <View style={{gap:8,marginBottom:20}}>
-      {[
-       ['STANDARD','Əsas kart','Bütün demo satıcılarında keçərlidir'],
-       ['MERCHANT_LOCKED','Satıcıya kilidli','Yalnız seçdiyin satıcıda işləyir'],
-       ['SINGLE_USE','Birdəfəlik','Bir ödənişdən sonra avtomatik bağlanır']
-      ].map(([id,label,sub])=>(
-       <Pressable
-        key={id}
-        accessibilityRole="button"
-        onPress={()=>setCardType(id)}
-        style={[S.box,{marginBottom:0,padding:15,borderColor:cardType===id?C.ink:C.line,backgroundColor:cardType===id?'#eae6f7':'white'}]}
-       >
-        <View style={S.between}>
-         <View style={{flex:1}}>
-          <Text style={{fontWeight:'700',fontSize:13,color:C.ink}}>{label}</Text>
-          <Text style={[S.muted,{fontSize:11,marginTop:2}]}>{sub}</Text>
-         </View>
-         <Icon name={cardType===id?'radio-button-on':'radio-button-off'} size={20} color={cardType===id?C.ink:'#b0aac2'}/>
-        </View>
-       </Pressable>
-      ))}
-     </View>
-     <Field label="Kart adı" value={cardName} onChange={setCardName} placeholder="Məsələn, abunəliklər"/>
-     {cardType==='MERCHANT_LOCKED'&&<Field label="Satıcı adı" value={merchant} onChange={setMerchant} placeholder="Cursor"/>}
-     <Field label="Aylıq limit · AZN" value={limit} onChange={setLimit} numeric/>
-     <Button
-      title="Demo kartı yarat"
-      disabled={a.busy}
-      onPress={()=>run(async()=>{
-       await a.act('cards',{type:cardType,name:cardName,merchantName:merchant,monthlyLimitMinor:minor(limit)});
-       close();
-      })}
-     />
     </>
    )}
 
