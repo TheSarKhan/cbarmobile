@@ -37,7 +37,8 @@ type Props={
  onReplayIntro:()=>void;
 };
 
-type LastUser={phone:string;name:string};
+type LastUser={phone:string;name:string;pinLength?:number};
+const PHONE_FULL=/^\+994[0-9]{9}$/;
 
 const initials=(name:string)=>name.split(/\s+/).filter(Boolean).slice(0,2).map(part=>part[0]).join('').toUpperCase();
 const formatPhone=(digits:string)=>{
@@ -183,6 +184,8 @@ export default function AuthFlow({base,device,onAuthenticated,onConfig,onReplayI
  const [consent,setConsent]=useState(false);
  const [simaSigned,setSimaSigned]=useState(false);
  const [lastUser,setLastUser]=useState<LastUser|null>(null);
+ const [ready,setReady]=useState(false);
+ const [remembered,setRemembered]=useState(false);
  const countdown=useCountdown(RESEND_SECONDS);
 
  const phone='+994'+digits;
@@ -191,7 +194,20 @@ export default function AuthFlow({base,device,onAuthenticated,onConfig,onReplayI
 
  // The device remembers who signed in last, so the PIN screen can greet them without the server revealing names.
  useEffect(()=>{
-  storage.get('lastUser').then(raw=>{if(raw)try{setLastUser(JSON.parse(raw));}catch{/* ignore a corrupt value */}}).catch(()=>{});
+  storage.get('lastUser').then(raw=>{
+   let saved:LastUser|null=null;
+   if(raw)try{saved=JSON.parse(raw);}catch{/* a corrupt value is treated as nobody remembered */}
+   if(saved&&PHONE_FULL.test(saved.phone)){
+    setLastUser(saved);setDigits(saved.phone.slice(4));setPinLength(saved.pinLength||6);setRemembered(true);setStep('pin');
+    // Quietly confirm the account still exists and learn its PIN length; offline, the saved details are used.
+    call('auth/identify',{phone:saved.phone}).then(r=>{
+     if(!r.registered)forget();else setPinLength(Number(r.pinLength)||saved.pinLength||6);
+    }).catch(()=>{});
+   }
+   setReady(true);
+  }).catch(()=>setReady(true));
+ // Runs once on mount: it only reads what was saved.
+ // eslint-disable-next-line react-hooks/exhaustive-deps
  },[]);
 
  async function run(task:()=>Promise<void>,redirectOnError=false){
@@ -219,7 +235,7 @@ export default function AuthFlow({base,device,onAuthenticated,onConfig,onReplayI
   try{
    const r=await call('auth/login',{phone,pin:pinValue,deviceId:device});
    if(r.user.role!=='USER')throw new Error('Mobil tətbiqə tələbə hesabı ilə daxil olun.');
-   storage.set('lastUser',JSON.stringify({phone,name:r.user.name})).catch(()=>{});
+   storage.set('lastUser',JSON.stringify({phone,name:r.user.name,pinLength:Number(r.user.pinLength)||pinLength})).catch(()=>{});
    await onAuthenticated(r.accessToken);
   }catch(e){setPin('');throw e;}
  });
@@ -273,12 +289,21 @@ export default function AuthFlow({base,device,onAuthenticated,onConfig,onReplayI
    livenessMode:kyc.mode,livenessActions:kyc.actions,selfie:kyc.selfie,
    pin:pinValue,deviceId:device,termsAccepted:consent,dataConsent:consent
   });
-  storage.set('lastUser',JSON.stringify({phone,name:`${first.trim()} ${last.trim()}`})).catch(()=>{});
+  storage.set('lastUser',JSON.stringify({phone,name:`${first.trim()} ${last.trim()}`,pinLength:NEW_PIN_LENGTH})).catch(()=>{});
   await onAuthenticated(r.accessToken);
  },true).finally(()=>{setNewPin('');setNewPinAgain('');});
 
  const back=()=>go(BACK[step]??'phone');
+
+ // "Another number": forget who signed in last and ask for the phone number again.
+ function forget(){
+  storage.remove('lastUser').catch(()=>{});
+  setLastUser(null);setRemembered(false);setDigits('');setPin('');setError('');setStep('phone');
+ }
+
  const known=lastUser&&lastUser.phone===phone?lastUser:null;
+
+ if(!ready)return <View style={s.screen}/>;
 
  if(step==='phone'){
   return (
@@ -301,7 +326,11 @@ export default function AuthFlow({base,device,onAuthenticated,onConfig,onReplayI
 
  if(step==='pin'){
   return (
-   <Screen onBack={back} scroll={false}>
+   <Screen
+    onBack={remembered?undefined:back}
+    scroll={false}
+    right={<Pressable accessibilityRole="button" accessibilityLabel="API bağlantısını tənzimlə" hitSlop={8} onPress={onConfig} style={s.iconButton}><Icon name="options-outline" size={22} color={C.muted}/></Pressable>}
+   >
     <View style={s.pinTop}>
      <View style={s.avatar}>
       {known?<Text style={s.avatarText}>{initials(known.name)}</Text>:<Icon name="person" size={44} color="#9a9a9e"/>}
@@ -310,7 +339,12 @@ export default function AuthFlow({base,device,onAuthenticated,onConfig,onReplayI
      <Text style={s.pinHint}>Giriş üçün PIN kodu daxil et</Text>
      <ErrorText text={error}/>
     </View>
-    <PinPad value={pin} length={pinLength} onDigit={pressDigit} onDelete={pressDelete}/>
+    <View>
+     <PinPad value={pin} length={pinLength} onDigit={pressDigit} onDelete={pressDelete}/>
+     <Pressable accessibilityRole="button" disabled={busy} onPress={forget} style={{alignItems:'center',paddingBottom:14}}>
+      <Text style={s.resend}>Başqa nömrə ilə daxil ol</Text>
+     </Pressable>
+    </View>
    </Screen>
   );
  }

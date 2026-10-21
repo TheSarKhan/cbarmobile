@@ -3,10 +3,13 @@ import { Platform } from 'react-native';
 import * as SecureStore from 'expo-secure-store';
 export type Row = Record<string, any>;
 export const DEFAULT_API = process.env.EXPO_PUBLIC_API_URL || (Platform.OS === 'web' && typeof window !== 'undefined' && (!['localhost','127.0.0.1'].includes(window.location.hostname)||window.location.port!=='8082') ? window.location.origin+'/api/v1' : Platform.OS === 'android' ? 'http://10.0.2.2:8080/api/v1' : 'http://localhost:8080/api/v1');
+// The session token stays per tab on the web; who signed in last and the intro flag persist across tabs.
+const PERSISTENT_ON_WEB=new Set(['lastUser','onboarding_done']);
+const webStore=(key:string)=>PERSISTENT_ON_WEB.has(key)?localStorage:sessionStorage;
 export const storage = {
- async get(key:string) {return Platform.OS==='web' ? sessionStorage.getItem(key) : SecureStore.getItemAsync(key);},
- async set(key:string,value:string) {if(Platform.OS==='web')sessionStorage.setItem(key,value);else await SecureStore.setItemAsync(key,value);},
- async remove(key:string) {if(Platform.OS==='web')sessionStorage.removeItem(key);else await SecureStore.deleteItemAsync(key);}
+ async get(key:string) {return Platform.OS==='web' ? webStore(key).getItem(key) : SecureStore.getItemAsync(key);},
+ async set(key:string,value:string) {if(Platform.OS==='web')webStore(key).setItem(key,value);else await SecureStore.setItemAsync(key,value);},
+ async remove(key:string) {if(Platform.OS==='web')webStore(key).removeItem(key);else await SecureStore.deleteItemAsync(key);}
 };
 /** Public address of the partner simulator's hosted pages: the gateway origin, or port 8081 when the API runs on 8080 locally. */
 export function simPublicUrl(base:string){
