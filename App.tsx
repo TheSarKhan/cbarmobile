@@ -469,7 +469,7 @@ function QrTab(){
    )}
 
    <View style={styles.fullScannerTop}>
-    <Pressable accessibilityRole="button" accessibilityLabel="Geri" onPress={()=>nav.navigate('Cards')} style={styles.backPill}>
+    <Pressable accessibilityRole="button" accessibilityLabel="Geri" onPress={()=>nav.navigate('Home')} style={styles.backPill}>
      <Icon name="chevron-back" size={22} color="white"/>
     </Pressable>
     <Pressable
@@ -818,7 +818,7 @@ function ProfileTab(){
  );
 }
 
-const VISIBLE_TABS=['Home','History','Cards','More'];
+const VISIBLE_TABS=['Home','History','QR','Cards','More'];
 const TAB_ICONS:Record<string,[string,string]>={
  Home:['home','home-outline'],
  History:['document-text','document-text-outline'],
@@ -826,7 +826,7 @@ const TAB_ICONS:Record<string,[string,string]>={
  More:['wallet','wallet-outline']
 };
 // screens that live under a visible tab keep that tab highlighted
-const TAB_OWNER:Record<string,string>={Payments:'More',Profile:'Home',QR:'Cards'};
+const TAB_OWNER:Record<string,string>={Payments:'More',Profile:'Home'};
 
 function CustomTabBar({state,descriptors,navigation}:any){
  const current=state.routes[state.index]?.name;
@@ -834,9 +834,19 @@ function CustomTabBar({state,descriptors,navigation}:any){
  return (
   <View style={styles.tabBarWrap}>
    <View style={styles.tabBarInner}>
-    {state.routes.filter((r:any)=>VISIBLE_TABS.includes(r.name)).map((route:any)=>{
+    {VISIBLE_TABS.map(name=>state.routes.find((r:any)=>r.name===name)).filter(Boolean).map((route:any)=>{
      const label=descriptors[route.key].options.title||route.name;
      const focused=active===route.name;
+     if(route.name==='QR'){
+      return (
+       <Pressable key={route.key} accessibilityRole="button" accessibilityLabel="QR ilə ödə" accessibilityState={{selected:focused}} onPress={()=>navigation.navigate('QR')} style={styles.tabItem}>
+        <View style={[styles.qrButton,focused&&{backgroundColor:C.deep}]}>
+         <Icon name="qr-code-outline" size={26} color="#fff"/>
+        </View>
+        <Text style={[styles.tabLabel,{marginTop:30},focused&&{color:C.primary,fontWeight:'700'}]}>{label}</Text>
+       </Pressable>
+      );
+     }
      const [on,off]=TAB_ICONS[route.name];
      return (
       <Pressable key={route.key} accessibilityRole="button" accessibilityLabel={label} accessibilityState={{selected:focused}} onPress={()=>navigation.navigate(route.name)} style={styles.tabItem}>
@@ -1231,6 +1241,7 @@ const styles=StyleSheet.create({
  tabItem:{flex:1,minHeight:56,alignItems:'center',justifyContent:'center',gap:3,paddingTop:4},
  tabIndicator:{position:'absolute',top:-1,left:'12%',right:'12%',height:2.5,backgroundColor:C.primary,borderRadius:2},
  tabLabel:{fontSize:11,color:'#5d5a73',fontWeight:'500'},
+ qrButton:{position:'absolute',top:-26,width:56,height:56,borderRadius:28,backgroundColor:C.primary,alignItems:'center',justifyContent:'center',borderWidth:4,borderColor:'#fff',shadowColor:C.primary,shadowOffset:{width:0,height:6},shadowOpacity:0.3,shadowRadius:10,elevation:6},
  backPill:{width:48,height:48,borderRadius:24,backgroundColor:'rgba(18,10,51,0.7)',alignItems:'center',justifyContent:'center',marginRight:'auto',borderWidth:1,borderColor:'rgba(228,217,255,0.3)'},
  webBackdrop:{flex:1,backgroundColor:'#1b1245',alignItems:'center',justifyContent:'center',paddingVertical:12},
  webToolbar:{flexDirection:'row',alignItems:'center',justifyContent:'space-between',width:393,marginBottom:10,paddingHorizontal:4},
