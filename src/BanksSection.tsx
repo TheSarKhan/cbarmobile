@@ -10,7 +10,7 @@ const STATUS:Record<string,{text:string;tone:'success'|'warn'|'danger'|'neutral'
  EXPIRED:{text:'İCAZƏNİN VAXTI BİTİB',tone:'danger'}
 };
 
-function BankMark({bank,size=44}:{bank:Row;size?:number}){
+export function BankMark({bank,size=44}:{bank:Row;size?:number}){
  return (
   <View style={{width:size,height:size,borderRadius:size*0.32,backgroundColor:bank.color||bank.bankColor||C.ink,alignItems:'center',justifyContent:'center'}}>
    <Text style={{color:'#fff',fontWeight:'800',fontSize:size*0.32}}>{bank.initials||bank.bankInitials||'B'}</Text>

@@ -1,6 +1,6 @@
 import React,{useEffect,useMemo,useState} from 'react';
 import {Modal,Pressable,ScrollView,StyleSheet,Text,TextInput,View} from 'react-native';
-import {SafeAreaView} from 'react-native-safe-area-context';
+import {SafeAreaProvider,SafeAreaView} from 'react-native-safe-area-context';
 import {Avatar,BackBar,Button,C,ErrorPopup,Icon,ResultArt,S,useApp,useModalHost} from './ui';
 import {minor,money,Row} from './api';
 
@@ -97,7 +97,8 @@ export function TransferFlow({initialPhone,hidden,close}:{initialPhone:string;hi
 
  return (
   <Modal visible={!hidden} animationType="slide" onRequestClose={close}>
-   <View style={{flex:1}}>
+   {/* a Modal is its own native window: without its own provider the top inset is 0 on the first screen and the back button sits under the status bar */}
+   <SafeAreaProvider style={{flex:1}}>
    <SafeAreaView style={t.screen}>
     {step==='pick'&&(
      <ScrollView contentContainerStyle={t.body} keyboardShouldPersistTaps="handled">
@@ -246,7 +247,7 @@ export function TransferFlow({initialPhone,hidden,close}:{initialPhone:string;hi
     )}
    </SafeAreaView>
    {!!(local||a.error)&&<ErrorPopup message={local||a.error} onClose={()=>{setLocal('');a.setError('');}}/>}
-   </View>
+   </SafeAreaProvider>
   </Modal>
  );
 }

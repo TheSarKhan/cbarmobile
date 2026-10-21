@@ -6,10 +6,11 @@ import {NavigationContainer,useFocusEffect,useIsFocused,useNavigation} from '@re
 import {createBottomTabNavigator} from '@react-navigation/bottom-tabs';
 import {LinearGradient} from 'expo-linear-gradient';
 import {CameraView,useCameraPermissions} from 'expo-camera';
-import {C,S,Avatar,BackBar,ErrorPopup,fmtDate,AppContextType,Context,useApp,statusLabel,statusTone,Icon,Button,Field,Check,Badge,Box,Empty,Sheet,Tx,EXPENSE_CATEGORIES} from './src/ui';
+import {C,S,Avatar,BackBar,ErrorPopup,fmtDate,fmtDateTime,AppContextType,Context,useApp,statusLabel,statusTone,Icon,Button,Field,Check,Badge,Box,Empty,Sheet,Tx,EXPENSE_CATEGORIES} from './src/ui';
 import {Operations} from './src/OperationsSheet';
 import AuthFlow from './src/AuthFlow';
 import Onboarding from './src/Onboarding';
+import {BankMark} from './src/BanksSection';
 import PinPad from './src/PinPad';
 import Liveness from './src/Liveness';
 import type {LivenessResult} from './src/livenessTypes';
@@ -17,7 +18,7 @@ import {DEFAULT_API,storage,request,ApiError,minor,money,Row,hashPhones,CONNECTI
 
 const Tab=createBottomTabNavigator();
 
-function Page({children,title,back}:{children:React.ReactNode;title?:string;back?:boolean}){
+function Page({children,title,back,onBack}:{children:React.ReactNode;title?:string;back?:boolean;onBack?:()=>void}){
  const a=useApp();
  const nav=useNavigation<any>();
  return (
@@ -28,7 +29,7 @@ function Page({children,title,back}:{children:React.ReactNode;title?:string;back
     keyboardShouldPersistTaps="handled"
     showsVerticalScrollIndicator={false}
    >
-    {back&&<BackBar onBack={()=>nav.goBack()}/>}
+    {(back||!!onBack)&&<BackBar onBack={onBack||(()=>nav.goBack())}/>}
     {!!title&&<Text style={styles.pageTitle}>{title}</Text>}
     {children}
    </ScrollView>
@@ -571,18 +572,68 @@ function WalletCard({name,last4,label,value,look,compact=false}:{name:string;las
 function CardsTab({navigation}:any){
  const a=useApp(),d=a.data;
  const [picked,setPicked]=useState<string|null>(null);
+ const [addOpen,setAddOpen]=useState(false);
+ const [syncing,setSyncing]=useState(false);
  const owner=d.user?.name||'Kampus';
  const walletLast4=String(d.user?.phone||'0000').slice(-4);
  const cards:Row[]=d.cards||[];
+ const consents:Row[]=(d.openBanking?.consents||[]).filter((c:Row)=>c.status==='AUTHORIZED'||c.status==='EXPIRED');
+ const bankAccounts:Row[]=d.openBanking?.accounts||[];
  const items=[
   ...cards.map((c:Row,i:number)=>({id:String(c.id),virtual:true,name:c.name||owner,last4:String(c.last4||'0000'),look:LOOKS[1+(i%2)],value:c.monthlyLimitMinor>0?money(Math.max(0,c.monthlyLimitMinor-(c.spentMinor||0))):'Limitsiz',label:c.monthlyLimitMinor>0?'Qalan limit':'Virtual kart'})),
   {id:'wallet',virtual:false,name:owner,last4:walletLast4,look:LOOKS[0],value:money(d.wallet?.availableBalanceMinor||0),label:'Balans'}
  ];
  const chosen=items.find(x=>x.id===picked);
+ const bankPick=picked?.startsWith('ob:')?bankAccounts.find(x=>'ob:'+x.id===picked):null;
+
+ // choosing from the "add" sheet: let it close before the next sheet opens
+ const addThen=(sheet:string)=>{setAddOpen(false);setTimeout(()=>a.open(sheet),350);};
+
+ if(bankPick){
+  const consent=consents.find(c=>c.id===bankPick.consentId)||{};
+  const color=consent.bankColor||C.deep;
+  const txs:Row[]=(a.external||[]).filter((t:Row)=>t.accountId===bankPick.id).slice(0,10);
+  const expired=consent.status==='EXPIRED';
+  return (
+   <Page onBack={()=>setPicked(null)}>
+    <View style={{height:8}}/>
+    <WalletCard
+     name={bankPick.name||consent.bankName||'Bank kartı'}
+     last4={String(bankPick.masked||'').replace(/\D/g,'').slice(-4)||'••••'}
+     label={consent.bankName||'Balans'}
+     value={money(bankPick.balanceMinor)}
+     look={{bg:color,text:'#fff',sub:'rgba(255,255,255,0.78)',ring:'#ffc42b',blob:'rgba(255,255,255,0.16)'}}
+    />
+    <View style={[S.between,{marginTop:14}]}>
+     <Badge text={expired?'İCAZƏNİN VAXTI BİTİB':'YALNIZ OXUMAQ'} tone={expired?'danger':'success'}/>
+     <Text style={S.muted}>{consent.lastSyncAt?'Yenilənib: '+fmtDateTime(consent.lastSyncAt):'Hələ yenilənməyib'}</Text>
+    </View>
+    {expired?(
+     <View style={{marginTop:14}}><Button title="İcazəni yenilə" icon="refresh" onPress={()=>a.open('banks-hub')}/></View>
+    ):(
+     <View style={{marginTop:14}}>
+      <Button
+       title={syncing?'Yenilənir…':'Yenilə'}
+       icon="refresh"
+       secondary
+       disabled={syncing}
+       onPress={()=>{
+        setSyncing(true);
+        a.call('open-banking/consents/'+consent.id+'/sync',{}).then(()=>a.refresh()).catch(e=>a.setError((e as Error).message)).finally(()=>setSyncing(false));
+       }}
+      />
+     </View>
+    )}
+    <Text style={[styles.sectionTitle,{marginTop:12,marginBottom:4}]}>Son əməliyyatlar</Text>
+    {txs.map(t=><Tx key={t.id} t={t} onPress={()=>a.open('tx-detail:'+t.id)}/>)}
+    {!txs.length&&<Empty text="Bu kart üzrə əməliyyat tapılmadı. Yenilə düyməsini sına." icon="receipt-outline"/>}
+   </Page>
+  );
+ }
 
  if(chosen){
   return (
-   <Page back>
+   <Page onBack={()=>setPicked(null)}>
     <View style={{height:12}}/>
     <WalletCard name={chosen.name} last4={chosen.last4} label={chosen.label} value={chosen.value} look={chosen.look}/>
     <View style={styles.payHint}>
@@ -591,7 +642,6 @@ function CardsTab({navigation}:any){
     </View>
     {chosen.virtual&&<Button title="Kartı idarə et" secondary icon="options-outline" onPress={()=>a.open('cards-hub')}/>}
     <Button title="QR ilə ödə" icon="qr-code-outline" onPress={()=>{setPicked(null);navigation.navigate('QR');}}/>
-    <Button title="Geri" secondary onPress={()=>setPicked(null)}/>
    </Page>
   );
  }
@@ -600,7 +650,7 @@ function CardsTab({navigation}:any){
   <Page>
    <View style={[S.between,{marginBottom:18}]}>
     <Text style={[styles.pageTitle,{marginBottom:0}]}>Kartlarım</Text>
-    <Pressable accessibilityRole="button" onPress={()=>a.open('new-card')} hitSlop={10}>
+    <Pressable accessibilityRole="button" onPress={()=>setAddOpen(true)} hitSlop={10}>
      <Text style={styles.addCard}>Kart əlavə et  +</Text>
     </Pressable>
    </View>
@@ -620,6 +670,69 @@ function CardsTab({navigation}:any){
      <Button title="Virtual kart yarat" icon="add" onPress={()=>a.open('new-card')}/>
     </Box>
    )}
+
+   <View style={[S.between,{marginTop:6,marginBottom:10}]}>
+    <Text style={styles.sectionTitle}>Digər banklar</Text>
+    {consents.length>0&&(
+     <Pressable accessibilityRole="button" onPress={()=>a.open('banks-hub')} hitSlop={10}>
+      <Text style={styles.viewAll}>Banklara bax</Text>
+     </Pressable>
+    )}
+   </View>
+   {consents.map(c=>{
+    const accounts=bankAccounts.filter(x=>x.consentId===c.id);
+    const total=accounts.filter(x=>x.currency==='AZN').reduce((sum,x)=>sum+(x.balanceMinor||0),0);
+    return (
+     <View key={c.id} style={styles.moreGroup}>
+      <View style={styles.bankHead}>
+       <BankMark bank={c} size={34}/>
+       <Text style={styles.bankHeadName}>{c.bankName}</Text>
+       {c.status==='EXPIRED'?<Badge text="İCAZƏ BİTİB" tone="danger"/>:<Text style={styles.bankHeadTotal}>{money(total)}</Text>}
+      </View>
+      {accounts.map((x,i)=>(
+       <Pressable key={x.id} accessibilityRole="button" accessibilityLabel={c.bankName+' '+(x.name||'kart')} onPress={()=>setPicked('ob:'+x.id)} style={[styles.moreRow,i===accounts.length-1&&{borderBottomWidth:0}]}>
+        <View style={[styles.moreIcon,{backgroundColor:C.lav}]}><Icon name={x.type==='CARD'?'card-outline':'wallet-outline'} size={19} color={C.primary}/></View>
+        <View style={{flex:1,minWidth:0}}>
+         <Text numberOfLines={1} style={styles.moreLabel}>{x.name}</Text>
+         <Text style={styles.moreSub}>{x.masked}</Text>
+        </View>
+        <Text style={styles.bankBalance}>{money(x.balanceMinor)}</Text>
+        <Icon name="chevron-forward" size={17} color="#8d89a3"/>
+       </Pressable>
+      ))}
+      {!accounts.length&&<Text style={[S.muted,{padding:14}]}>Hələ hesab gətirilməyib. “Banklara bax” bölməsində yenilə.</Text>}
+     </View>
+    );
+   })}
+   <Pressable accessibilityRole="button" onPress={()=>a.open('banks-hub')} style={styles.connectBank}>
+    <View style={styles.connectIcon}><Icon name="business-outline" size={22} color={C.primary}/></View>
+    <View style={{flex:1}}>
+     <Text style={styles.moreLabel}>{consents.length?'Başqa bank əlavə et':'Digər bankların kartını əlavə et'}</Text>
+     <Text style={styles.moreSub}>Kapital, PAŞA, ABB, Rabitəbank · yalnız oxumaq icazəsi</Text>
+    </View>
+    <Icon name="add" size={22} color={C.primary}/>
+   </Pressable>
+
+   <Sheet title="Kart əlavə et" visible={addOpen} onClose={()=>setAddOpen(false)}>
+    <View style={styles.moreGroup}>
+     <Pressable accessibilityRole="button" onPress={()=>addThen('new-card')} style={styles.moreRow}>
+      <View style={[styles.moreIcon,{backgroundColor:C.lav}]}><Icon name="card-outline" size={19} color={C.primary}/></View>
+      <View style={{flex:1}}>
+       <Text style={styles.moreLabel}>Yeni virtual kart</Text>
+       <Text style={styles.moreSub}>İnternet ödənişləri üçün limitli kart</Text>
+      </View>
+      <Icon name="chevron-forward" size={17} color="#8d89a3"/>
+     </Pressable>
+     <Pressable accessibilityRole="button" onPress={()=>addThen('banks-hub')} style={[styles.moreRow,{borderBottomWidth:0}]}>
+      <View style={[styles.moreIcon,{backgroundColor:'#dde9ff'}]}><Icon name="business-outline" size={19} color="#2b66d9"/></View>
+      <View style={{flex:1}}>
+       <Text style={styles.moreLabel}>Digər bankın kartını bağla</Text>
+       <Text style={styles.moreSub}>Açıq bankçılıq · yalnız oxumaq</Text>
+      </View>
+      <Icon name="chevron-forward" size={17} color="#8d89a3"/>
+     </Pressable>
+    </View>
+   </Sheet>
   </Page>
  );
 }
@@ -1227,6 +1340,12 @@ const styles=StyleSheet.create({
  addCard:{fontSize:14,fontWeight:'600',color:'#1d5bd6'},
  payHint:{alignItems:'center',gap:10,marginVertical:46},
  payHintText:{fontSize:14,color:'#9b98ad'},
+ bankHead:{flexDirection:'row',alignItems:'center',gap:10,paddingHorizontal:14,paddingVertical:12,backgroundColor:'#faf9fe',borderBottomWidth:1,borderBottomColor:'#f0eef6'},
+ bankHeadName:{flex:1,fontSize:14,fontWeight:'700',color:C.ink},
+ bankHeadTotal:{fontSize:13,fontWeight:'700',color:'#5d5a73'},
+ bankBalance:{fontSize:13,fontWeight:'700',color:C.ink,marginRight:4},
+ connectBank:{flexDirection:'row',alignItems:'center',gap:12,backgroundColor:C.lav,borderRadius:14,padding:14,minHeight:68,marginBottom:14},
+ connectIcon:{width:42,height:42,borderRadius:12,backgroundColor:'#fff',alignItems:'center',justifyContent:'center'},
  moreGroup:{borderWidth:1,borderColor:'#ebe8f4',borderRadius:14,marginBottom:14,overflow:'hidden',backgroundColor:'#fff'},
  moreRow:{flexDirection:'row',alignItems:'center',gap:12,minHeight:56,paddingHorizontal:14,borderBottomWidth:1,borderBottomColor:'#f0eef6'},
  moreIcon:{width:36,height:36,borderRadius:10,alignItems:'center',justifyContent:'center'},
