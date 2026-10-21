@@ -6,7 +6,7 @@ import {NavigationContainer,useFocusEffect,useIsFocused,useNavigation} from '@re
 import {createBottomTabNavigator} from '@react-navigation/bottom-tabs';
 import {LinearGradient} from 'expo-linear-gradient';
 import {CameraView,useCameraPermissions} from 'expo-camera';
-import {C,S,Avatar,BackBar,fmtDate,AppContextType,Context,useApp,statusLabel,statusTone,Icon,Button,Field,Check,Badge,Box,Empty,Sheet,Tx,EXPENSE_CATEGORIES} from './src/ui';
+import {C,S,Avatar,BackBar,ErrorPopup,fmtDate,AppContextType,Context,useApp,statusLabel,statusTone,Icon,Button,Field,Check,Badge,Box,Empty,Sheet,Tx,EXPENSE_CATEGORIES} from './src/ui';
 import {Operations} from './src/OperationsSheet';
 import AuthFlow from './src/AuthFlow';
 import Onboarding from './src/Onboarding';
@@ -328,6 +328,12 @@ function QrTab(){
   [risk,setRisk]=useState(false);
 
  const [enterAnim]=useState(()=>new Animated.Value(0));
+ const scanLock=useRef(false),scanFailed=useRef(false);
+ // one scan is handled at a time; a failed one unlocks when its error popup is closed
+ useEffect(()=>{
+  if(!a.error&&scanFailed.current){scanFailed.current=false;scanLock.current=false;}
+ },[a.error]);
+ useEffect(()=>{if(camera)scanLock.current=false;},[camera]);
 
  useFocusEffect(useCallback(()=>{
   setCamera(true);
@@ -430,8 +436,6 @@ function QrTab(){
       />
      )}
 
-     {a.error?<View style={S.error}><Text style={S.errorText}>{a.error}</Text></View>:null}
-
      <Button
       title="Ödənişi təsdiqlə"
       disabled={a.busy||(funding==='CRYPTO'&&!risk)}
@@ -459,9 +463,16 @@ function QrTab(){
      enableTorch={torch}
      barcodeScannerSettings={{barcodeTypes:['qr']}}
      onBarcodeScanned={async({data})=>{
-      setCamera(false);
+      if(scanLock.current)return;
+      scanLock.current=true;
       setPayload(data);
-      await run(async()=>setQr(await a.act('payments/qr/parse',{qrPayload:data})));
+      try{
+       setQr(await a.act('payments/qr/parse',{qrPayload:data}));
+       setCamera(false);
+      }catch{
+       // the popup explains what is wrong; the camera keeps running and scans again once it is closed
+       scanFailed.current=true;
+      }
      }}
     />
    ):(
@@ -511,7 +522,6 @@ function QrTab(){
    </View>
 
    <Sheet title="QR kodu daxil et" visible={manualOpen} onClose={()=>setManualOpen(false)}>
-    {a.error?<View style={S.error}><Text style={S.errorText}>{a.error}</Text></View>:null}
     <Field label="Kassadakı QR mətni" value={payload} onChange={setPayload} multiline placeholder="000201010212..."/>
     <Button
      title="QR kodu yoxla"
@@ -1091,11 +1101,7 @@ export default function App(){
        <Tab.Screen name="Profile" component={ProfileTab} options={{title:'Profil'}}/>
       </Tab.Navigator>
      </NavigationContainer>
-     {!sheet&&error&&(
-      <Pressable style={styles.toastError} onPress={()=>setError('')}>
-       <Text style={S.errorText}>{error}</Text>
-      </Pressable>
-     )}
+     {!sheet&&!sca&&!kycStep&&!!error&&<ErrorPopup page message={error} onClose={()=>setError('')}/>}
      {message&&!sca&&(
       <Pressable style={styles.toast} onPress={()=>setMessage('')}>
        <Icon name="checkmark-circle" color="#503b8f" size={20}/>
@@ -1111,7 +1117,6 @@ export default function App(){
        </View>
        {sca?.body.amountMinor&&<Text style={[S.amount,{fontSize:28,marginTop:14}]}>{money(sca.body.amountMinor)}</Text>}
       </Box>
-      {!!error&&<View style={S.error}><Text style={S.errorText}>{error}</Text></View>}
       {kycStep&&<Liveness actions={kycStep.actions} onDone={finishKyc} onCancel={cancelKyc}/>}
      </Sheet>
      <Sheet title="Əməliyyatı təsdiqlə" visible={!!sca&&!kycStep} onClose={()=>{sca?.reject(new Error('Ləğv edildi'));setSca(null);}}>
@@ -1133,7 +1138,6 @@ export default function App(){
         <Text style={[S.muted,{marginTop:8}]}>Partnyorun demo kredit müqaviləsinin qəbulunu təsdiqləyirsən.</Text>
        )}
       </Box>
-      {!!error&&<View style={S.error}><Text style={S.errorText}>{error}</Text></View>}
       <PinPad
        value={scaPin}
        length={scaLength}
@@ -1255,7 +1259,6 @@ const styles=StyleSheet.create({
  cancelInlineBtn:{minHeight:40,paddingHorizontal:10,justifyContent:'center'},
  loading:{flex:1,justifyContent:'center',alignItems:'center',padding:24},
  toast:{position:'absolute',bottom:88,left:16,right:16,backgroundColor:'#e4def7',borderColor:'#beb0e8',borderWidth:1,borderRadius:14,padding:14,flexDirection:'row',alignItems:'center',gap:10,maxWidth:400,alignSelf:'center'},
- toastError:{position:'absolute',bottom:88,left:16,right:16,backgroundColor:'#fae9df',borderRadius:14,padding:14,maxWidth:400,alignSelf:'center'},
  fullScanner:{flex:1,backgroundColor:'#120a33',justifyContent:'space-between',alignItems:'center',paddingVertical:24,paddingHorizontal:20},
  fullScannerTop:{width:'100%',flexDirection:'row',alignItems:'center',justifyContent:'flex-end',gap:12,zIndex:2},
  torchBtn:{width:48,height:48,borderRadius:24,backgroundColor:'rgba(18,10,51,0.75)',alignItems:'center',justifyContent:'center',borderWidth:1,borderColor:'rgba(228,217,255,0.28)'},

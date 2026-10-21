@@ -26,7 +26,10 @@ export function livenessOrigin(){
  return 'https://apicbar.sarkhan.az';
 }
 export const CONNECTION_ERROR_MESSAGE="Serverlə bağlantı qurulmadı. API ünvanını və Wi-Fi bağlantısını yoxlayın.";
-export class ApiError extends Error {constructor(public code:string,message:string,public status:number){super(message);}}
+const CODE_BY_MESSAGE=new Map<string,string>();
+/** The server code behind an error message that was shown to the person, for choosing the popup icon. */
+export const errorCode=(message:string)=>CODE_BY_MESSAGE.get(message)||'';
+export class ApiError extends Error {constructor(public code:string,message:string,public status:number){super(message);CODE_BY_MESSAGE.set(message,code);}}
 export function request(base:string,token:string,device:string,path:string,body?:Row,proof?:string,key?:string){
  return (async()=>{const control=new AbortController();const timer=setTimeout(()=>control.abort(),15000);try{
  const res=await fetch(base.replace(/\/$/,'')+'/'+path,{method:body?'POST':'GET',signal:control.signal,headers:{'Content-Type':'application/json',Authorization:'Bearer '+token,'X-Device-Id':device,'Idempotency-Key':key||Date.now()+'-'+Math.random().toString(36).slice(2),...(proof?{'X-SCA-Proof':proof}:{})},...(body?{body:JSON.stringify(body)}:{})});

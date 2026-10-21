@@ -97,12 +97,6 @@ export function Operations({sheet,close,hidden=false}:{sheet:string;close:()=>vo
   }
  },[a,kind,paramId,a.data.transactions?.length]);
 
- const errorView=a.error?(
-  <View style={S.error}>
-   <Text style={S.errorText}>{a.error}</Text>
-  </View>
- ):null;
-
  const parsedAzn=Math.max(0,Number(amount.replace(',','.'))||0);
  const btcVal=parsedAzn/115000;
  const satsVal=Math.round(btcVal*100_000_000);
@@ -116,7 +110,6 @@ export function Operations({sheet,close,hidden=false}:{sheet:string;close:()=>vo
 
  return (
   <Sheet title={title[kind]||'Kampus'} visible={!!sheet&&(!hidden||kind==='card-transfer')} onClose={close}>
-   {errorView}
    {kind==='card-transfer'&&<CardTransferForm {...a}/>}
    {kind==='cards-hub'&&<CardsSection/>}
    {kind==='credit-hub'&&<CreditSection/>}

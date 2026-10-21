@@ -1,7 +1,7 @@
 import React,{useEffect,useMemo,useState} from 'react';
 import {Modal,Pressable,ScrollView,StyleSheet,Text,TextInput,View} from 'react-native';
 import {SafeAreaView} from 'react-native-safe-area-context';
-import {Avatar,BackBar,Button,C,Icon,ResultArt,S,useApp} from './ui';
+import {Avatar,BackBar,Button,C,ErrorPopup,Icon,ResultArt,S,useApp,useModalHost} from './ui';
 import {minor,money,Row} from './api';
 
 type Contact={name:string;phone:string};
@@ -29,6 +29,7 @@ function typeAmount(current:string,key:string){
  */
 export function TransferFlow({initialPhone,hidden,close}:{initialPhone:string;hidden:boolean;close:()=>void}){
  const a=useApp();
+ useModalHost(!hidden);
  const self=a.data.user?.phone;
  const [step,setStep]=useState<'pick'|'amount'|'confirm'|'result'>(initialPhone?'amount':'pick');
  const [target,setTarget]=useState<Contact|null>(initialPhone?{name:initialPhone,phone:initialPhone}:null);
@@ -88,7 +89,7 @@ export function TransferFlow({initialPhone,hidden,close}:{initialPhone:string;hi
    const message=(e as Error).message;
    // a cancelled PIN or face check leaves the person on the confirm screen
    if(message==='Ləğv edildi')setLocal('');
-   else{setFailure(message);setResult(null);setStep('result');}
+   else{setFailure(message);setResult(null);setStep('result');a.setError('');}
   }finally{setBusy(false);}
  }
 
@@ -96,6 +97,7 @@ export function TransferFlow({initialPhone,hidden,close}:{initialPhone:string;hi
 
  return (
   <Modal visible={!hidden} animationType="slide" onRequestClose={close}>
+   <View style={{flex:1}}>
    <SafeAreaView style={t.screen}>
     {step==='pick'&&(
      <ScrollView contentContainerStyle={t.body} keyboardShouldPersistTaps="handled">
@@ -149,8 +151,6 @@ export function TransferFlow({initialPhone,hidden,close}:{initialPhone:string;hi
        <View style={t.amountWrap}>
         <Text style={[t.amountText,!amount&&{color:'#c9c6d6'}]}>{shownAmount} ₼</Text>
        </View>
-       {!!local&&<Text style={t.error}>{local}</Text>}
-       {!!a.error&&<Text style={t.error}>{a.error}</Text>}
       </View>
       <View style={t.padWrap}>
        {KEYS.map(row=>(
@@ -207,7 +207,6 @@ export function TransferFlow({initialPhone,hidden,close}:{initialPhone:string;hi
           <Text style={S.errorText}>Fırıldaqçılar uduş və depozit vəd edərək pul istəyə bilər. Bu şəxsi tanıdığına əmin ol.</Text>
          </View>
         )}
-        {!!local&&<Text style={t.error}>{local}</Text>}
         <Text style={[S.muted,{textAlign:'center',marginTop:14}]}>Göndərdikdən sonra 5 saniyə ərzində köçürməni ləğv edə bilərsən.</Text>
        </View>
       </ScrollView>
@@ -246,6 +245,8 @@ export function TransferFlow({initialPhone,hidden,close}:{initialPhone:string;hi
      </View>
     )}
    </SafeAreaView>
+   {!!(local||a.error)&&<ErrorPopup message={local||a.error} onClose={()=>{setLocal('');a.setError('');}}/>}
+   </View>
   </Modal>
  );
 }

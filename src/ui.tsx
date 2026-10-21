@@ -1,8 +1,8 @@
-import React,{createContext,useContext} from 'react';
+import React,{createContext,useContext,useEffect,useState} from 'react';
 import {View,Text,Pressable,TextInput,StyleSheet,Modal,ScrollView,KeyboardAvoidingView,Platform} from 'react-native';
 import {Ionicons} from '@expo/vector-icons';
 import {useSafeAreaInsets} from 'react-native-safe-area-context';
-import {Row,money} from './api';
+import {Row,money,errorCode} from './api';
 
 export const C={
  ink:'#1b1838',
@@ -85,6 +85,95 @@ export function HeroArt({kind}:{kind:'phone'|'shield'}){
     </View>
    </View>
   </View>
+ );
+}
+
+type ErrorTone='danger'|'warn'|'info';
+type ErrorLook={icon:React.ComponentProps<typeof Ionicons>['name'];title:string;tone:ErrorTone};
+const ERROR_TONES:Record<ErrorTone,{bg:string;fg:string}>={
+ danger:{bg:'#fde3e3',fg:'#d04b4b'},
+ warn:{bg:'#fff1c9',fg:'#b07400'},
+ info:{bg:'#ece6ff',fg:'#5632c0'}
+};
+
+/** Picks the icon and heading of the error popup from the server code (or, failing that, the wording). */
+export function errorLook(message:string):ErrorLook{
+ const code=errorCode(message);
+ const has=(re:RegExp)=>re.test(code);
+ if(code==='CONNECTION_ERROR')return {icon:'cloud-offline-outline',title:'Bağlantı yoxdur',tone:'danger'};
+ if(has(/INSUFFICIENT_FUNDS|BNPL_FUND/))return {icon:'wallet-outline',title:'Balans çatmır',tone:'danger'};
+ if(has(/PIN_LOCKOUT|ACCOUNT_LOCKED/))return {icon:'lock-closed-outline',title:'Hesab müvəqqəti bloklanıb',tone:'danger'};
+ if(has(/INVALID_CREDENTIALS/))return {icon:'keypad-outline',title:'PIN düzgün deyil',tone:'danger'};
+ if(has(/FROZEN|BLACKLIST|BLOCKED|MULE|CARD_CLOSED/))return {icon:'ban-outline',title:'Əməliyyat bloklanıb',tone:'danger'};
+ if(has(/SESSION_EXPIRED|UNAUTHENTICATED|DEVICE_MISMATCH|DEVICE_REQUIRED/))return {icon:'time-outline',title:'Sessiya başa çatıb',tone:'warn'};
+ if(has(/KYC|SELFIE|FACE|LIVENESS/))return {icon:'scan-outline',title:'Üz yoxlaması',tone:'danger'};
+ if(has(/SCA_/))return {icon:'shield-checkmark-outline',title:'Təsdiq lazımdır',tone:'warn'};
+ if(has(/RATE_LIMIT|OTP_LOCKED|OTP_RATE/))return {icon:'hourglass-outline',title:'Bir az gözlə',tone:'warn'};
+ if(has(/LIMIT/))return {icon:'speedometer-outline',title:'Limit aşılıb',tone:'warn'};
+ if(has(/OTP|CODE_/))return {icon:'chatbubble-ellipses-outline',title:'Kod düzgün deyil',tone:'danger'};
+ if(has(/QR/))return {icon:'qr-code-outline',title:'QR kod düzgün deyil',tone:'danger'};
+ if(has(/NOT_FOUND/))return {icon:'search-outline',title:'Tapılmadı',tone:'warn'};
+ if(has(/EXISTS|ALREADY/))return {icon:'people-outline',title:'Artıq mövcuddur',tone:'warn'};
+ if(has(/AGE_RESTRICTED|BIRTH/))return {icon:'calendar-outline',title:'Yaş məhdudiyyəti',tone:'warn'};
+ if(has(/OVERDUE|BNPL|LOAN|DEBT/))return {icon:'receipt-outline',title:'Borc məhdudiyyəti',tone:'warn'};
+ if(has(/FEATURE_DISABLED|UNAVAILABLE|NOT_IMPLEMENTED|SIMULATOR/))return {icon:'construct-outline',title:'Xidmət əlçatmazdır',tone:'warn'};
+ if(has(/INVALID|REQUIRED|MISMATCH|CATEGORY|AMOUNT/))return {icon:'create-outline',title:'Məlumat düzgün deyil',tone:'info'};
+ if(/Məbləğ|nömrə|daxil edin/i.test(message))return {icon:'create-outline',title:'Məlumat düzgün deyil',tone:'info'};
+ return {icon:'alert-circle-outline',title:'Xəta baş verdi',tone:'danger'};
+}
+
+// A page-level popup would sit behind an open Modal, so it steps aside while a sheet or full-screen flow shows its own.
+let openModals=0;
+const modalListeners=new Set<()=>void>();
+const notifyModals=()=>modalListeners.forEach(listener=>listener());
+/** Call from every Modal that hosts an ErrorPopup of its own, with whether it is currently visible. */
+export function useModalHost(active:boolean){
+ useEffect(()=>{
+  if(!active)return;
+  openModals+=1;notifyModals();
+  return()=>{openModals-=1;notifyModals();};
+ },[active]);
+}
+function useModalOpen(){
+ const [,redraw]=useState(0);
+ useEffect(()=>{
+  const listener=()=>redraw(n=>n+1);
+  modalListeners.add(listener);
+  return()=>{modalListeners.delete(listener);};
+ },[]);
+ return openModals>0;
+}
+
+/** A large centred error popup with its own icon. It is an overlay of its parent, so it also works inside a Modal; `page` marks the one that belongs to the page behind any Modal. */
+export function ErrorPopup({message,onClose,page=false}:{message:string;onClose:()=>void;page?:boolean}){
+ const look=errorLook(message);
+ const tone=ERROR_TONES[look.tone];
+ const modalOpen=useModalOpen();
+ if(page&&modalOpen)return null;
+ return (
+  <View accessibilityViewIsModal style={S.popupLayer}>
+   <Pressable accessibilityLabel="Bağla" style={StyleSheet.absoluteFill} onPress={onClose}/>
+   <View accessibilityRole="alert" style={S.popupCard}>
+    <View style={[S.popupIcon,{backgroundColor:tone.bg}]}>
+     <Ionicons name={look.icon} size={44} color={tone.fg}/>
+    </View>
+    <Text style={S.popupTitle}>{look.title}</Text>
+    <Text style={S.popupText}>{message}</Text>
+    <Pressable accessibilityRole="button" onPress={onClose} style={({pressed})=>[S.popupButton,pressed&&{opacity:0.8}]}>
+     <Text style={S.buttonText}>Aydındır</Text>
+    </Pressable>
+   </View>
+  </View>
+ );
+}
+
+/** The same popup in a Modal of its own, for screens that have no other Modal open. */
+export function ErrorPopupModal({message,onClose}:{message:string;onClose:()=>void}){
+ if(!message)return null;
+ return (
+  <Modal visible transparent animationType="fade" onRequestClose={onClose}>
+   <ErrorPopup message={message} onClose={onClose}/>
+  </Modal>
  );
 }
 
@@ -306,6 +395,8 @@ export function Empty({text,icon='leaf-outline'}:{text:string;icon?:React.Compon
 
 export function Sheet({title,visible,onClose,children}:{title:string;visible:boolean;onClose:()=>void;children:React.ReactNode}){
  const inset=useSafeAreaInsets();
+ const app=useContext(Context);
+ useModalHost(visible);
  return (
   <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
    <KeyboardAvoidingView behavior={Platform.OS==='ios'?'padding':'height'} style={S.overlay}>
@@ -328,6 +419,7 @@ export function Sheet({title,visible,onClose,children}:{title:string;visible:boo
       {children}
      </ScrollView>
     </View>
+    {!!app?.error&&visible&&<ErrorPopup message={app.error} onClose={()=>app.setError('')}/>}
    </KeyboardAvoidingView>
   </Modal>
  );
@@ -407,5 +499,11 @@ export const S=StyleSheet.create({
  tabText:{fontSize:12,color:C.muted,fontWeight:'600'},
  tile:{width:42,height:42,borderRadius:12,backgroundColor:C.lav,alignItems:'center',justifyContent:'center'},
  listRow:{flexDirection:'row',alignItems:'center',gap:12,paddingVertical:12,minHeight:60,borderBottomWidth:1,borderBottomColor:'#f0eef6'},
- spacer:{height:20}
+ spacer:{height:20},
+ popupLayer:{position:'absolute',top:0,left:0,right:0,bottom:0,zIndex:1000,elevation:1000,backgroundColor:'rgba(18,10,51,0.6)',alignItems:'center',justifyContent:'center',padding:24},
+ popupCard:{width:'100%',maxWidth:340,backgroundColor:'#fff',borderRadius:24,paddingHorizontal:22,paddingTop:28,paddingBottom:20,alignItems:'center'},
+ popupIcon:{width:88,height:88,borderRadius:44,alignItems:'center',justifyContent:'center',marginBottom:16},
+ popupTitle:{fontSize:19,fontWeight:'800',color:C.ink,textAlign:'center',letterSpacing:-0.3},
+ popupText:{fontSize:14,lineHeight:21,color:'#5d5a73',textAlign:'center',marginTop:8,marginBottom:20},
+ popupButton:{alignSelf:'stretch',minHeight:50,borderRadius:12,backgroundColor:C.primary,alignItems:'center',justifyContent:'center'}
 });

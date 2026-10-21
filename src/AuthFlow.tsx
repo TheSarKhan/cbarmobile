@@ -3,7 +3,7 @@ import {Image,KeyboardAvoidingView,Platform,Pressable,ScrollView,StyleSheet,Text
 import {SafeAreaView} from 'react-native-safe-area-context';
 import {ApiError,request,storage} from './api';
 import type {Row} from './api';
-import {C,Check,Field,HeroArt,Icon} from './ui';
+import {C,Check,ErrorPopupModal,Field,HeroArt,Icon} from './ui';
 import DatePickerField,{isAdult} from './DatePickerField';
 import Liveness from './Liveness';
 import PinPad from './PinPad';
@@ -109,8 +109,8 @@ function Cta({title,onPress,disabled}:{title:string;onPress:()=>void;disabled?:b
  );
 }
 
-function ErrorText({text}:{text:string}){
- return text?<Text style={s.error}>{text}</Text>:null;
+function ErrorText({text,onClose}:{text:string;onClose:()=>void}){
+ return <ErrorPopupModal message={text} onClose={onClose}/>;
 }
 
 /** Large formatted number; typing goes into an invisible input laid over it. */
@@ -329,7 +329,7 @@ export default function AuthFlow({base,device,onAuthenticated,onConfig,onReplayI
    >
     <View style={{flex:1,justifyContent:'center',minHeight:200}}>
      <PhoneEntry digits={digits} onChange={d=>{setDigits(d);setError('');}}/>
-     <ErrorText text={error}/>
+     <ErrorText text={error} onClose={()=>setError('')}/>
     </View>
    </Screen>
   );
@@ -348,7 +348,7 @@ export default function AuthFlow({base,device,onAuthenticated,onConfig,onReplayI
      </View>
      <Text style={s.pinName}>{known?known.name.toUpperCase():`+994 ${formatPhone(digits)}`}</Text>
      <Text style={s.pinHint}>Giriş üçün PIN kodu daxil et</Text>
-     <ErrorText text={error}/>
+     <ErrorText text={error} onClose={()=>setError('')}/>
     </View>
     <View>
      <PinPad value={pin} length={pinLength} onDigit={pressDigit} onDelete={pressDelete}/>
@@ -374,7 +374,7 @@ export default function AuthFlow({base,device,onAuthenticated,onConfig,onReplayI
     ):(
      <View style={{marginTop:40}}>
       <CodeBoxes value={code} onChange={t=>{setCode(t);setError('');}}/>
-      <ErrorText text={error}/>
+      <ErrorText text={error} onClose={()=>setError('')}/>
       <Text style={s.testHint}>Test rejimi: SMS provayderi qoşulmayıb, kod burada göstərilir: <Text style={{fontWeight:'800',color:C.ink,letterSpacing:2}}>{otp?.demoCode}</Text></Text>
       <Pressable accessibilityRole="button" disabled={!canResend} onPress={()=>run(sendCode)} style={{alignItems:'center',marginTop:36}}>
        <Text style={s.resend}>
@@ -395,7 +395,7 @@ export default function AuthFlow({base,device,onAuthenticated,onConfig,onReplayI
     <View style={{marginTop:28}}>
      <Field label="FİN kod" value={fin} onChange={t=>setFin(t.toUpperCase().replace(/\s/g,'').slice(0,7))} placeholder="7 simvol"/>
      <Field label="ŞV seriyası" value={series} onChange={t=>setSeries(t.toUpperCase().replace(/\s/g,'').slice(0,11))} placeholder="AZE12345678"/>
-     <ErrorText text={error}/>
+     <ErrorText text={error} onClose={()=>setError('')}/>
     </View>
    </Screen>
   );
@@ -410,7 +410,7 @@ export default function AuthFlow({base,device,onAuthenticated,onConfig,onReplayI
      <Field label="Soyad" value={last} onChange={setLast} placeholder="Vəliyev"/>
      <DatePickerField label="Doğum tarixi" value={birth} onChange={setBirth}/>
      {!!birth&&!isAdult(birth)&&<Text style={s.error}>Hesab yalnız 18 yaşdan yuxarı şəxslər üçündür.</Text>}
-     <ErrorText text={error}/>
+     <ErrorText text={error} onClose={()=>setError('')}/>
     </View>
    </Screen>
   );
@@ -438,7 +438,7 @@ export default function AuthFlow({base,device,onAuthenticated,onConfig,onReplayI
       </Pressable>
      </View>
     )}
-    <ErrorText text={error}/>
+    <ErrorText text={error} onClose={()=>setError('')}/>
    </Screen>
   );
  }
@@ -463,7 +463,7 @@ export default function AuthFlow({base,device,onAuthenticated,onConfig,onReplayI
    subtitle={confirming?'Eyni 4 rəqəmi bir daha daxil et.':`Hər girişdə istifadə edəcəyin ${NEW_PIN_LENGTH} rəqəmli PIN yaz.`}
   >
    <View>
-    <ErrorText text={busy?'':error}/>
+    <ErrorText text={busy?'':error} onClose={()=>setError('')}/>
     {busy&&<Text style={[s.testHint,{marginTop:14}]}>Hesab yaradılır…</Text>}
     <PinPad value={confirming?newPinAgain:newPin} length={NEW_PIN_LENGTH} onDigit={pressNewDigit} onDelete={deleteNew}/>
    </View>
