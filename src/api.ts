@@ -14,6 +14,14 @@ export function simPublicUrl(base:string){
  const api=new URL(base);
  return api.port==='8080'?api.protocol+'//'+api.hostname+':8081':api.origin;
 }
+/** Https origin that serves /mediapipe (model and WASM) for the native liveness check; the camera needs a secure origin. */
+export function livenessOrigin(){
+ const configured=process.env.EXPO_PUBLIC_LIVENESS_ORIGIN;
+ if(configured)return configured.replace(/\/$/,'');
+ const api=process.env.EXPO_PUBLIC_API_URL;
+ if(api&&api.startsWith('https://'))return new URL(api).origin;
+ return 'https://apicbar.sarkhan.az';
+}
 export const CONNECTION_ERROR_MESSAGE="Serverlə bağlantı qurulmadı. API ünvanını və Wi-Fi bağlantısını yoxlayın.";
 export class ApiError extends Error {constructor(public code:string,message:string,public status:number){super(message);}}
 export function request(base:string,token:string,device:string,path:string,body?:Row,proof?:string,key?:string){
