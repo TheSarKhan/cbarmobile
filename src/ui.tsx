@@ -111,6 +111,9 @@ export function errorLook(message:string):ErrorLook{
  if(has(/RATE_LIMIT|OTP_LOCKED|OTP_RATE/))return {icon:'hourglass-outline',title:'Bir az gözlə',tone:'warn'};
  if(has(/LIMIT/))return {icon:'speedometer-outline',title:'Limit aşılıb',tone:'warn'};
  if(has(/OTP|CODE_/))return {icon:'chatbubble-ellipses-outline',title:'Kod düzgün deyil',tone:'danger'};
+ if(has(/TOKEN_EXPIRED/))return {icon:'timer-outline',title:'Ödəniş sessiyası bitdi',tone:'warn'};
+ if(has(/TOKEN_USED/))return {icon:'checkmark-done-outline',title:'Artıq istifadə olunub',tone:'warn'};
+ if(has(/TOKEN/))return {icon:'qr-code-outline',title:'Ödəniş sessiyası yenilənməlidir',tone:'warn'};
  if(has(/QR/))return {icon:'qr-code-outline',title:'QR kod düzgün deyil',tone:'danger'};
  if(has(/NOT_FOUND/))return {icon:'search-outline',title:'Tapılmadı',tone:'warn'};
  if(has(/EXISTS|ALREADY/))return {icon:'people-outline',title:'Artıq mövcuddur',tone:'warn'};

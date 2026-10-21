@@ -14,7 +14,7 @@ import {BankMark} from './src/BanksSection';
 import PinPad from './src/PinPad';
 import Liveness from './src/Liveness';
 import type {LivenessResult} from './src/livenessTypes';
-import {DEFAULT_API,storage,request,ApiError,minor,money,Row,hashPhones,CONNECTION_ERROR_MESSAGE} from './src/api';
+import {DEFAULT_API,storage,request,ApiError,minor,money,Row,hashPhones,errorCode,CONNECTION_ERROR_MESSAGE} from './src/api';
 
 const Tab=createBottomTabNavigator();
 
@@ -441,13 +441,20 @@ function QrTab(){
       title="Ödənişi təsdiqlə"
       disabled={a.busy||(funding==='CRYPTO'&&!risk)}
       onPress={()=>run(async()=>{
-       const paid=await a.act('payments/qr',{
-        qrPayload:qr.qrPayload,
-        amountMinor:effectiveMinor,
-        fundingSource:funding,
-        ...(funding==='CRYPTO'?{riskAccepted:risk}:{})
-       });
-       setQrPaid(paid);
+       try{
+        const paid=await a.act('payments/qr',{
+         qrPayload:qr.qrPayload,
+         paymentToken:qr.paymentToken,
+         amountMinor:effectiveMinor,
+         fundingSource:funding,
+         ...(funding==='CRYPTO'?{riskAccepted:risk}:{})
+        });
+        setQrPaid(paid);
+       }catch(e){
+        // an expired or spent payment session cannot be retried: go back to the scanner for a fresh one
+        if(errorCode((e as Error).message).startsWith('TOKEN_')){setQr(null);setCamera(true);}
+        throw e;
+       }
       })}
      />
      <Button title="Başqa QR skan et" secondary onPress={()=>{setQr(null);setCamera(true);}}/>
