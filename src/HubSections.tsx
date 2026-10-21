@@ -4,211 +4,6 @@ import {LinearGradient} from 'expo-linear-gradient';
 import {Row,minor,money} from './api';
 import {C,S,CARD_IMAGES,useApp,Icon,Button,Field,Check,Badge,Box,Empty,statusLabel,statusTone} from './ui';
 
-export function CardsSection(){
- const a=useApp(),d=a.data;
- const [revealed,setRevealed]=useState<Record<string,Row>>({}),
-  [blockInput,setBlockInput]=useState<Record<string,string>>({});
-
- const revealCard=async(id:string)=>{
-  try{
-   const r=await a.act('cards/'+id+'/reveal',{cardId:id});
-   setRevealed(old=>({...old,[id]:r}));
-   setTimeout(()=>{
-    setRevealed(old=>{
-     const next={...old};
-     delete next[id];
-     return next;
-    });
-   },30000);
-  }catch{}
- };
-
- const pendingAuths=(d.authorizations||[]).filter((az:Row)=>az.reasonCode==='CONFIRMATION_REQUIRED'&&!az.confirmed);
-
- return (
-  <>
-   <View style={hs.heroRow}>
-    <View style={{flex:1,paddingRight:12}}>
-     <Text style={S.h3}>Rəqəmsal kart idarəetməsi</Text>
-     <Text style={[S.muted,{marginTop:4,fontSize:11}]}>
-      Abunəliklərə aylıq limit qoyun, ödəniş kanallarını açın/bağlayın və satıcıları bloklayın.
-     </Text>
-    </View>
-    <Image source={CARD_IMAGES.virtualCard} style={hs.heroThumb} resizeMode="cover"/>
-   </View>
-
-   {pendingAuths.map((az:Row)=>(
-    <Box key={az.id} style={{borderColor:'#d89b6c',backgroundColor:'#fdf4ec'}}>
-     <Badge text="ANOMALİYA · >3X ORTA MƏBLƏĞ" tone="warn"/>
-     <Text style={[S.h3,{marginTop:10}]}>{az.merchantName} · {money(az.amountMinor)}</Text>
-     <Text style={[S.muted,{marginVertical:8}]}>
-      Adi xərclərinizdən 3 dəfə böyük olduğu üçün bu əməliyyat təhlükəsizlik məqsədilə saxlanıldı.
-     </Text>
-     <Button
-      title="Əməliyyatı PIN ilə təsdiqlə (30 dəq)"
-      disabled={a.busy}
-      icon="shield-checkmark-outline"
-      onPress={()=>a.act('card-auth/'+az.id+'/confirm',{amountMinor:az.amountMinor,recipientName:az.merchantName}).catch(()=>{})}
-     />
-    </Box>
-   ))}
-
-   {!d.cards?.length&&(
-    <Box>
-     <Empty text="Hələ aktiv virtual kartınız yoxdur. İlk kartınızı yaradın." icon="card-outline"/>
-    </Box>
-   )}
-
-   {d.cards?.map((c:Row,i:number)=>{
-    const rev=revealed[c.id];
-    const blocked:string[]=c.blockedMerchants||[];
-    const pct=c.monthlyLimitMinor>0?Math.min(100,Math.round((c.spentMinor||0)/c.monthlyLimitMinor*100)):0;
-
-    return (
-     <View key={c.id} style={{marginBottom:6}}>
-      <LinearGradient
-       colors={i%2?['#cde8a7','#e0f0c7']:['#173a30','#2d5139']}
-       style={[hs.bankCard,c.status!=='ACTIVE'&&{opacity:0.65}]}
-      >
-       <View style={S.between}>
-        <Text style={[hs.cardBrand,i%2?{color:C.ink}:{}]}>kampus.</Text>
-        <Badge
-         dark={!(i%2)}
-         text={
-          c.status==='FROZEN'?'DONDURULUB':
-          c.status==='CLOSED'?'BAĞLANIB':
-          c.type==='MERCHANT_LOCKED'?'SATICIYA KİLİDLİ':
-          c.type==='SINGLE_USE'?'BİRDƏFƏLİK':'VİRTUAL KART'
-         }
-        />
-       </View>
-       <View style={S.between}>
-        <Icon name="hardware-chip-outline" color={i%2?C.ink:'#b6c8a7'} size={32}/>
-        {rev&&<Badge text="30 SAN AÇIQDIR" tone="warn"/>}
-       </View>
-       <View>
-        <Text style={[hs.cardNumber,i%2?{color:C.ink}:{}]}>
-         {rev?rev.pan.replace(/(.{4})/g,'$1 ').trim():'••••  ••••  ••••  '+c.last4}
-        </Text>
-        <View style={[S.between,{marginTop:12}]}>
-         <Text numberOfLines={1} style={{color:i%2?C.ink:'#bfd1b6',fontSize:11,fontWeight:'600',flex:1,paddingRight:8}}>
-          {rev?'EXP '+rev.expiry+' · CVV '+rev.cvv:(c.name||c.merchantName||'Kampus virtual')}
-         </Text>
-         <Text style={{color:i%2?C.ink:'white',fontWeight:'800',fontStyle:'italic',fontSize:18}}>VISA</Text>
-        </View>
-       </View>
-      </LinearGradient>
-
-      <Box style={{marginTop:-10,paddingTop:20}}>
-       <View style={[S.between,{marginBottom:8}]}>
-        <Text style={S.muted}>Aylıq xərc və limit</Text>
-        <Text style={{fontSize:12,fontWeight:'700',color:C.ink}}>
-         {money(c.spentMinor)} / {money(c.monthlyLimitMinor)} ({pct}%)
-        </Text>
-       </View>
-       <View style={hs.progressTrack}>
-        <View style={[hs.progressFill,{width:pct+'%',backgroundColor:pct>=90?C.red:'#7ea850'}]}/>
-       </View>
-
-       <Text style={[S.label,{marginTop:14}]}>Ödəniş kanalları</Text>
-       <View style={{flexDirection:'row',gap:8,marginBottom:14,flexWrap:'wrap'}}>
-        {[
-         ['ecommerceEnabled','Onlayn',c.ecommerceEnabled!==false],
-         ['atmEnabled','ATM',!!c.atmEnabled],
-         ['abroadEnabled','Xaricdə',!!c.abroadEnabled]
-        ].map(([key,label,val])=>(
-         <Pressable
-          key={String(key)}
-          accessibilityRole="button"
-          onPress={()=>a.act('cards/'+c.id+'/controls',{[String(key)]:!val}).catch(()=>{})}
-          style={[S.tab,{flex:1,minWidth:88},val&&{backgroundColor:C.lime}]}
-         >
-          <Text style={[S.tabText,val&&{color:C.ink,fontWeight:'700'}]}>
-           {String(label)}: {val?'Açıq':'Bağlı'}
-          </Text>
-         </Pressable>
-        ))}
-       </View>
-
-       <View style={{flexDirection:'row',gap:8}}>
-        <View style={{flex:1}}>
-         <Button
-          title={rev?'Gizlət':'Rekvizitlər (PIN)'}
-          secondary
-          disabled={a.busy}
-          icon={rev?'eye-off-outline':'key-outline'}
-          onPress={()=>{
-           if(rev){
-            setRevealed(old=>{const n={...old};delete n[c.id];return n;});
-           }else{
-            void revealCard(c.id);
-           }
-          }}
-         />
-        </View>
-        <View style={{flex:1}}>
-         <Button
-          title={c.status==='FROZEN'?'Kartı aç':'Dondur'}
-          secondary
-          disabled={a.busy||c.status==='CLOSED'}
-          icon="snow-outline"
-          onPress={()=>a.act('cards/'+c.id+'/'+(c.status==='FROZEN'?'unfreeze':'freeze'),{}).catch(()=>{})}
-         />
-        </View>
-       </View>
-
-       <View style={{marginTop:8}}>
-        <Text style={S.label}>Satıcı bloklama</Text>
-        {blocked.length>0&&(
-         <View style={{flexDirection:'row',gap:8,flexWrap:'wrap',marginBottom:10}}>
-          {blocked.map(mName=>(
-           <Pressable
-            key={mName}
-            accessibilityRole="button"
-            onPress={()=>a.act('cards/'+c.id+'/blocked-merchants',{merchantName:mName}).catch(()=>{})}
-            style={[S.tab,{backgroundColor:'#fbe8e2'}]}
-           >
-            <Text style={{fontSize:11,color:C.red,fontWeight:'600'}}>{mName} ✕</Text>
-           </Pressable>
-          ))}
-         </View>
-        )}
-        <View style={{flexDirection:'row',gap:8,alignItems:'flex-end'}}>
-         <View style={{flex:1}}>
-          <Field
-           label="Satıcı adı (məs: Netflix)"
-           value={blockInput[c.id]||''}
-           onChange={v=>setBlockInput(old=>({...old,[c.id]:v}))}
-          />
-         </View>
-         <View style={{marginBottom:6}}>
-          <Button
-           title="Blokla"
-           secondary
-           disabled={a.busy||!(blockInput[c.id]||'').trim()}
-           onPress={()=>a.act('cards/'+c.id+'/blocked-merchants',{merchantName:blockInput[c.id]}).then(()=>setBlockInput(old=>({...old,[c.id]:''}))).catch(()=>{})}
-          />
-         </View>
-        </View>
-       </View>
-
-       <Pressable
-        accessibilityRole="button"
-        style={{minHeight:48,justifyContent:'center',alignItems:'center',marginTop:4}}
-        onPress={()=>a.act('disputes',{cardId:c.id,reason:'Bu mən deyiləm · İstifadəçi bildirişi'}).catch(()=>{})}
-       >
-        <Text style={{fontSize:12,color:C.red,fontWeight:'600'}}>Şübhəli əməliyyat var · Bu mən deyiləm</Text>
-       </Pressable>
-      </Box>
-     </View>
-    );
-   })}
-
-   <Button title="Yeni virtual kart yarat" icon="add" onPress={()=>a.open('new-card')}/>
-  </>
- );
-}
-
 export function CreditSection(){
  const a=useApp(),d=a.data;
  const [amount,setAmount]=useState('800'),
@@ -221,15 +16,15 @@ export function CreditSection(){
 
  return (
   <>
-   <LinearGradient colors={['#173b30','#254c36']} style={[hs.bnplCard,{marginBottom:16}]}>
+   <LinearGradient colors={['#2a0a8a','#2e234e']} style={[hs.bnplCard,{marginBottom:16}]}>
     <View style={S.between}>
      <View style={{flex:1,paddingRight:10}}>
       <Badge text="SONRA ÖDƏ · 0% FAİZ" dark/>
       <Text style={[hs.bnplAmount,{marginTop:12}]}>
        {money(bnplAvail)}
-       <Text style={{fontSize:14,fontWeight:'500',color:'#b6ccb0'}}> / 50.00 ₼</Text>
+       <Text style={{fontSize:14,fontWeight:'500',color:'#b6afcd'}}> / 50.00 ₼</Text>
       </Text>
-      <Text style={{color:'#c5d8bf',fontSize:11,lineHeight:17,marginTop:6}}>
+      <Text style={{color:'#c5bed9',fontSize:11,lineHeight:17,marginTop:6}}>
        Kassa QR ödənişində &quot;Sonra ödə&quot; seçərək 30 gün faizsiz istifadə edin. Ödəniş tarixində borc balansdan avtomatik tutulur.
       </Text>
      </View>
@@ -242,7 +37,7 @@ export function CreditSection(){
 
    {d.bnplEligibility?.eligible===false&&<Box><Text style={S.muted}>Sonra ödə üçün hesab 14 günlük olmalı, son 30 gündə ən azı iki daxilolma olmalı və gecikmiş borc olmamalıdır.</Text></Box>}
    {d.bnplLoans?.filter((l:Row)=>['ACTIVE','OVERDUE','BAD'].includes(l.status)).map((l:Row)=>(
-    <Box key={l.id} style={{backgroundColor:'#f3f7ec',borderColor:'#cfe0b8'}}>
+    <Box key={l.id} style={{backgroundColor:'#eeebf8',borderColor:'#c1b6e2'}}>
      <View style={[S.between,{marginBottom:12}]}>
       <View>
        <Text style={S.label}>AKTİV SONRA ÖDƏ BORCU</Text>
@@ -396,7 +191,7 @@ export function CryptoSection(){
 
  return (
   <>
-   <LinearGradient colors={['#173b30','#2a4d39']} style={hs.cryptoCard}>
+   <LinearGradient colors={['#2a0a8a','#32284f']} style={hs.cryptoCard}>
     <View style={S.between}>
      <Text style={{color:'white',fontWeight:'700',fontSize:14}}>Tether · USDT (TRC-20)</Text>
      <Badge text="VASP PİLOT" dark/>
@@ -404,7 +199,7 @@ export function CryptoSection(){
     <Text style={hs.cryptoBal}>
      {portfolio?new Intl.NumberFormat('az-AZ',{maximumFractionDigits:6}).format(usdtBal):'…'} USDT
     </Text>
-    <Text style={{color:'#b6ccb0',fontSize:11,marginTop:6}}>
+    <Text style={{color:'#b6afcd',fontSize:11,marginTop:6}}>
      Təxmini dəyər: ≈ {money(Math.round(usdtBal*170))} · Ünvan: TKampus{String(d.user?.id||'U1').toUpperCase()}Demo994
     </Text>
    </LinearGradient>
@@ -428,7 +223,7 @@ export function CryptoSection(){
     <Check value={consent} onChange={setConsent} text="Demo kripto risk xəbərdarlığını qəbul edirəm."/>
 
     {quote&&(
-     <Box style={{backgroundColor:'#f2f7ea',borderColor:'#cfe0b8'}}>
+     <Box style={{backgroundColor:'#ede9f8',borderColor:'#c1b6e2'}}>
       <View style={[S.between,{marginBottom:8}]}>
        <Text style={S.label}>MƏZƏNNƏ TƏKLİFİ (QUOTE)</Text>
        <Badge text={seconds>0?`${seconds} san aktivdir`:'Müddəti bitdi'} tone={seconds>0?'success':'danger'}/>
@@ -523,17 +318,17 @@ const hs=StyleSheet.create({
  bankCard:{borderRadius:20,padding:22,height:210,justifyContent:'space-between',zIndex:1},
  cardBrand:{fontWeight:'800',color:'white',fontSize:22,letterSpacing:-1},
  cardNumber:{color:'white',fontSize:18,letterSpacing:1.5,fontWeight:'600'},
- progressTrack:{height:7,backgroundColor:'#ebf1e2',borderRadius:4,overflow:'hidden'},
+ progressTrack:{height:7,backgroundColor:'#e5e1f2',borderRadius:4,overflow:'hidden'},
  progressFill:{height:7,borderRadius:4},
  bnplCard:{borderRadius:22,padding:20},
  bnplAmount:{fontSize:32,fontWeight:'800',color:'white',letterSpacing:-1},
  offerGrid:{flexDirection:'row',flexWrap:'wrap',gap:8,marginVertical:12},
- offerCell:{width:'48%',backgroundColor:'#f3f6ec',borderRadius:12,padding:10},
+ offerCell:{width:'48%',backgroundColor:'#eeebf7',borderRadius:12,padding:10},
  offerCellLabel:{fontSize:10,color:C.muted,fontWeight:'600'},
  offerCellVal:{fontSize:13,color:C.ink,fontWeight:'700',marginTop:3},
  cryptoCard:{borderRadius:22,padding:20,marginBottom:16},
  cryptoBal:{fontSize:30,fontWeight:'800',color:'white',letterSpacing:-1,marginTop:12},
- segmentWrap:{flexDirection:'row',backgroundColor:'#edf2e4',padding:4,borderRadius:13,marginBottom:16},
+ segmentWrap:{flexDirection:'row',backgroundColor:'#e7e3f3',padding:4,borderRadius:13,marginBottom:16},
  segment:{flex:1,minHeight:44,alignItems:'center',justifyContent:'center',paddingHorizontal:8,borderRadius:10},
  segmentActive:{backgroundColor:'white'}
 });

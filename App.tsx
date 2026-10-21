@@ -1,211 +1,144 @@
 import React,{useState,useEffect,useRef,useCallback} from 'react';
-import {View,Text,ScrollView,Pressable,StyleSheet,Platform,RefreshControl,AppState,ActivityIndicator,useWindowDimensions,Animated,Easing,Image,BackHandler} from 'react-native';
+import {View,Text,ScrollView,Pressable,StyleSheet,Platform,RefreshControl,AppState,ActivityIndicator,useWindowDimensions,Animated,Easing,BackHandler,TextInput} from 'react-native';
 import {StatusBar} from 'expo-status-bar';
 import {SafeAreaProvider,SafeAreaView} from 'react-native-safe-area-context';
-import {NavigationContainer,useFocusEffect} from '@react-navigation/native';
+import {NavigationContainer,useFocusEffect,useIsFocused,useNavigation} from '@react-navigation/native';
 import {createBottomTabNavigator} from '@react-navigation/bottom-tabs';
 import {LinearGradient} from 'expo-linear-gradient';
 import {CameraView,useCameraPermissions} from 'expo-camera';
-import {C,S,CARD_IMAGES,AppContextType,Context,useApp,statusLabel,statusTone,Icon,Button,Field,Check,Badge,Box,Empty,Sheet,Tx,EXPENSE_CATEGORIES} from './src/ui';
+import {C,S,Avatar,BackBar,ErrorPopup,fmtDate,fmtDateTime,AppContextType,Context,useApp,statusLabel,statusTone,Icon,Button,Field,Check,Badge,Box,Empty,Sheet,Tx,EXPENSE_CATEGORIES} from './src/ui';
 import {Operations} from './src/OperationsSheet';
 import AuthFlow from './src/AuthFlow';
 import Onboarding from './src/Onboarding';
+import {BankMark} from './src/BanksSection';
 import PinPad from './src/PinPad';
+import Liveness from './src/Liveness';
+import type {LivenessResult} from './src/livenessTypes';
 import {DEFAULT_API,storage,request,ApiError,minor,money,Row,hashPhones,CONNECTION_ERROR_MESSAGE} from './src/api';
 
 const Tab=createBottomTabNavigator();
 
-function Page({children}:{children:React.ReactNode}){
+function Page({children,title,back,onBack}:{children:React.ReactNode;title?:string;back?:boolean;onBack?:()=>void}){
  const a=useApp();
- const unreadCount=(a.data.notifications||[]).filter((n:Row)=>!n.read).length;
+ const nav=useNavigation<any>();
  return (
   <SafeAreaView style={S.page} edges={['top']}>
    <ScrollView
     contentContainerStyle={S.content}
-    refreshControl={<RefreshControl refreshing={false} onRefresh={a.refresh} tintColor={C.ink}/>}
+    refreshControl={<RefreshControl refreshing={false} onRefresh={a.refresh} tintColor={C.primary}/>}
     keyboardShouldPersistTaps="handled"
     showsVerticalScrollIndicator={false}
    >
-    <View style={styles.pageTop}>
-     <Text style={styles.wordmark}>kampus<Text style={{color:'#9bc26b'}}>.</Text></Text>
-     <View style={S.row}>
-      <Pressable
-       accessibilityRole="button"
-       accessibilityLabel="Mənim QR kodum"
-       onPress={()=>a.open('my-qr')}
-       style={styles.headerActionBtn}
-      >
-       <Icon name="qr-code-outline" size={20}/>
-      </Pressable>
-      <Pressable
-       accessibilityRole="button"
-       accessibilityLabel="Bildirişlər"
-       onPress={()=>a.open('notifications')}
-       style={styles.headerActionBtn}
-      >
-       <Icon name="notifications-outline" size={21}/>
-       {unreadCount>0&&<View style={styles.dot}/>}
-      </Pressable>
-     </View>
-    </View>
+    {(back||!!onBack)&&<BackBar onBack={onBack||(()=>nav.goBack())}/>}
+    {!!title&&<Text style={styles.pageTitle}>{title}</Text>}
     {children}
    </ScrollView>
   </SafeAreaView>
  );
 }
 
-function Home(){
+/** People the person sent money to most recently, then saved recipients, then the demo friends. */
+function recentPeople(d:Row):{name:string;phone:string}[]{
+ const out:{name:string;phone:string}[]=[];
+ const seen=new Set<string>();
+ const add=(name:string,phone:string)=>{
+  if(!name||!phone||phone===d.user?.phone||seen.has(phone))return;
+  seen.add(phone);out.push({name,phone});
+ };
+ (d.trustedBeneficiaries||[]).forEach((t:Row)=>add(t.nickname||t.maskedName,t.phone));
+ [['Murad','+994501000002'],['Leyla','+994501000003'],['Kamran','+994501000004']].forEach(([n,p])=>add(n,p));
+ return out.slice(0,8);
+}
+
+function Home({navigation}:any){
  const a=useApp(),d=a.data;
  const [hide,setHide]=useState(false);
+ const focused=useIsFocused();
  const balMinor=d.wallet?.availableBalanceMinor||0;
- const whole=Math.floor(balMinor/100);
+ const whole=Math.floor(balMinor/100).toLocaleString('en-US').replace(/,/g,' ');
  const frac=String(Math.abs(balMinor%100)).padStart(2,'0');
- const savedCount=(d.trustedBeneficiaries?.length||0)+(d.cards?.length||0)||1;
- const linkedBanks=(d.openBanking?.consents||[]).filter((c:Row)=>c.status==='AUTHORIZED').length;
+ const firstName=String(d.user?.name||'').split(' ')[0];
+ const people=recentPeople(d);
+ const recent:Row[]=(d.transactions||[]).slice(0,5);
 
  return (
-  <Page>
-   <View style={styles.refBalanceCard}>
-    <View style={S.between}>
-     <Text style={styles.refBalanceLabel}>Mövcud balans</Text>
-     {d.user?.name&&(
-      <Text style={{fontSize:12,fontWeight:'600',color:C.muted}} numberOfLines={1}>
-       {d.user.name}
-      </Text>
-     )}
-    </View>
-
-    <View style={[S.between,{marginTop:8,marginBottom:20}]}>
-     {hide?(
-      <Text style={styles.refBalanceWhole}>••••• <Text style={styles.refBalanceFraction}>₼</Text></Text>
-     ):(
-      <Text style={styles.refBalanceWhole}>
-       {whole}<Text style={styles.refBalanceFraction}>.{frac} ₼</Text>
-      </Text>
-     )}
-     <Pressable
-      accessibilityRole="button"
-      accessibilityLabel={hide?'Balansı göstər':'Balansı gizlət'}
-      onPress={()=>setHide(!hide)}
-      style={styles.eyeBtn}
-     >
-      <Icon name={hide?'eye-outline':'eye-off-outline'} color={C.ink} size={22}/>
-     </Pressable>
-    </View>
-
-    {d.wallet?.heldAmountMinor>0&&(
-     <View style={styles.heldBanner}>
-      <Icon name="time-outline" size={16} color="#8a521b"/>
-      <Text style={{color:'#8a521b',fontSize:12,fontWeight:'600',flex:1}}>
-       {money(d.wallet.heldAmountMinor)} əməliyyat üçün rezerv edilib
-      </Text>
-     </View>
-    )}
-
-    <View style={styles.refActionRow}>
-     <Pressable
-      accessibilityRole="button"
-      onPress={()=>a.open('add')}
-      style={[styles.refActionBtn,{backgroundColor:C.lime}]}
-     >
-      <Icon name="add" size={20} color={C.ink}/>
-      <Text style={[styles.refActionBtnText,{color:C.ink}]}>Balans artımı</Text>
-     </Pressable>
-     <Pressable
-      accessibilityRole="button"
-      onPress={()=>a.open('send')}
-      style={[styles.refActionBtn,{backgroundColor:C.ink}]}
-     >
-      <Icon name="arrow-up" size={18} color="#FFFFFF"/>
-      <Text style={styles.refActionBtnText}>Köçürmək</Text>
-     </Pressable>
-    </View>
-   </View>
-
-   <Pressable
-    accessibilityRole="button"
-    onPress={()=>a.open('card-transfer')}
-    style={styles.savedPaymentsCard}
+  <View style={styles.homeRoot}>
+   <SafeAreaView edges={['top']} style={{backgroundColor:C.deep}}>
+    {focused&&<StatusBar style="light"/>}
+   </SafeAreaView>
+   <ScrollView
+    style={{flex:1}}
+    contentContainerStyle={{paddingBottom:24}}
+    refreshControl={<RefreshControl refreshing={false} onRefresh={a.refresh} tintColor="#fff"/>}
+    showsVerticalScrollIndicator={false}
+    keyboardShouldPersistTaps="handled"
    >
-    <View style={styles.savedPaymentsIcon}>
-     <Icon name="receipt-outline" size={20} color={C.ink}/>
-    </View>
-    <View style={{flex:1}}>
-     <Text style={styles.savedPaymentsTitle}>Mənim ödənişlərim</Text>
-     <Text style={styles.savedPaymentsSub}>{savedCount} yadda saxladığın ödəniş və kart</Text>
-    </View>
-    <Icon name="chevron-forward" size={18} color={C.muted}/>
-   </Pressable>
+    <View style={styles.homeHeader}>
+     <View style={styles.homeTop}>
+      <Avatar name={d.user?.name||'K'} size={46} dark/>
+      <Text style={styles.hello}>Salam,{'\n'}{firstName||'dost'}!</Text>
+      <Pressable accessibilityRole="button" accessibilityLabel="Profil və ayarlar" onPress={()=>navigation.navigate('Profile')} style={styles.gear}>
+       <Icon name="settings-outline" size={22} color="#fff"/>
+      </Pressable>
+     </View>
 
-   <Pressable accessibilityRole="button" onPress={()=>a.open('banks-hub')} style={[styles.savedPaymentsCard,{marginTop:10}]}>
-    <View style={styles.savedPaymentsIcon}>
-     <Icon name="business-outline" size={20} color={C.ink}/>
-    </View>
-    <View style={{flex:1}}>
-     <Text style={styles.savedPaymentsTitle}>Digər banklar</Text>
-     <Text style={styles.savedPaymentsSub}>
-      {linkedBanks>0?`${linkedBanks} bank bağlı · ${money(d.openBanking?.totalBalanceMinor||0)}`:'Kartlarını və xərclərini bir yerdə izlə'}
-     </Text>
-    </View>
-    <Icon name="chevron-forward" size={18} color={C.muted}/>
-   </Pressable>
-
-   <Text style={styles.servicesHeader}>XİDMƏTLƏR VƏ FÜRSƏTLƏR</Text>
-
-   <View style={styles.bentoGrid}>
-    <View style={styles.bentoRow}>
-     <Pressable
-      accessibilityRole="button"
-      onPress={()=>a.open('credit-hub')}
-      style={[styles.bentoCard,styles.bentoCardForest]}
-     >
-      <View style={{zIndex:2}}>
-       <Text style={styles.bentoTitleWhite}>{'Borc müraciəti\n1 500 ₼-dək'}</Text>
-       <Text style={styles.bentoSubLime}>0% Sonra ödə · Kredit</Text>
+     <View style={styles.balanceCard}>
+      <Text style={styles.balanceLabel}>Əsas balans</Text>
+      <View style={styles.balanceRow}>
+       {hide?(
+        <Text style={styles.balanceWhole}>•••••</Text>
+       ):(
+        <Text style={styles.balanceWhole}>{whole}<Text style={styles.balanceFrac}>.{frac} ₼</Text></Text>
+       )}
+       <Pressable accessibilityRole="button" accessibilityLabel={hide?'Balansı göstər':'Balansı gizlət'} onPress={()=>setHide(!hide)} hitSlop={12} style={{marginLeft:10}}>
+        <Icon name={hide?'eye-outline':'eye-off-outline'} color="rgba(255,255,255,0.7)" size={20}/>
+       </Pressable>
       </View>
-      <Image source={CARD_IMAGES.credit} style={styles.bentoImage} resizeMode="cover"/>
-     </Pressable>
-
-     <Pressable
-      accessibilityRole="button"
-      onPress={()=>a.open('add:BITCOIN')}
-      style={styles.bentoCard}
-     >
-      <View style={{zIndex:2}}>
-       <Text style={styles.bentoTitleDark}>Bitcoin ilə artım</Text>
-       <Text style={styles.bentoValueDark}>BTC · Prototip</Text>
+      {d.wallet?.heldAmountMinor>0&&(
+       <Text style={styles.heldText}>{money(d.wallet.heldAmountMinor)} əməliyyat üçün rezerv edilib</Text>
+      )}
+      <View style={styles.actionRow}>
+       {[['Artır','arrow-up','add'],['Çıxar','arrow-down','card-transfer'],['Köçür','swap-horizontal','send']].map(([label,icon,sheet],i)=>(
+        <React.Fragment key={sheet}>
+         {i>0&&<View style={styles.actionDivider}/>}
+         <Pressable accessibilityRole="button" accessibilityLabel={label} onPress={()=>a.open(sheet)} style={styles.action}>
+          <Icon name={icon as any} size={20} color="#fff"/>
+          <Text style={styles.actionText}>{label}</Text>
+         </Pressable>
+        </React.Fragment>
+       ))}
       </View>
-      <Image source={CARD_IMAGES.btc} style={styles.bentoImage} resizeMode="cover"/>
-     </Pressable>
+     </View>
     </View>
 
-    <View style={styles.bentoRow}>
-     <Pressable
-      accessibilityRole="button"
-      onPress={()=>a.open('cards-hub')}
-      style={styles.bentoCard}
-     >
-      <View style={{zIndex:2}}>
-       <Text style={styles.bentoTitleDark}>Virtual Kartlar</Text>
-       <Text style={styles.bentoValueDark}>{d.cards?.length||0} aktiv</Text>
-      </View>
-      <Image source={CARD_IMAGES.virtualCard} style={styles.bentoImage} resizeMode="cover"/>
-     </Pressable>
+    <View style={styles.homeBody}>
+     <Text style={styles.sectionTitle}>Son köçürmələr</Text>
+     <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{gap:16,paddingRight:12}} style={{marginTop:14}}>
+      <Pressable accessibilityRole="button" accessibilityLabel="Yeni köçürmə" onPress={()=>a.open('send')} style={styles.person}>
+       <View style={styles.addCircle}><Icon name="add" size={28} color={C.primary}/></View>
+       <Text style={styles.personName}>Əlavə et</Text>
+      </Pressable>
+      {people.map(p=>(
+       <Pressable key={p.phone} accessibilityRole="button" accessibilityLabel={p.name+' adlı şəxsə köçür'} onPress={()=>a.open('send:'+p.phone)} style={styles.person}>
+        <Avatar name={p.name} size={60}/>
+        <Text numberOfLines={1} style={styles.personName}>{p.name.split(' ')[0]}</Text>
+       </Pressable>
+      ))}
+     </ScrollView>
 
-     <Pressable
-      accessibilityRole="button"
-      onPress={()=>a.open('split')}
-      style={styles.bentoCard}
-     >
-      <View style={{zIndex:2}}>
-       <Text style={styles.bentoTitleDark}>Hesabı böl</Text>
-       <Text style={styles.bentoValueDark}>50 / 50</Text>
-      </View>
-      <Image source={CARD_IMAGES.split} style={styles.bentoImage} resizeMode="cover"/>
-     </Pressable>
+     <View style={[S.between,{marginTop:26}]}>
+      <Text style={styles.sectionTitle}>Son əməliyyatlar</Text>
+      <Pressable accessibilityRole="button" onPress={()=>navigation.navigate('History')} hitSlop={10}>
+       <Text style={styles.viewAll}>Hamısına bax</Text>
+      </Pressable>
+     </View>
+     <View style={{marginTop:6}}>
+      {recent.map((t:Row)=><Tx key={t.id} t={t} onPress={()=>a.open('tx-detail:'+t.id)}/>)}
+      {!recent.length&&<Empty text="Əməliyyatların burada görünəcək." icon="receipt-outline"/>}
+     </View>
     </View>
-   </View>
-  </Page>
+   </ScrollView>
+  </View>
  );
 }
 
@@ -213,9 +146,8 @@ function Payments(){
  const a=useApp(),d=a.data;
  const [matched,setMatched]=useState<Row[]|null>(null);
  return (
-  <Page>
-   <Text style={S.eyebrow}>ÖDƏNİŞLƏR VƏ KÖÇÜRMƏLƏR</Text>
-   <Text style={S.h1}>Bir nömrə kifayətdir.</Text>
+  <Page back>
+   <Text style={styles.profileTitle}>Ödənişlərim</Text>
    <Text style={[S.muted,{marginTop:8,marginBottom:20}]}>
     Pul göndər, bank kartına çıxar, hesabı dostlarla böl və ya pul istə.
    </Text>
@@ -384,6 +316,7 @@ function Payments(){
 
 function QrTab(){
  const a=useApp();
+ const nav=useNavigation<any>();
  const [payload,setPayload]=useState(''),
   [qr,setQr]=useState<Row|null>(null),
   [qrPaid,setQrPaid]=useState<Row|null>(null),
@@ -396,6 +329,12 @@ function QrTab(){
   [risk,setRisk]=useState(false);
 
  const [enterAnim]=useState(()=>new Animated.Value(0));
+ const scanLock=useRef(false),scanFailed=useRef(false);
+ // one scan is handled at a time; a failed one unlocks when its error popup is closed
+ useEffect(()=>{
+  if(!a.error&&scanFailed.current){scanFailed.current=false;scanLock.current=false;}
+ },[a.error]);
+ useEffect(()=>{if(camera)scanLock.current=false;},[camera]);
 
  useFocusEffect(useCallback(()=>{
   setCamera(true);
@@ -470,7 +409,7 @@ function QrTab(){
       ))}
      </View>
 
-     <Box style={{backgroundColor:'#f2f7ea',borderColor:'#cfe0b8'}}>
+     <Box style={{backgroundColor:'#ede9f8',borderColor:'#c1b6e2'}}>
       <View style={[S.between,{marginBottom:6}]}>
        <Text style={S.muted}>Satıcı</Text>
        <Text style={S.h3}>{qr.merchantName}</Text>
@@ -497,8 +436,6 @@ function QrTab(){
        text="Demo kripto risk xəbərdarlığını qəbul edirəm. USDT satılır, satıcı AZN alır."
       />
      )}
-
-     {a.error?<View style={S.error}><Text style={S.errorText}>{a.error}</Text></View>:null}
 
      <Button
       title="Ödənişi təsdiqlə"
@@ -527,16 +464,26 @@ function QrTab(){
      enableTorch={torch}
      barcodeScannerSettings={{barcodeTypes:['qr']}}
      onBarcodeScanned={async({data})=>{
-      setCamera(false);
+      if(scanLock.current)return;
+      scanLock.current=true;
       setPayload(data);
-      await run(async()=>setQr(await a.act('payments/qr/parse',{qrPayload:data})));
+      try{
+       setQr(await a.act('payments/qr/parse',{qrPayload:data}));
+       setCamera(false);
+      }catch{
+       // the popup explains what is wrong; the camera keeps running and scans again once it is closed
+       scanFailed.current=true;
+      }
      }}
     />
    ):(
-    <LinearGradient colors={['#0f261f','#17382e','#0d1f1a']} style={StyleSheet.absoluteFill}/>
+    <LinearGradient colors={['#120a33','#2a0a8a','#120a33']} style={StyleSheet.absoluteFill}/>
    )}
 
    <View style={styles.fullScannerTop}>
+    <Pressable accessibilityRole="button" accessibilityLabel="Geri" onPress={()=>nav.navigate('Home')} style={styles.backPill}>
+     <Icon name="chevron-back" size={22} color="white"/>
+    </Pressable>
     <Pressable
      accessibilityRole="button"
      accessibilityLabel="Fənər"
@@ -576,7 +523,6 @@ function QrTab(){
    </View>
 
    <Sheet title="QR kodu daxil et" visible={manualOpen} onClose={()=>setManualOpen(false)}>
-    {a.error?<View style={S.error}><Text style={S.errorText}>{a.error}</Text></View>:null}
     <Field label="Kassadakı QR mətni" value={payload} onChange={setPayload} multiline placeholder="000201010212..."/>
     <Button
      title="QR kodu yoxla"
@@ -592,235 +538,397 @@ function QrTab(){
  );
 }
 
-function HistoryTab(){
+type CardLook={bg:string;text:string;sub:string;ring:string;blob:string};
+
+/** A bank card of the design: holder and last digits on top, balance and a contactless mark at the bottom. */
+function WalletCard({name,last4,label,value,look,compact=false}:{name:string;last4:string;label:string;value?:string;look:CardLook;compact?:boolean}){
+ return (
+  <View style={[styles.walletCard,{backgroundColor:look.bg},compact&&{height:150}]}>
+   <View style={[styles.cardBlob,{backgroundColor:look.blob}]}/>
+   <View style={[styles.cardRing,{borderColor:look.ring}]}/>
+   <View style={S.between}>
+    <Text numberOfLines={1} style={[styles.cardName,{color:look.text,flex:1}]}>{name}</Text>
+    <Text style={[styles.cardName,{color:look.text}]}>**** {last4}</Text>
+   </View>
+   {value!==undefined&&(
+    <View style={styles.cardBottom}>
+     <View>
+      <Text style={[styles.cardLabel,{color:look.sub}]}>{label}</Text>
+      <Text style={[styles.cardValue,{color:look.text}]}>{value}</Text>
+     </View>
+     <Icon name="wifi" size={22} color={look.text} />
+    </View>
+   )}
+  </View>
+ );
+}
+
+const bankLook=(color:string):CardLook=>({bg:color||C.deep,text:'#fff',sub:'rgba(255,255,255,0.78)',ring:'#ffc42b',blob:'rgba(255,255,255,0.16)'});
+const lastDigits=(masked:any)=>String(masked||'').replace(/\D/g,'').slice(-4)||'••••';
+
+/** Kampus is a wallet, not a bank: this tab only shows the cards and accounts of other banks, read-only. */
+function CardsTab(){
+ const a=useApp(),d=a.data;
+ const [picked,setPicked]=useState<string|null>(null);
+ const [syncing,setSyncing]=useState(false);
+ const consents:Row[]=(d.openBanking?.consents||[]).filter((c:Row)=>c.status==='AUTHORIZED'||c.status==='EXPIRED');
+ const accounts:Row[]=(d.openBanking?.accounts||[]).filter((x:Row)=>consents.some(c=>c.id===x.consentId));
+ const bankCards=accounts.filter(x=>x.type==='CARD');
+ const consentOf=(x:Row)=>consents.find(c=>c.id===x.consentId)||{};
+ const account=picked?accounts.find(x=>x.id===picked):null;
+
+ if(account){
+  const consent=consentOf(account);
+  const txs:Row[]=(a.external||[]).filter((t:Row)=>t.accountId===account.id).slice(0,10);
+  const expired=consent.status==='EXPIRED';
+  return (
+   <Page onBack={()=>setPicked(null)}>
+    <View style={{height:8}}/>
+    <WalletCard name={account.name||consent.bankName||'Bank kartı'} last4={lastDigits(account.masked)} label={consent.bankName||'Balans'} value={money(account.balanceMinor)} look={bankLook(consent.bankColor)}/>
+    <View style={[S.between,{marginTop:14}]}>
+     <Badge text={expired?'İCAZƏNİN VAXTI BİTİB':'YALNIZ OXUMAQ'} tone={expired?'danger':'success'}/>
+     <Text style={S.muted}>{consent.lastSyncAt?'Yenilənib: '+fmtDateTime(consent.lastSyncAt):'Hələ yenilənməyib'}</Text>
+    </View>
+    {expired?(
+     <View style={{marginTop:14}}><Button title="İcazəni yenilə" icon="refresh" onPress={()=>a.open('banks-hub')}/></View>
+    ):(
+     <View style={{marginTop:14}}>
+      <Button
+       title={syncing?'Yenilənir…':'Yenilə'}
+       icon="refresh"
+       secondary
+       disabled={syncing}
+       onPress={()=>{
+        setSyncing(true);
+        a.call('open-banking/consents/'+consent.id+'/sync',{}).then(()=>a.refresh()).catch(e=>a.setError((e as Error).message)).finally(()=>setSyncing(false));
+       }}
+      />
+     </View>
+    )}
+    <Text style={[styles.sectionTitle,{marginTop:12,marginBottom:4}]}>Son əməliyyatlar</Text>
+    {txs.map(t=><Tx key={t.id} t={t} onPress={()=>a.open('tx-detail:'+t.id)}/>)}
+    {!txs.length&&<Empty text="Bu kart üzrə əməliyyat tapılmadı. Yenilə düyməsini sına." icon="receipt-outline"/>}
+   </Page>
+  );
+ }
+
+ return (
+  <Page>
+   <View style={[S.between,{marginBottom:18}]}>
+    <Text style={[styles.pageTitle,{marginBottom:0}]}>Kartlarım</Text>
+    <Pressable accessibilityRole="button" accessibilityLabel="Bank kartı əlavə et" onPress={()=>a.open('banks-hub')} hitSlop={10}>
+     <Text style={styles.addCard}>Kart əlavə et  +</Text>
+    </Pressable>
+   </View>
+
+   {!consents.length&&(
+    <View style={styles.emptyCards}>
+     <View style={styles.connectIcon}><Icon name="card-outline" size={30} color={C.primary}/></View>
+     <Text style={styles.emptyTitle}>Bank kartın hələ əlavə olunmayıb</Text>
+     <Text style={[S.muted,{textAlign:'center',marginTop:6,marginBottom:18}]}>Kapital, PAŞA, ABB və Rabitəbank kartlarını yalnız oxumaq icazəsi ilə bağla, balans və xərclərini bir yerdə izlə.</Text>
+     <Button title="Bank kartı əlavə et" icon="add" onPress={()=>a.open('banks-hub')}/>
+    </View>
+   )}
+
+   {bankCards.length>0&&(
+    <View style={{paddingBottom:30}}>
+     {bankCards.map((x,i)=>{
+      const last=i===bankCards.length-1;
+      const consent=consentOf(x);
+      return (
+       <Pressable key={x.id} accessibilityRole="button" accessibilityLabel={(consent.bankName||'')+' '+(x.name||'kart')} onPress={()=>setPicked(x.id)} style={[!last&&{height:48},last&&{height:200}]}>
+        <WalletCard name={consent.bankName||x.name} last4={lastDigits(x.masked)} label={x.name||'Balans'} value={last?money(x.balanceMinor):undefined} look={bankLook(consent.bankColor)}/>
+       </Pressable>
+      );
+     })}
+    </View>
+   )}
+
+   {consents.length>0&&(
+    <View style={[S.between,{marginBottom:10}]}>
+     <Text style={styles.sectionTitle}>Hesablar</Text>
+     <Pressable accessibilityRole="button" onPress={()=>a.open('banks-hub')} hitSlop={10}>
+      <Text style={styles.viewAll}>Banklara bax</Text>
+     </Pressable>
+    </View>
+   )}
+   {consents.map(c=>{
+    const own=accounts.filter(x=>x.consentId===c.id);
+    const total=own.filter(x=>x.currency==='AZN').reduce((sum,x)=>sum+(x.balanceMinor||0),0);
+    return (
+     <View key={c.id} style={styles.moreGroup}>
+      <View style={styles.bankHead}>
+       <BankMark bank={c} size={34}/>
+       <Text style={styles.bankHeadName}>{c.bankName}</Text>
+       {c.status==='EXPIRED'?<Badge text="İCAZƏ BİTİB" tone="danger"/>:<Text style={styles.bankHeadTotal}>{money(total)}</Text>}
+      </View>
+      {own.map((x,i)=>(
+       <Pressable key={x.id} accessibilityRole="button" accessibilityLabel={c.bankName+' '+(x.name||'hesab')} onPress={()=>setPicked(x.id)} style={[styles.moreRow,i===own.length-1&&{borderBottomWidth:0}]}>
+        <View style={[styles.moreIcon,{backgroundColor:C.lav}]}><Icon name={x.type==='CARD'?'card-outline':'wallet-outline'} size={19} color={C.primary}/></View>
+        <View style={{flex:1,minWidth:0}}>
+         <Text numberOfLines={1} style={styles.moreLabel}>{x.name}</Text>
+         <Text style={styles.moreSub}>{x.masked}</Text>
+        </View>
+        <Text style={styles.bankBalance}>{money(x.balanceMinor)}</Text>
+        <Icon name="chevron-forward" size={17} color="#8d89a3"/>
+       </Pressable>
+      ))}
+      {!own.length&&<Text style={[S.muted,{padding:14}]}>Hələ hesab gətirilməyib. “Banklara bax” bölməsində yenilə.</Text>}
+     </View>
+    );
+   })}
+   {consents.length>0&&(
+    <Pressable accessibilityRole="button" onPress={()=>a.open('banks-hub')} style={styles.connectBank}>
+     <View style={styles.connectIcon}><Icon name="business-outline" size={22} color={C.primary}/></View>
+     <View style={{flex:1}}>
+      <Text style={styles.moreLabel}>Başqa bank əlavə et</Text>
+      <Text style={styles.moreSub}>Kapital, PAŞA, ABB, Rabitəbank · yalnız oxumaq</Text>
+     </View>
+     <Icon name="add" size={22} color={C.primary}/>
+    </Pressable>
+   )}
+  </Page>
+ );
+}
+
+function MoreRow({icon,tint,color,label,sub,onPress,last}:{icon:any;tint:string;color:string;label:string;sub?:string;onPress:()=>void;last?:boolean}){
+ return (
+  <Pressable accessibilityRole="button" onPress={onPress} style={[styles.moreRow,last&&{borderBottomWidth:0}]}>
+   <View style={[styles.moreIcon,{backgroundColor:tint}]}><Icon name={icon} size={19} color={color}/></View>
+   <View style={{flex:1}}>
+    <Text style={styles.moreLabel}>{label}</Text>
+    {!!sub&&<Text style={styles.moreSub}>{sub}</Text>}
+   </View>
+   <Icon name="chevron-forward" size={17} color="#8d89a3"/>
+  </Pressable>
+ );
+}
+
+function MoreTab({navigation}:any){
+ const a=useApp(),d=a.data;
+ const unread=(d.notifications||[]).filter((n:Row)=>!n.read).length;
+ const banks=(d.openBanking?.consents||[]).filter((c:Row)=>c.status==='AUTHORIZED').length;
+ const P={tint:'#ece6ff',color:'#5632c0'},G={tint:'#dcf3e4',color:'#2f9e63'},R={tint:'#fde3e3',color:'#d04b4b'},B={tint:'#dde9ff',color:'#2b66d9'},Y={tint:'#fff1c9',color:'#a06d00'};
+ return (
+  <Page title="Daha çox">
+   <View style={styles.moreGroup}>
+    <MoreRow {...P} icon="swap-horizontal" label="Pul köçür" onPress={()=>a.open('send')}/>
+    <MoreRow {...B} icon="arrow-down" label="Pul istə" onPress={()=>a.open('request')}/>
+    <MoreRow {...G} icon="arrow-up" label="Balansı artır" onPress={()=>a.open('add')}/>
+    <MoreRow {...R} icon="card-outline" label="Karta çıxar" onPress={()=>a.open('card-transfer')}/>
+    <MoreRow {...P} icon="people-outline" label="Hesabı böl" onPress={()=>a.open('split')}/>
+    <MoreRow {...Y} icon="receipt-outline" label="Ödənişlərim" sub="Etibarlı alıcılar, sorğular, bölünmüş hesablar" onPress={()=>navigation.navigate('Payments')} last/>
+   </View>
+   <View style={styles.moreGroup}>
+    <MoreRow {...P} icon="pie-chart-outline" label="Analitika və büdcə" onPress={()=>navigation.navigate('History',{budget:true})}/>
+    <MoreRow {...B} icon="business-outline" label="Digər banklar" sub={banks>0?`${banks} bank bağlı · ${money(d.openBanking?.totalBalanceMinor||0)}`:'Kartlarını və xərclərini bir yerdə izlə'} onPress={()=>a.open('banks-hub')}/>
+    <MoreRow {...G} icon="school-outline" label="Sonra ödə və kredit" sub={`0% BNPL · ${money(d.bnplAvailableMinor)}`} onPress={()=>a.open('credit-hub')}/>
+    <MoreRow {...Y} icon="diamond-outline" label="Kripto cüzdanı (Pilot)" onPress={()=>a.open('crypto-hub')}/>
+    <MoreRow {...B} icon="qr-code-outline" label="Mənim QR kodum" onPress={()=>a.open('my-qr')} last/>
+   </View>
+   <View style={styles.moreGroup}>
+    <MoreRow {...P} icon="notifications-outline" label="Bildirişlər" sub={unread>0?`${unread} yeni`:undefined} onPress={()=>a.open('notifications')}/>
+    <MoreRow {...Y} icon="help-circle-outline" label="Kömək" onPress={()=>a.open('help')}/>
+    <MoreRow {...G} icon="headset-outline" label="Bizimlə əlaqə" onPress={()=>a.open('contact')}/>
+    <MoreRow {...P} icon="information-circle-outline" label="Haqqında" onPress={()=>a.open('about')} last/>
+   </View>
+   <Pressable accessibilityRole="button" onPress={a.logout} style={styles.logout}>
+    <Icon name="log-out-outline" size={19} color={C.red}/>
+    <Text style={styles.logoutText}>Hesabdan çıx</Text>
+   </Pressable>
+  </Page>
+ );
+}
+
+function HistoryTab({route}:any){
  const a=useApp(),d=a.data;
  const [budCat,setBudCat]=useState('Yemək'),
   [budLimit,setBudLimit]=useState('50'),
   [filterCat,setFilterCat]=useState('Hamısı'),
-  [source,setSource]=useState('Hamısı');
+  [source,setSource]=useState('Hamısı'),
+  [query,setQuery]=useState(''),
+  [filters,setFilters]=useState(false),
+  [budgets,setBudgets]=useState(false);
+
+ useEffect(()=>{if(route?.params?.budget)setBudgets(true);},[route?.params?.budget]);
 
  const kampusTx:Row[]=d.transactions||[];
  const bankTx:Row[]=a.external||[];
  const bankNames=Array.from(new Set(bankTx.map(t=>String(t.bankName))));
  const bySource=source==='Hamısı'?[...kampusTx,...bankTx]:source==='Kampus'?kampusTx:bankTx.filter(t=>t.bankName===source);
  const allTx:Row[]=bySource.slice().sort((x,y)=>String(y.createdAt).localeCompare(String(x.createdAt)));
- const filteredTx=filterCat==='Hamısı'?allTx:allTx.filter(t=>t.category===filterCat);
+ const needle=query.trim().toLowerCase();
+ const filteredTx=allTx
+  .filter(t=>filterCat==='Hamısı'||t.category===filterCat)
+  .filter(t=>!needle||String(t.name).toLowerCase().includes(needle)||String(t.category||'').toLowerCase().includes(needle));
+
+ const groups:{label:string;items:Row[]}[]=[];
+ const today=new Date().toDateString(),yesterday=new Date(Date.now()-86400000).toDateString();
+ filteredTx.forEach(t=>{
+  const day=new Date(t.createdAt);
+  const label=day.toDateString()===today?'Bu gün':day.toDateString()===yesterday?'Dünən':fmtDate(t.createdAt)+' '+day.getFullYear();
+  const last=groups[groups.length-1];
+  if(last&&last.label===label)last.items.push(t);else groups.push({label,items:[t]});
+ });
 
  return (
-  <Page>
-   <Text style={S.eyebrow}>XƏRCLƏR VƏ BÜDCƏ</Text>
-   <Text style={S.h1}>Tarixçə.</Text>
-   <Text style={[S.muted,{marginTop:8,marginBottom:18}]}>
-    Bu ayın xərcləri: <Text style={{color:C.ink,fontWeight:'700'}}>{money(d.analytics?.totalMinor||0)}</Text>
-    {d.analytics?.externalMinor>0?` (o cümlədən digər banklar: ${money(d.analytics.externalMinor)})`:''}. Detallara baxmaq və kateqoriyanı dəyişmək üçün əməliyyata toxun.
-   </Text>
-
-   <Box>
-    <Text style={[S.h3,{marginBottom:12}]}>Kateqoriya üzrə aylıq büdcə</Text>
-    <View style={{flexDirection:'row',gap:6,flexWrap:'wrap',marginBottom:12}}>
-     {EXPENSE_CATEGORIES.map(c=>(
-      <Pressable
-       key={c}
-       accessibilityRole="button"
-       onPress={()=>setBudCat(c)}
-       style={[S.tab,budCat===c&&{backgroundColor:C.lime,borderColor:C.ink}]}
-      >
-       <Text style={[S.tabText,budCat===c&&{color:C.ink,fontWeight:'700'}]}>{c}</Text>
-      </Pressable>
-     ))}
+  <Page title="Tarixçə">
+   <View style={{flexDirection:'row',gap:10}}>
+    <View style={styles.searchBox}>
+     <Icon name="search-outline" size={20} color="#6e6a85"/>
+     <TextInput accessibilityLabel="Əməliyyat axtar" value={query} onChangeText={setQuery} placeholder="Axtar" placeholderTextColor="#aaa6bd" style={styles.searchInput}/>
     </View>
-    <Field label="Aylıq büdcə limiti · AZN" value={budLimit} onChange={setBudLimit} numeric/>
-    <Button
-     title="Büdcəni saxla"
-     secondary
-     disabled={a.busy}
-     onPress={()=>a.act('budgets',{category:budCat,limitMinor:minor(budLimit)}).catch(()=>{})}
-    />
-   </Box>
-
-   {d.analytics?.categories?.map((cat:Row)=>{
-    const bRow=(d.budgets||[]).find((x:Row)=>x.category===cat.category);
-    const lim=bRow?.limitMinor||0;
-    const pct=lim>0?Math.round(cat.amountMinor/lim*100):0;
-    return (
-     <Box key={cat.category}>
-      <View style={S.between}>
-       <Text style={S.h3}>{cat.category}</Text>
-       <Text style={{fontSize:13,fontWeight:'700',color:C.ink}}>
-        {money(cat.amountMinor)}{lim>0?' / '+money(lim)+' ('+pct+'%)':''}
-       </Text>
-      </View>
-      {lim>0&&pct>=80&&(
-       <View style={{marginTop:8}}>
-        <Badge text={pct>=100?'BÜDCƏ AŞILIB (100%+)':'XƏBƏRDARLIQ (80%+)'} tone={pct>=100?'danger':'warn'}/>
-       </View>
-      )}
-      <View style={{height:7,backgroundColor:'#eef3e4',marginTop:12,borderRadius:4,overflow:'hidden'}}>
-       <View style={{height:7,borderRadius:4,backgroundColor:pct>=100?C.red:'#8cb85c',width:Math.min(100,lim>0?pct:(cat.amountMinor/(d.analytics?.totalMinor||1)*100))+'%'}}/>
-      </View>
-     </Box>
-    );
-   })}
-
-   <View style={S.section}>
-    <Text style={S.h3}>Bütün əməliyyatlar</Text>
-    <Text style={S.muted}>{filteredTx.length} qeyd</Text>
+    <Pressable accessibilityRole="button" onPress={()=>setFilters(!filters)} style={[styles.filterBtn,filters&&{backgroundColor:C.lav}]}>
+     <Icon name="options-outline" size={19} color={C.ink}/>
+     <Text style={styles.filterText}>Filtr</Text>
+    </Pressable>
    </View>
 
-   {bankNames.length>0&&(
-    <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{marginBottom:10}} contentContainerStyle={{gap:8}}>
-     {['Hamısı','Kampus',...bankNames].map(name=>(
-      <Pressable
-       key={name}
-       accessibilityRole="button"
-       onPress={()=>setSource(name)}
-       style={[S.tab,source===name&&{backgroundColor:C.ink,borderColor:C.ink}]}
-      >
-       <Text style={[S.tabText,source===name&&{color:'#fff',fontWeight:'700'}]}>{name}</Text>
-      </Pressable>
-     ))}
-    </ScrollView>
+   {filters&&(
+    <View style={{marginTop:12}}>
+     {bankNames.length>0&&(
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{marginBottom:10}} contentContainerStyle={{gap:8}}>
+       {['Hamısı','Kampus',...bankNames].map(name=>(
+        <Pressable key={name} accessibilityRole="button" onPress={()=>setSource(name)} style={[S.tab,source===name&&{backgroundColor:C.primary}]}>
+         <Text style={[S.tabText,source===name&&{color:'#fff',fontWeight:'700'}]}>{name}</Text>
+        </Pressable>
+       ))}
+      </ScrollView>
+     )}
+     <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{gap:8}}>
+      {['Hamısı',...EXPENSE_CATEGORIES,'Gəlir','Daxili köçürmə'].map(c=>(
+       <Pressable key={c} accessibilityRole="button" onPress={()=>setFilterCat(c)} style={[S.tab,filterCat===c&&{backgroundColor:C.primary}]}>
+        <Text style={[S.tabText,filterCat===c&&{color:'#fff',fontWeight:'700'}]}>{c}</Text>
+       </Pressable>
+      ))}
+     </ScrollView>
+    </View>
    )}
 
-   <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{marginBottom:12}} contentContainerStyle={{gap:8}}>
-    {['Hamısı',...EXPENSE_CATEGORIES,'Gəlir','Daxili köçürmə'].map(c=>(
-     <Pressable
-      key={c}
-      accessibilityRole="button"
-      onPress={()=>setFilterCat(c)}
-      style={[S.tab,filterCat===c&&{backgroundColor:C.lime,borderColor:C.ink}]}
-     >
-      <Text style={[S.tabText,filterCat===c&&{color:C.ink,fontWeight:'700'}]}>{c}</Text>
-     </Pressable>
-    ))}
-   </ScrollView>
+   <Pressable accessibilityRole="button" onPress={()=>setBudgets(!budgets)} style={styles.budgetBar}>
+    <View style={{flex:1}}>
+     <Text style={S.h3}>Bu ayın xərcləri: {money(d.analytics?.totalMinor||0)}</Text>
+     <Text style={[S.muted,{marginTop:2}]}>
+      {d.analytics?.externalMinor>0?`Digər banklar: ${money(d.analytics.externalMinor)} · `:''}Kateqoriya və büdcə
+     </Text>
+    </View>
+    <Icon name={budgets?'chevron-up':'chevron-down'} size={18} color={C.muted}/>
+   </Pressable>
 
-   <Box style={{paddingVertical:4}}>
-    {filteredTx.map((t:Row)=>(
-     <Tx key={t.id} t={t} onPress={()=>a.open('tx-detail:'+t.id)}/>
-    ))}
-    {!filteredTx.length&&<Empty text="Bu kateqoriya üzrə əməliyyat tapılmadı."/>}
-   </Box>
+   {budgets&&(
+    <>
+     <Box>
+      <Text style={[S.h3,{marginBottom:12}]}>Kateqoriya üzrə aylıq büdcə</Text>
+      <View style={{flexDirection:'row',gap:6,flexWrap:'wrap',marginBottom:12}}>
+       {EXPENSE_CATEGORIES.map(c=>(
+        <Pressable key={c} accessibilityRole="button" onPress={()=>setBudCat(c)} style={[S.tab,budCat===c&&{backgroundColor:C.primary}]}>
+         <Text style={[S.tabText,budCat===c&&{color:'#fff',fontWeight:'700'}]}>{c}</Text>
+        </Pressable>
+       ))}
+      </View>
+      <Field label="Aylıq büdcə limiti · AZN" value={budLimit} onChange={setBudLimit} numeric/>
+      <Button title="Büdcəni saxla" secondary disabled={a.busy} onPress={()=>a.act('budgets',{category:budCat,limitMinor:minor(budLimit)}).catch(()=>{})}/>
+     </Box>
+     {d.analytics?.categories?.map((cat:Row)=>{
+      const bRow=(d.budgets||[]).find((x:Row)=>x.category===cat.category);
+      const lim=bRow?.limitMinor||0;
+      const pct=lim>0?Math.round(cat.amountMinor/lim*100):0;
+      return (
+       <Box key={cat.category}>
+        <View style={S.between}>
+         <Text style={S.h3}>{cat.category}</Text>
+         <Text style={{fontSize:13,fontWeight:'700',color:C.ink}}>{money(cat.amountMinor)}{lim>0?' / '+money(lim)+' ('+pct+'%)':''}</Text>
+        </View>
+        {lim>0&&pct>=80&&(
+         <View style={{marginTop:8}}><Badge text={pct>=100?'BÜDCƏ AŞILIB (100%+)':'XƏBƏRDARLIQ (80%+)'} tone={pct>=100?'danger':'warn'}/></View>
+        )}
+        <View style={{height:7,backgroundColor:'#efecf8',marginTop:12,borderRadius:4,overflow:'hidden'}}>
+         <View style={{height:7,borderRadius:4,backgroundColor:pct>=100?C.red:C.primary,width:Math.min(100,lim>0?pct:(cat.amountMinor/(d.analytics?.totalMinor||1)*100))+'%'}}/>
+        </View>
+       </Box>
+      );
+     })}
+    </>
+   )}
+
+   {groups.map(g=>(
+    <View key={g.label}>
+     <Text style={styles.dayLabel}>{g.label}</Text>
+     {g.items.map(t=><Tx key={t.id} t={t} onPress={()=>a.open('tx-detail:'+t.id)}/>)}
+    </View>
+   ))}
+   {!groups.length&&<Empty text="Əməliyyat tapılmadı." icon="receipt-outline"/>}
   </Page>
  );
 }
 
 function ProfileTab(){
  const a=useApp(),d=a.data;
- const unreadCount=(d.notifications||[]).filter((n:Row)=>!n.read).length;
+ const rows:[string,string,string,string][]=[
+  ['person-outline','Ad və soyad',d.user?.name||'','#ece6ff'],
+  ['call-outline','Mobil nömrə',d.user?.phone||'','#dcf3e4'],
+  ['shield-checkmark-outline','Şəxsiyyət','SİMA · KYC təsdiqlənib','#dde9ff']
+ ];
  return (
-  <Page>
-   <Text style={S.eyebrow}>HESAB VƏ XİDMƏTLƏR</Text>
-   <Text style={S.h1}>Profil.</Text>
-
-   <Box style={{marginTop:16}}>
-    <View style={S.row}>
-     <View style={[S.avatar,{width:52,height:52,borderRadius:18,backgroundColor:C.lime}]}>
-      <Text style={[S.avatarText,{color:C.ink,fontSize:18}]}>{(d.user?.name||'K')[0]}</Text>
+  <Page back>
+   <Text style={styles.profileTitle}>Profil</Text>
+   <View style={{alignItems:'center',marginVertical:22}}>
+    <Avatar name={d.user?.name||'K'} size={104}/>
+    <Text style={[S.h2,{marginTop:14}]}>{d.user?.name}</Text>
+    <Text style={[S.muted,{marginTop:4}]}>{d.user?.phone}</Text>
+   </View>
+   <View style={styles.moreGroup}>
+    {rows.map(([icon,label,value,tint],i)=>(
+     <View key={label} style={[styles.moreRow,i===rows.length-1&&{borderBottomWidth:0}]}>
+      <View style={[styles.moreIcon,{backgroundColor:tint}]}><Icon name={icon as any} size={19} color={C.primary}/></View>
+      <View style={{flex:1}}>
+       <Text style={styles.moreSub}>{label}</Text>
+       <Text style={styles.moreLabel}>{value}</Text>
+      </View>
      </View>
-     <View style={{flex:1}}>
-      <Text style={S.h2}>{d.user?.name}</Text>
-      <Text style={S.muted}>{d.user?.phone}</Text>
-     </View>
-     <Badge text="SİMA · KYC" tone="success"/>
-    </View>
-    <View style={[S.between,{marginTop:14,paddingTop:12,borderTopWidth:1,borderTopColor:C.line}]}>
-     <Text style={[S.muted,{fontSize:11}]}>
-      5 dəqiqə aktivlik olmadıqda sessiya avtomatik bağlanır.
-     </Text>
-     <Pressable accessibilityRole="button" onPress={()=>a.open('my-qr')} style={{paddingVertical:4,paddingHorizontal:8}}>
-      <Text style={S.link}>QR kodum →</Text>
-     </Pressable>
-    </View>
-   </Box>
-
-   <View style={S.section}><Text style={S.h3}>Maliyyə alətləri</Text></View>
-   <Box style={{paddingVertical:6}}>
-    <Pressable accessibilityRole="button" style={S.listRow} onPress={()=>a.open('cards-hub')}>
-     <View style={S.tile}><Icon name="card-outline" size={20}/></View>
-     <View style={{flex:1}}>
-      <Text style={S.h3}>Virtual kartlarım ({d.cards?.length||0})</Text>
-      <Text style={S.muted}>Limitlər, 30s PAN/CVV, satıcı bloklama</Text>
-     </View>
-     <Icon name="chevron-forward" size={18} color={C.muted}/>
-    </Pressable>
-
-    <Pressable accessibilityRole="button" style={S.listRow} onPress={()=>a.open('banks-hub')}>
-     <View style={S.tile}><Icon name="business-outline" size={20}/></View>
-     <View style={{flex:1}}>
-      <Text style={S.h3}>Digər banklarım ({(d.openBanking?.consents||[]).filter((c:Row)=>c.status==='AUTHORIZED').length})</Text>
-      <Text style={S.muted}>Hesab və kartları bağla, xərcləri izlə</Text>
-     </View>
-     <Icon name="chevron-forward" size={18} color={C.muted}/>
-    </Pressable>
-
-    <Pressable accessibilityRole="button" style={S.listRow} onPress={()=>a.open('credit-hub')}>
-     <View style={S.tile}><Icon name="school-outline" size={20}/></View>
-     <View style={{flex:1}}>
-      <Text style={S.h3}>Sonra ödə və Partnyor krediti</Text>
-      <Text style={S.muted}>0% BNPL ({money(d.bnplAvailableMinor)}) · BOKT təklifləri</Text>
-     </View>
-     <Icon name="chevron-forward" size={18} color={C.muted}/>
-    </Pressable>
-
-    <Pressable accessibilityRole="button" style={[S.listRow,{borderBottomWidth:0}]} onPress={()=>a.open('crypto-hub')}>
-     <View style={S.tile}><Icon name="diamond-outline" size={20}/></View>
-     <View style={{flex:1}}>
-      <Text style={S.h3}>Kripto cüzdanı (USDT Pilot)</Text>
-      <Text style={S.muted}>Al/Sat, TRC-20 depozit və çıxarış</Text>
-     </View>
-     <Icon name="chevron-forward" size={18} color={C.muted}/>
-    </Pressable>
-   </Box>
-
-   <Button
-    title={unreadCount>0?`Bildirişlər (${unreadCount} yeni)`:'Bildirişlər'}
-    secondary
-    icon="notifications-outline"
-    onPress={()=>a.open('notifications')}
-   />
+    ))}
+   </View>
+   <Text style={[S.muted,{marginBottom:18}]}>5 dəqiqə aktivlik olmadıqda sessiya avtomatik bağlanır.</Text>
    <Button title="Hesabdan çıx" danger icon="log-out-outline" onPress={a.logout}/>
   </Page>
  );
 }
 
+const VISIBLE_TABS=['Home','History','QR','Cards','More'];
+const TAB_ICONS:Record<string,[string,string]>={
+ Home:['home','home-outline'],
+ History:['document-text','document-text-outline'],
+ Cards:['card','card-outline'],
+ More:['wallet','wallet-outline']
+};
+// screens that live under a visible tab keep that tab highlighted
+const TAB_OWNER:Record<string,string>={Payments:'More',Profile:'Home'};
+
 function CustomTabBar({state,descriptors,navigation}:any){
+ const current=state.routes[state.index]?.name;
+ const active=TAB_OWNER[current]||current;
  return (
   <View style={styles.tabBarWrap}>
    <View style={styles.tabBarInner}>
-    {state.routes.map((route:any,index:number)=>{
-     const {options}=descriptors[route.key];
-     const label=options.title||route.name;
-     const focused=state.index===index;
-     const isQr=route.name==='QR';
-     const iconName=({
-      Home:focused?'home':'home-outline',
-      Payments:focused?'swap-horizontal':'swap-horizontal-outline',
-      QR:'qr-code-outline',
-      History:focused?'time':'time-outline',
-      Profile:focused?'person':'person-outline'
-     } as any)[route.name];
-
+    {VISIBLE_TABS.map(name=>state.routes.find((r:any)=>r.name===name)).filter(Boolean).map((route:any)=>{
+     const label=descriptors[route.key].options.title||route.name;
+     const focused=active===route.name;
+     if(route.name==='QR'){
+      return (
+       <Pressable key={route.key} accessibilityRole="button" accessibilityLabel="QR ilə ödə" accessibilityState={{selected:focused}} onPress={()=>navigation.navigate('QR')} style={styles.tabItem}>
+        <View style={[styles.qrButton,focused&&{backgroundColor:C.deep}]}>
+         <Icon name="qr-code-outline" size={26} color="#fff"/>
+        </View>
+        <Text style={[styles.tabLabel,{marginTop:30},focused&&{color:C.primary,fontWeight:'700'}]}>{label}</Text>
+       </Pressable>
+      );
+     }
+     const [on,off]=TAB_ICONS[route.name];
      return (
-      <Pressable
-       key={route.key}
-       accessibilityRole="button"
-       accessibilityLabel={label}
-       onPress={()=>navigation.navigate(route.name)}
-       style={styles.tabItem}
-      >
-       {isQr?(
-        <View style={[styles.qrButton,focused&&{backgroundColor:C.ink}]}>
-         <Icon name="qr-code-outline" size={23} color={focused?C.lime:C.ink}/>
-        </View>
-       ):(
-        <View style={[styles.tabIconWrap,focused&&{backgroundColor:'#ecf4df'}]}>
-         <Icon name={iconName} size={20} color={focused?C.ink:'#8d998a'}/>
-        </View>
-       )}
-       <Text style={[styles.tabLabel,focused&&{color:C.ink,fontWeight:'700'},isQr&&{marginTop:4}]}>
-        {label}
-       </Text>
+      <Pressable key={route.key} accessibilityRole="button" accessibilityLabel={label} accessibilityState={{selected:focused}} onPress={()=>navigation.navigate(route.name)} style={styles.tabItem}>
+       {focused&&<View style={styles.tabIndicator}/>}
+       <Icon name={(focused?on:off) as any} size={22} color={focused?C.primary:'#5d5a73'}/>
+       <Text style={[styles.tabLabel,focused&&{color:C.primary,fontWeight:'700'}]}>{label}</Text>
       </Pressable>
      );
     })}
@@ -844,6 +952,7 @@ export default function App(){
   [sca,setSca]=useState<{path:string;body:Row;resolve:(s:string)=>void;reject:(e:Error)=>void}|null>(null),
   [scaPin,setScaPin]=useState(''),
   [scaBusy,setScaBusy]=useState(false),
+  [kycStep,setKycStep]=useState<{proof:string;actions:string[]}|null>(null),
   [showOnboarding,setShowOnboarding]=useState(true),
   [external,setExternal]=useState<Row[]>([]),
   [showConfig,setShowConfig]=useState(false);
@@ -983,12 +1092,32 @@ export default function App(){
   setScaBusy(true);
   try{
    const r=await call('auth/sca',{pin:pinValue,payload:{action:sca.path,data:sca.body}});
-   sca.resolve(r.proof);
-   setSca(null);
-   setError('');
+   if(r.kycRequired){
+    // Large amount: the PIN is only the first step, a fresh face check follows.
+    setKycStep({proof:r.proof,actions:r.kycActions||[]});
+    setError('');
+   }else{
+    sca.resolve(r.proof);
+    setSca(null);
+    setError('');
+   }
   }catch(e){setError((e as Error).message);}
   finally{setScaPin('');setScaBusy(false);}
  };
+
+ const finishKyc=async(result:LivenessResult)=>{
+  if(!sca||!kycStep)return;
+  try{
+   await call('auth/sca/kyc',{proof:kycStep.proof,selfie:result.selfie,livenessMode:result.mode,livenessActions:result.actions,facesCount:result.facesCount});
+   sca.resolve(kycStep.proof);
+   setSca(null);setKycStep(null);setError('');
+  }catch(e){
+   // The proof is spent or refused: end this attempt with the reason, the person starts again with the PIN.
+   sca.reject(e as Error);
+   setSca(null);setKycStep(null);
+  }
+ };
+ const cancelKyc=()=>{sca?.reject(new Error('Ləğv edildi'));setSca(null);setKycStep(null);};
 
  const context:AppContextType={
   base,
@@ -1029,29 +1158,37 @@ export default function App(){
     <Context.Provider value={context}>
      <NavigationContainer>
       <Tab.Navigator tabBar={props=><CustomTabBar {...props}/>} screenOptions={{headerShown:false}}>
-       <Tab.Screen name="Home" component={Home} options={{title:'Ana səhifə'}}/>
-       <Tab.Screen name="Payments" component={Payments} options={{title:'Ödənişlər'}}/>
-       <Tab.Screen name="QR" component={QrTab} options={{title:'QR'}}/>
+       <Tab.Screen name="Home" component={Home} options={{title:'Əsas'}}/>
        <Tab.Screen name="History" component={HistoryTab} options={{title:'Tarixçə'}}/>
+       <Tab.Screen name="Cards" component={CardsTab} options={{title:'Kartlar'}}/>
+       <Tab.Screen name="More" component={MoreTab} options={{title:'Daha çox'}}/>
+       <Tab.Screen name="Payments" component={Payments} options={{title:'Ödənişlərim'}}/>
+       <Tab.Screen name="QR" component={QrTab} options={{title:'QR'}}/>
        <Tab.Screen name="Profile" component={ProfileTab} options={{title:'Profil'}}/>
       </Tab.Navigator>
      </NavigationContainer>
-     {!sheet&&error&&(
-      <Pressable style={styles.toastError} onPress={()=>setError('')}>
-       <Text style={S.errorText}>{error}</Text>
-      </Pressable>
-     )}
+     {!sheet&&!sca&&!kycStep&&!!error&&<ErrorPopup page message={error} onClose={()=>setError('')}/>}
      {message&&!sca&&(
       <Pressable style={styles.toast} onPress={()=>setMessage('')}>
-       <Icon name="checkmark-circle" color="#668b3f" size={20}/>
+       <Icon name="checkmark-circle" color="#503b8f" size={20}/>
        <Text style={[S.successText,{flex:1}]}>{message}</Text>
       </Pressable>
      )}
      {!!sheet&&<Operations key={sheet} hidden={!!sca} sheet={sheet} close={()=>{setSheet('');setError('');}}/>}
-     <Sheet title="Əməliyyatı təsdiqlə" visible={!!sca} onClose={()=>{sca?.reject(new Error('Ləğv edildi'));setSca(null);}}>
+     <Sheet title="Üzünü təsdiqlə" visible={!!kycStep} onClose={cancelKyc}>
       <Box>
        <View style={S.row}>
-        <Icon name="shield-checkmark-outline" color="#7fa157" size={25}/>
+        <Icon name="scan-outline" color="#6853a5" size={25}/>
+        <Text style={[S.muted,{flex:1}]}>Məbləğ böyük olduğu üçün PIN-dən sonra üzünü də təsdiqləməlisən.</Text>
+       </View>
+       {sca?.body.amountMinor&&<Text style={[S.amount,{fontSize:28,marginTop:14}]}>{money(sca.body.amountMinor)}</Text>}
+      </Box>
+      {kycStep&&<Liveness actions={kycStep.actions} onDone={finishKyc} onCancel={cancelKyc}/>}
+     </Sheet>
+     <Sheet title="Əməliyyatı təsdiqlə" visible={!!sca&&!kycStep} onClose={()=>{sca?.reject(new Error('Ləğv edildi'));setSca(null);}}>
+      <Box>
+       <View style={S.row}>
+        <Icon name="shield-checkmark-outline" color="#6853a5" size={25}/>
         <Text style={[S.muted,{flex:1}]}>Təhlükəsizlik üçün bu əməliyyatı PIN ilə təsdiqlə.</Text>
        </View>
        {sca?.body.amountMinor&&<Text style={[S.amount,{fontSize:32,marginTop:18}]}>{money(sca.body.amountMinor)}</Text>}
@@ -1067,7 +1204,6 @@ export default function App(){
         <Text style={[S.muted,{marginTop:8}]}>Partnyorun demo kredit müqaviləsinin qəbulunu təsdiqləyirsən.</Text>
        )}
       </Box>
-      {!!error&&<View style={S.error}><Text style={S.errorText}>{error}</Text></View>}
       <PinPad
        value={scaPin}
        length={scaLength}
@@ -1091,7 +1227,7 @@ export default function App(){
    {Platform.OS==='web'&&winWidth>500?(
     <View style={styles.webBackdrop}>
      <View style={styles.webToolbar}>
-      <Text style={{color:'#c8d6c1',fontSize:12,fontWeight:'600'}}>📱 Kampus Mobil Simulyator (393 × 852)</Text>
+      <Text style={{color:'#c6c0d7',fontSize:12,fontWeight:'600'}}>📱 Kampus Mobil Simulyator (393 × 852)</Text>
       <Pressable onPress={()=>setPhoneFrame(!phoneFrame)} style={styles.frameToggleBtn}>
        <Icon name={phoneFrame?'expand-outline':'phone-portrait-outline'} size={15} color={C.ink}/>
        <Text style={{fontSize:11,fontWeight:'700',color:C.ink}}>{phoneFrame?'Tam ekran':'Telefon çərçivəsi'}</Text>
@@ -1123,79 +1259,84 @@ export default function App(){
 }
 
 const styles=StyleSheet.create({
- webBackdrop:{flex:1,backgroundColor:'#14241f',alignItems:'center',justifyContent:'center',paddingVertical:12},
+ pageTitle:{fontSize:26,fontWeight:'700',color:C.ink,letterSpacing:-0.4,marginBottom:16},
+ profileTitle:{fontSize:24,fontWeight:'700',color:C.ink,marginTop:4},
+ homeRoot:{flex:1,backgroundColor:'#fff'},
+ homeHeader:{backgroundColor:C.deep,paddingHorizontal:18,paddingTop:10,paddingBottom:26},
+ homeTop:{flexDirection:'row',alignItems:'center',gap:12,marginBottom:20},
+ hello:{flex:1,color:'#fff',fontSize:15,fontWeight:'600',lineHeight:20},
+ gear:{width:44,height:44,alignItems:'center',justifyContent:'center'},
+ balanceCard:{backgroundColor:'rgba(255,255,255,0.1)',borderRadius:20,borderWidth:1,borderColor:'rgba(255,255,255,0.14)',paddingTop:18,paddingHorizontal:14,paddingBottom:6,alignItems:'center',width:'100%',maxWidth:430,alignSelf:'center'},
+ balanceLabel:{color:'rgba(255,255,255,0.7)',fontSize:12},
+ balanceRow:{flexDirection:'row',alignItems:'center',marginTop:6,marginBottom:14},
+ balanceWhole:{color:'#fff',fontSize:38,fontWeight:'700',letterSpacing:-1},
+ balanceFrac:{fontSize:21,fontWeight:'600',color:'rgba(255,255,255,0.75)'},
+ heldText:{color:'#ffd96a',fontSize:11,fontWeight:'600',marginBottom:10},
+ actionRow:{flexDirection:'row',alignItems:'center',alignSelf:'stretch',marginTop:2},
+ action:{flex:1,minHeight:64,alignItems:'center',justifyContent:'center',gap:6},
+ actionText:{color:'#fff',fontSize:12,fontWeight:'600'},
+ actionDivider:{width:1,height:34,backgroundColor:'rgba(255,255,255,0.18)'},
+ homeBody:{backgroundColor:'#fff',paddingHorizontal:18,paddingTop:22,width:'100%',maxWidth:430,alignSelf:'center'},
+ sectionTitle:{fontSize:14,fontWeight:'700',color:C.ink},
+ viewAll:{fontSize:12,color:'#5d5a73'},
+ person:{alignItems:'center',width:62,gap:7},
+ addCircle:{width:60,height:60,borderRadius:30,backgroundColor:C.lav,alignItems:'center',justifyContent:'center'},
+ personName:{fontSize:12,color:C.ink,maxWidth:62},
+ walletCard:{height:200,borderRadius:20,padding:16,overflow:'hidden',shadowColor:'#1b1245',shadowOffset:{width:0,height:8},shadowOpacity:0.18,shadowRadius:14,elevation:4},
+ cardBlob:{position:'absolute',right:-40,bottom:-70,width:210,height:210,borderRadius:105},
+ cardRing:{position:'absolute',right:-30,bottom:-10,width:130,height:130,borderRadius:65,borderWidth:1.5},
+ cardName:{fontSize:13,fontWeight:'700'},
+ cardBottom:{position:'absolute',left:16,right:16,bottom:16,flexDirection:'row',alignItems:'flex-end',justifyContent:'space-between'},
+ cardLabel:{fontSize:12},
+ cardValue:{fontSize:24,fontWeight:'700',marginTop:2},
+ addCard:{fontSize:14,fontWeight:'600',color:'#1d5bd6'},
+ emptyCards:{alignItems:'center',backgroundColor:'#faf9fe',borderRadius:18,padding:22,marginBottom:18},
+ emptyTitle:{fontSize:16,fontWeight:'800',color:C.ink,marginTop:14,textAlign:'center'},
+ bankHead:{flexDirection:'row',alignItems:'center',gap:10,paddingHorizontal:14,paddingVertical:12,backgroundColor:'#faf9fe',borderBottomWidth:1,borderBottomColor:'#f0eef6'},
+ bankHeadName:{flex:1,fontSize:14,fontWeight:'700',color:C.ink},
+ bankHeadTotal:{fontSize:13,fontWeight:'700',color:'#5d5a73'},
+ bankBalance:{fontSize:13,fontWeight:'700',color:C.ink,marginRight:4},
+ connectBank:{flexDirection:'row',alignItems:'center',gap:12,backgroundColor:C.lav,borderRadius:14,padding:14,minHeight:68,marginBottom:14},
+ connectIcon:{width:42,height:42,borderRadius:12,backgroundColor:'#fff',alignItems:'center',justifyContent:'center'},
+ moreGroup:{borderWidth:1,borderColor:'#ebe8f4',borderRadius:14,marginBottom:14,overflow:'hidden',backgroundColor:'#fff'},
+ moreRow:{flexDirection:'row',alignItems:'center',gap:12,minHeight:56,paddingHorizontal:14,borderBottomWidth:1,borderBottomColor:'#f0eef6'},
+ moreIcon:{width:36,height:36,borderRadius:10,alignItems:'center',justifyContent:'center'},
+ moreLabel:{fontSize:14,fontWeight:'600',color:C.ink},
+ moreSub:{fontSize:11,color:'#76738a',marginTop:1},
+ logout:{flexDirection:'row',alignItems:'center',justifyContent:'center',gap:8,minHeight:52,borderRadius:12,backgroundColor:'#fdecec',marginTop:2,marginBottom:12},
+ logoutText:{color:C.red,fontWeight:'700',fontSize:14},
+ searchBox:{flex:1,flexDirection:'row',alignItems:'center',gap:8,borderWidth:1,borderColor:'#dedaeb',borderRadius:10,paddingHorizontal:12,minHeight:48},
+ searchInput:{flex:1,fontSize:14,color:C.ink,minHeight:46},
+ filterBtn:{flexDirection:'row',alignItems:'center',gap:6,borderWidth:1,borderColor:'#dedaeb',borderRadius:10,paddingHorizontal:12,minHeight:48},
+ filterText:{fontSize:13,fontWeight:'600',color:C.ink},
+ budgetBar:{flexDirection:'row',alignItems:'center',gap:10,backgroundColor:'#f6f3ff',borderRadius:12,padding:14,marginTop:14,marginBottom:6,minHeight:56},
+ dayLabel:{fontSize:13,fontWeight:'700',color:'#5d5a73',marginTop:18,marginBottom:2},
+ tabBarWrap:{backgroundColor:'white',borderTopWidth:1,borderTopColor:'#ebe8f4',paddingBottom:Platform.OS==='web'?6:18},
+ tabBarInner:{flexDirection:'row',maxWidth:430,width:'100%',alignSelf:'center'},
+ tabItem:{flex:1,minHeight:56,alignItems:'center',justifyContent:'center',gap:3,paddingTop:4},
+ tabIndicator:{position:'absolute',top:-1,left:'12%',right:'12%',height:2.5,backgroundColor:C.primary,borderRadius:2},
+ tabLabel:{fontSize:11,color:'#5d5a73',fontWeight:'500'},
+ qrButton:{position:'absolute',top:-26,width:56,height:56,borderRadius:28,backgroundColor:C.primary,alignItems:'center',justifyContent:'center',borderWidth:4,borderColor:'#fff',shadowColor:C.primary,shadowOffset:{width:0,height:6},shadowOpacity:0.3,shadowRadius:10,elevation:6},
+ backPill:{width:48,height:48,borderRadius:24,backgroundColor:'rgba(18,10,51,0.7)',alignItems:'center',justifyContent:'center',marginRight:'auto',borderWidth:1,borderColor:'rgba(228,217,255,0.3)'},
+ webBackdrop:{flex:1,backgroundColor:'#1b1245',alignItems:'center',justifyContent:'center',paddingVertical:12},
  webToolbar:{flexDirection:'row',alignItems:'center',justifyContent:'space-between',width:393,marginBottom:10,paddingHorizontal:4},
  frameToggleBtn:{flexDirection:'row',alignItems:'center',gap:6,backgroundColor:C.lime,paddingHorizontal:12,paddingVertical:6,borderRadius:999},
- phoneShell:{width:393,backgroundColor:C.bg,borderRadius:44,borderWidth:10,borderColor:'#253831',overflow:'hidden',shadowColor:'#000',shadowOffset:{width:0,height:20},shadowOpacity:0.45,shadowRadius:40},
+ phoneShell:{width:393,backgroundColor:C.bg,borderRadius:44,borderWidth:10,borderColor:'#2a2150',overflow:'hidden',shadowColor:'#000',shadowOffset:{width:0,height:20},shadowOpacity:0.45,shadowRadius:40},
  phoneStatusBar:{height:38,backgroundColor:C.bg,flexDirection:'row',alignItems:'center',justifyContent:'space-between',paddingHorizontal:24,paddingTop:4},
- dynamicIsland:{width:96,height:22,borderRadius:12,backgroundColor:'#111d19'},
+ dynamicIsland:{width:96,height:22,borderRadius:12,backgroundColor:'#120a33'},
  homeIndicatorWrap:{height:18,backgroundColor:'white',alignItems:'center',justifyContent:'center'},
- homeIndicator:{width:120,height:4,borderRadius:2,backgroundColor:'#cad2c0'},
- pageTop:{flexDirection:'row',justifyContent:'space-between',alignItems:'center',marginBottom:20},
- wordmark:{fontSize:25,fontWeight:'800',letterSpacing:-1.4,color:C.ink},
- headerActionBtn:{width:48,height:48,borderRadius:16,backgroundColor:'#edf2e4',alignItems:'center',justifyContent:'center'},
- dot:{position:'absolute',right:11,top:11,width:8,height:8,borderRadius:4,backgroundColor:'#7ea84c',borderWidth:1.5,borderColor:'#edf2e4'},
+ homeIndicator:{width:120,height:4,borderRadius:2,backgroundColor:'#c4bfd3'},
  iconHitTarget:{minWidth:48,minHeight:48,alignItems:'center',justifyContent:'center'},
  cancelInlineBtn:{minHeight:40,paddingHorizontal:10,justifyContent:'center'},
- refBalanceCard:{backgroundColor:'#FFFFFF',borderRadius:24,padding:20,marginBottom:12,borderWidth:1,borderColor:C.line},
- refBalanceLabel:{fontSize:13,color:C.muted,fontWeight:'500'},
- refBalanceWhole:{fontSize:42,fontWeight:'800',color:C.ink,letterSpacing:-1.4},
- refBalanceFraction:{fontSize:23,fontWeight:'700',color:C.muted,letterSpacing:-0.5},
- eyeBtn:{width:48,height:48,borderRadius:24,backgroundColor:'#f0f4e9',alignItems:'center',justifyContent:'center'},
- heldBanner:{flexDirection:'row',alignItems:'center',gap:8,backgroundColor:'#fdf4e7',borderColor:'#f2d7b6',borderWidth:1,borderRadius:12,paddingHorizontal:12,paddingVertical:8,marginBottom:14},
- refActionRow:{flexDirection:'row',gap:10},
- refActionBtn:{flex:1,minHeight:50,borderRadius:16,flexDirection:'row',alignItems:'center',justifyContent:'center',gap:7},
- refActionBtnText:{color:'#FFFFFF',fontSize:13,fontWeight:'700',letterSpacing:-0.2},
- savedPaymentsCard:{backgroundColor:'#FFFFFF',borderRadius:20,paddingHorizontal:16,paddingVertical:14,minHeight:68,flexDirection:'row',alignItems:'center',gap:12,marginBottom:22,borderWidth:1,borderColor:C.line},
- savedPaymentsIcon:{width:42,height:42,borderRadius:14,backgroundColor:'#f0f4e9',alignItems:'center',justifyContent:'center'},
- savedPaymentsTitle:{fontSize:14,fontWeight:'700',color:C.ink,letterSpacing:-0.2},
- savedPaymentsSub:{fontSize:11,color:C.muted,marginTop:2},
- servicesHeader:{fontSize:10,fontWeight:'700',color:C.muted,letterSpacing:1.4,marginBottom:10,paddingHorizontal:2},
- bentoGrid:{gap:12},
- bentoRow:{flexDirection:'row',gap:12},
- bentoCard:{flex:1,height:154,backgroundColor:'#FFFFFF',borderRadius:22,padding:16,overflow:'hidden',justifyContent:'space-between',position:'relative',borderWidth:1,borderColor:C.line},
- bentoCardForest:{backgroundColor:'#173b30',borderColor:'#173b30'},
- bentoTitleWhite:{fontSize:15,fontWeight:'800',color:'#FFFFFF',lineHeight:20,letterSpacing:-0.3},
- bentoSubLime:{fontSize:11,fontWeight:'600',color:C.lime,marginTop:4},
- bentoTitleDark:{fontSize:13,fontWeight:'600',color:C.muted,letterSpacing:-0.2},
- bentoValueDark:{fontSize:18,fontWeight:'800',color:C.ink,marginTop:4,letterSpacing:-0.5},
- bentoImage:{position:'absolute',right:-6,bottom:-6,width:94,height:94,borderRadius:18},
  loading:{flex:1,justifyContent:'center',alignItems:'center',padding:24},
- toast:{position:'absolute',bottom:88,left:16,right:16,backgroundColor:'#ecf6df',borderColor:'#d1e5b3',borderWidth:1,borderRadius:14,padding:14,flexDirection:'row',alignItems:'center',gap:10,maxWidth:400,alignSelf:'center'},
- toastError:{position:'absolute',bottom:88,left:16,right:16,backgroundColor:'#fae9df',borderRadius:14,padding:14,maxWidth:400,alignSelf:'center'},
- tabBarWrap:{backgroundColor:'white',borderTopWidth:1,borderTopColor:C.line,paddingTop:6,paddingBottom:Platform.OS==='web'?8:20},
- tabBarInner:{flexDirection:'row',alignItems:'flex-end',justifyContent:'space-around',maxWidth:430,width:'100%',alignSelf:'center',paddingHorizontal:6},
- tabItem:{flex:1,minHeight:48,alignItems:'center',justifyContent:'center',paddingVertical:2},
- tabIconWrap:{width:40,height:30,borderRadius:15,alignItems:'center',justifyContent:'center'},
- qrButton:{width:48,height:48,borderRadius:16,backgroundColor:C.lime,alignItems:'center',justifyContent:'center',marginTop:-20,borderWidth:3,borderColor:'white',shadowColor:'#17352e',shadowOffset:{width:0,height:4},shadowOpacity:0.15,shadowRadius:8,elevation:4},
- tabLabel:{fontSize:10,color:'#839081',fontWeight:'500',marginTop:3},
- fullScanner:{flex:1,backgroundColor:'#0d1f1a',justifyContent:'space-between',alignItems:'center',paddingVertical:24,paddingHorizontal:20},
+ toast:{position:'absolute',bottom:88,left:16,right:16,backgroundColor:'#e4def7',borderColor:'#beb0e8',borderWidth:1,borderRadius:14,padding:14,flexDirection:'row',alignItems:'center',gap:10,maxWidth:400,alignSelf:'center'},
+ fullScanner:{flex:1,backgroundColor:'#120a33',justifyContent:'space-between',alignItems:'center',paddingVertical:24,paddingHorizontal:20},
  fullScannerTop:{width:'100%',flexDirection:'row',alignItems:'center',justifyContent:'flex-end',gap:12,zIndex:2},
- torchBtn:{width:48,height:48,borderRadius:24,backgroundColor:'rgba(15,38,31,0.75)',alignItems:'center',justifyContent:'center',borderWidth:1,borderColor:'rgba(203,239,147,0.28)'},
+ torchBtn:{width:48,height:48,borderRadius:24,backgroundColor:'rgba(18,10,51,0.75)',alignItems:'center',justifyContent:'center',borderWidth:1,borderColor:'rgba(228,217,255,0.28)'},
  reticleBox:{width:236,height:236,position:'relative'},
  corner:{position:'absolute',width:36,height:36,borderColor:C.lime},
  cornerTL:{top:0,left:0,borderTopWidth:4,borderLeftWidth:4,borderTopLeftRadius:18},
  cornerTR:{top:0,right:0,borderTopWidth:4,borderRightWidth:4,borderTopRightRadius:18},
  cornerBL:{bottom:0,left:0,borderBottomWidth:4,borderLeftWidth:4,borderBottomLeftRadius:18},
  cornerBR:{bottom:0,right:0,borderBottomWidth:4,borderRightWidth:4,borderBottomRightRadius:18},
- authGearBtn:{width:40,height:40,borderRadius:13,backgroundColor:'#ebf0e2',alignItems:'center',justifyContent:'center'},
- authSegmentWrap:{flexDirection:'row',backgroundColor:'#e8eee0',borderRadius:16,padding:4,marginBottom:14},
- authSegmentBtn:{flex:1,minHeight:44,borderRadius:13,alignItems:'center',justifyContent:'center'},
- authSegmentBtnActive:{backgroundColor:'#FFFFFF',shadowColor:'#17352e',shadowOffset:{width:0,height:2},shadowOpacity:0.06,shadowRadius:4,elevation:2},
- authSegmentText:{fontSize:13,fontWeight:'600',color:C.muted},
- authSegmentTextActive:{color:C.ink,fontWeight:'800'},
- authFormCard:{backgroundColor:'#FFFFFF',borderRadius:24,padding:18,marginBottom:14,borderWidth:1,borderColor:C.line},
- demoPeopleRow:{flexDirection:'row',gap:8},
- demoPersonCard:{flex:1,backgroundColor:'#f7f8f3',borderRadius:18,padding:10,borderWidth:1.5,borderColor:C.line,overflow:'hidden',position:'relative',minHeight:96,justifyContent:'space-between'},
- demoPersonCardActive:{backgroundColor:'#f1f7e7',borderColor:C.ink},
- demoPersonBgImg:{position:'absolute',right:-10,bottom:-10,width:48,height:48,borderRadius:12,opacity:0.9},
- demoPersonAvatar:{width:32,height:32,borderRadius:16,backgroundColor:C.ink,alignItems:'center',justifyContent:'center'},
- demoPersonAvatarText:{color:'#FFFFFF',fontSize:13,fontWeight:'800'},
- demoPersonName:{fontSize:13,fontWeight:'800',color:C.ink,marginTop:8},
- demoPersonSub:{fontSize:10,color:C.muted,marginTop:1},
- signupStepHeader:{flexDirection:'row',alignItems:'center',backgroundColor:'#f7f8f3',borderRadius:18,padding:12,marginBottom:16,borderWidth:1,borderColor:C.line},
- signupStepImg:{width:68,height:68,borderRadius:14},
- simaOneTapCard:{flexDirection:'row',alignItems:'center',gap:12,backgroundColor:'#f7f8f3',borderRadius:18,padding:12,marginBottom:10,borderWidth:1.5,borderColor:C.line},
- simaOneTapCardActive:{backgroundColor:'#eef6e2',borderColor:C.ink},
- simaOneTapImg:{width:52,height:52,borderRadius:14}
 });

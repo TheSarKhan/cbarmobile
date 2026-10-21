@@ -41,7 +41,7 @@ const s=StyleSheet.create({
  pad:{alignItems:'center',gap:14,paddingBottom:16},
  row:{flexDirection:'row',gap:22},
  key:{width:76,height:76,borderRadius:38,backgroundColor:'#ffffff',alignItems:'center',justifyContent:'center'},
- keyPressed:{backgroundColor:'#e9ecdf'},
+ keyPressed:{backgroundColor:'#e2deed'},
  spacer:{width:76,height:76,alignItems:'center',justifyContent:'center'},
  keyText:{fontSize:34,fontWeight:'400',color:'#141414'}
 });

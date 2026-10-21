@@ -2,8 +2,9 @@ import React,{useState,useEffect} from 'react';
 import {View,Text,Pressable,StyleSheet,ActivityIndicator,Animated,Easing,Image} from 'react-native';
 import {C,S,CARD_IMAGES,useApp,fmtDate,fmtDateTime,statusLabel,statusTone,Icon,Button,Field,Check,Badge,Box,Empty,Sheet,Tx,EXPENSE_CATEGORIES} from './ui';
 import {CardTransferForm} from './CardTransferSheet';
-import {CardsSection,CreditSection,CryptoSection} from './HubSections';
+import {CreditSection,CryptoSection} from './HubSections';
 import {BanksSection} from './BanksSection';
+import {TransferFlow} from './TransferFlow';
 import {minor,money,Row} from './api';
 
 
@@ -21,10 +22,6 @@ export function Operations({sheet,close,hidden=false}:{sheet:string;close:()=>vo
   [recipient,setRecipient]=useState<Row|null>(null),
   [transfer,setTransfer]=useState<Row|null>(null),
   [count,setCount]=useState(5);
- const [cardName,setCardName]=useState(''),
-  [cardType,setCardType]=useState('STANDARD'),
-  [merchant,setMerchant]=useState(''),
-  [limit,setLimit]=useState('100');
  const [detail,setDetail]=useState<any>(null),
   [selected,setSelected]=useState<string[]>(['+994501000002','+994501000003','+994501000004'].filter(p=>p!==a.data.user?.phone)),
   [splitMode,setSplitMode]=useState<'EQUAL'|'CUSTOM'>('EQUAL'),
@@ -58,7 +55,6 @@ export function Operations({sheet,close,hidden=false}:{sheet:string;close:()=>vo
   send:'Pul göndər',
   request:'Pul istə',
   'my-qr':'Mənim QR kodum',
-  'new-card':'Yeni virtual kart',
   notifications:'Bildirişlər',
   history:'Əməliyyat tarixçəsi',
   'tx-detail':'Əməliyyat detalları',
@@ -67,9 +63,11 @@ export function Operations({sheet,close,hidden=false}:{sheet:string;close:()=>vo
   split:'Hesabı böl',
   'split-view':'Hesabın irəliləyişi',
   schedule:'Ödəniş qrafiki',
-  'cards-hub':'Virtual kartlarım',
   'credit-hub':'Sonra ödə və Kredit',
-  'crypto-hub':'Kripto cüzdanı (Pilot)'
+  'crypto-hub':'Kripto cüzdanı (Pilot)',
+  help:'Kömək',
+  contact:'Bizimlə əlaqə',
+  about:'Kampus haqqında'
  };
 
  useEffect(()=>{
@@ -93,12 +91,6 @@ export function Operations({sheet,close,hidden=false}:{sheet:string;close:()=>vo
   }
  },[a,kind,paramId,a.data.transactions?.length]);
 
- const errorView=a.error?(
-  <View style={S.error}>
-   <Text style={S.errorText}>{a.error}</Text>
-  </View>
- ):null;
-
  const parsedAzn=Math.max(0,Number(amount.replace(',','.'))||0);
  const btcVal=parsedAzn/115000;
  const satsVal=Math.round(btcVal*100_000_000);
@@ -108,14 +100,49 @@ export function Operations({sheet,close,hidden=false}:{sheet:string;close:()=>vo
 
  const txItem=kind==='tx-detail'?[...(a.data.transactions||[]),...(a.external||[])].find((x:Row)=>String(x.id)===paramId):null;
 
+ if(kind==='send')return <TransferFlow initialPhone={sheet.startsWith('send:')?sheet.split(':')[1]:''} hidden={hidden} close={close}/>;
+
  return (
   <Sheet title={title[kind]||'Kampus'} visible={!!sheet&&(!hidden||kind==='card-transfer')} onClose={close}>
-   {errorView}
    {kind==='card-transfer'&&<CardTransferForm {...a}/>}
-   {kind==='cards-hub'&&<CardsSection/>}
    {kind==='credit-hub'&&<CreditSection/>}
    {kind==='crypto-hub'&&<CryptoSection/>}
    {kind==='banks-hub'&&<BanksSection/>}
+
+   {kind==='help'&&(
+    <>
+     {[
+      ['PIN-i unutdum','Telefon nömrənlə daxil ol, PIN səhifəsində “Başqa nömrə ilə daxil ol” seçib yenidən qeydiyyatdan keç. Hesabın bloklanıbsa, bir neçə dəqiqə sonra yenidən yoxla.'],
+      ['Köçürmə niyə gecikir?','Köçürmələr 5 saniyəlik ləğv pəncərəsindən sonra icra olunur. Böyük məbləğlər və yeni cihaz yoxlamaya düşə bilər, bu halda vəsait rezerv edilir.'],
+      ['Böyük məbləğ üçün üz yoxlaması','500 ₼ və yuxarı köçürmələr PIN-dən sonra qısa üz yoxlaması istəyir.'],
+      ['Digər bankların kartları','“Daha çox” bölməsində “Digər banklar” vasitəsilə hesab və kartlarını yalnız oxumaq üçün bağlaya bilərsən.']
+     ].map(([q,r])=>(
+      <Box key={q}>
+       <Text style={S.h3}>{q}</Text>
+       <Text style={[S.muted,{marginTop:6}]}>{r}</Text>
+      </Box>
+     ))}
+    </>
+   )}
+   {kind==='contact'&&(
+    <>
+     <Box>
+      <Text style={S.h3}>Dəstək xidməti</Text>
+      <Text style={[S.muted,{marginTop:6}]}>Hər gün 09:00–21:00. Cavab müddəti adətən bir saatdan azdır.</Text>
+     </Box>
+     <Box>
+      <View style={S.row}><Icon name="mail-outline" size={20} color={C.primary}/><Text style={S.h3}>support@kampus.az</Text></View>
+      <View style={[S.row,{marginTop:12}]}><Icon name="call-outline" size={20} color={C.primary}/><Text style={S.h3}>+994 12 000 00 00</Text></View>
+     </Box>
+    </>
+   )}
+   {kind==='about'&&(
+    <Box>
+     <Text style={S.h3}>Kampus.</Text>
+     <Text style={[S.muted,{marginTop:8}]}>Kampus tələbələr üçün rəqəmsal cüzdandır: pul köçürmələri, QR ödənişləri, hesabı bölmək və digər bankların kartlarını bir yerdə izləmək. Kampus bank deyil, kart buraxmır.</Text>
+     <Text style={[S.muted,{marginTop:8}]}>Bu proqram nümayiş mühitində işləyir. Bank və ödəniş şəbəkəsi qoşulmaları simulyasiyadır.</Text>
+    </Box>
+   )}
 
    {kind==='my-qr'&&(
     <>
@@ -137,7 +164,7 @@ export function Operations({sheet,close,hidden=false}:{sheet:string;close:()=>vo
     txItem?(
      <>
       <Box style={{alignItems:'center',paddingVertical:22}}>
-       <View style={[S.tile,{width:56,height:56,borderRadius:20,backgroundColor:txItem.direction==='IN'?'#e7f4d7':'#eef2e6',marginBottom:12}]}>
+       <View style={[S.tile,{width:56,height:56,borderRadius:20,backgroundColor:txItem.direction==='IN'?'#ded6f5':'#e9e5f3',marginBottom:12}]}>
         <Icon
          name={txItem.source==='OPEN_BANKING'?'business-outline':txItem.type==='QR'?'cafe-outline':txItem.type==='CRYPTO'?'logo-bitcoin':txItem.direction==='IN'?'arrow-down-outline':'arrow-up-outline'}
          color={txItem.direction==='IN'?C.green:C.ink}
@@ -299,7 +326,7 @@ export function Operations({sheet,close,hidden=false}:{sheet:string;close:()=>vo
          )}
 
          <Field label="Məbləğ · AZN" value={amount} onChange={setAmount} numeric/>
-         <Box style={{backgroundColor:'#f2f7ea',borderColor:'#cfe0b8'}}>
+         <Box style={{backgroundColor:'#ede9f8',borderColor:'#c1b6e2'}}>
           <View style={[S.between,{marginBottom:4}]}>
            <Text style={S.muted}>Komissiya (0%)</Text>
            <Text style={S.h3}>0.00 ₼</Text>
@@ -447,7 +474,7 @@ export function Operations({sheet,close,hidden=false}:{sheet:string;close:()=>vo
          </View>
 
          <Field label="Məbləğ · AZN" value={amount} onChange={setAmount} numeric/>
-         <Box style={{backgroundColor:'#f2f7ea',borderColor:'#cfe0b8'}}>
+         <Box style={{backgroundColor:'#ede9f8',borderColor:'#c1b6e2'}}>
           <View style={[S.between,{marginBottom:4}]}>
            <Text style={S.muted}>Açıq Bankçılıq komissiyası</Text>
            <Text style={S.h3}>0.00 ₼</Text>
@@ -563,7 +590,7 @@ export function Operations({sheet,close,hidden=false}:{sheet:string;close:()=>vo
        <Field label="Məbləğ · AZN" value={amount} onChange={setAmount} numeric/>
        <Field label="Qeyd" value={note} onChange={setNote} placeholder="Məsələn, pizza 🍕"/>
        {recipient&&(
-        <Box style={{backgroundColor:'#f2f7ea',borderColor:'#cfe0b8'}}>
+        <Box style={{backgroundColor:'#ede9f8',borderColor:'#c1b6e2'}}>
          <View style={S.between}>
           <View style={{flex:1}}>
            <Text style={S.label}>ALAN ŞƏXS</Text>
@@ -732,52 +759,13 @@ export function Operations({sheet,close,hidden=false}:{sheet:string;close:()=>vo
     </>
    )}
 
-   {kind==='new-card'&&(
-    <>
-     <Text style={S.label}>Kart növü</Text>
-     <View style={{gap:8,marginBottom:20}}>
-      {[
-       ['STANDARD','Əsas kart','Bütün demo satıcılarında keçərlidir'],
-       ['MERCHANT_LOCKED','Satıcıya kilidli','Yalnız seçdiyin satıcıda işləyir'],
-       ['SINGLE_USE','Birdəfəlik','Bir ödənişdən sonra avtomatik bağlanır']
-      ].map(([id,label,sub])=>(
-       <Pressable
-        key={id}
-        accessibilityRole="button"
-        onPress={()=>setCardType(id)}
-        style={[S.box,{marginBottom:0,padding:15,borderColor:cardType===id?C.ink:C.line,backgroundColor:cardType===id?'#f0f6e7':'white'}]}
-       >
-        <View style={S.between}>
-         <View style={{flex:1}}>
-          <Text style={{fontWeight:'700',fontSize:13,color:C.ink}}>{label}</Text>
-          <Text style={[S.muted,{fontSize:11,marginTop:2}]}>{sub}</Text>
-         </View>
-         <Icon name={cardType===id?'radio-button-on':'radio-button-off'} size={20} color={cardType===id?C.ink:'#b7c1ab'}/>
-        </View>
-       </Pressable>
-      ))}
-     </View>
-     <Field label="Kart adı" value={cardName} onChange={setCardName} placeholder="Məsələn, abunəliklər"/>
-     {cardType==='MERCHANT_LOCKED'&&<Field label="Satıcı adı" value={merchant} onChange={setMerchant} placeholder="Cursor"/>}
-     <Field label="Aylıq limit · AZN" value={limit} onChange={setLimit} numeric/>
-     <Button
-      title="Demo kartı yarat"
-      disabled={a.busy}
-      onPress={()=>run(async()=>{
-       await a.act('cards',{type:cardType,name:cardName,merchantName:merchant,monthlyLimitMinor:minor(limit)});
-       close();
-      })}
-     />
-    </>
-   )}
-
    {kind==='notifications'&&(
     <>
      {a.data.notifications?.map((n:Row)=>(
       <Pressable key={n.id} accessibilityRole="button" onPress={()=>a.act('notifications/'+n.id+'/read',{}).catch(()=>{})}>
-       <Box style={!n.read?{borderColor:'#c9dda9',backgroundColor:'#f1f6e9'}:undefined}>
+       <Box style={!n.read?{borderColor:'#b5a6e0',backgroundColor:'#ece8f7'}:undefined}>
         <View style={[S.row,{alignItems:'flex-start'}]}>
-         <View style={[S.tile,{width:38,height:38,borderRadius:12,backgroundColor:!n.read?C.lime:'#f0f4e9'}]}>
+         <View style={[S.tile,{width:38,height:38,borderRadius:12,backgroundColor:!n.read?C.lime:'#ebe8f5'}]}>
           <Icon name="notifications-outline" color={C.ink} size={19}/>
          </View>
          <View style={{flex:1}}>
@@ -808,8 +796,8 @@ export function Operations({sheet,close,hidden=false}:{sheet:string;close:()=>vo
 }
 
 const os=StyleSheet.create({
- myQrFrame:{width:154,height:154,borderRadius:24,backgroundColor:'#f0f4e9',alignItems:'center',justifyContent:'center',marginBottom:16,borderWidth:1,borderColor:C.line},
- dotInline:{width:8,height:8,borderRadius:4,backgroundColor:'#7ea84c',marginTop:4},
+ myQrFrame:{width:154,height:154,borderRadius:24,backgroundColor:'#ebe8f5',alignItems:'center',justifyContent:'center',marginBottom:16,borderWidth:1,borderColor:C.line},
+ dotInline:{width:8,height:8,borderRadius:4,backgroundColor:'#6147ad',marginTop:4},
  bentoGrid:{gap:12},
  bentoRow:{flexDirection:'row',gap:12},
  topupMethodCard:{flex:1,height:152,backgroundColor:'#FFFFFF',borderRadius:22,padding:16,overflow:'hidden',justifyContent:'space-between',position:'relative',borderWidth:1,borderColor:C.line},
@@ -823,19 +811,19 @@ const os=StyleSheet.create({
  flowHeroSubDark:{fontSize:11,color:C.muted,lineHeight:17,marginTop:5},
  flowHeroSideImg:{width:76,height:76,borderRadius:16},
  selectRowCard:{flexDirection:'row',alignItems:'center',gap:12,backgroundColor:'#FFFFFF',borderRadius:18,padding:14,minHeight:64,borderWidth:1.5,borderColor:C.line},
- selectRowCardActive:{borderColor:C.ink,backgroundColor:'#f2f7ea'},
- selectRowIcon:{width:40,height:40,borderRadius:13,backgroundColor:'#f0f4e9',alignItems:'center',justifyContent:'center'},
- btcHeroCard:{backgroundColor:'#173b30',borderRadius:22,overflow:'hidden',marginBottom:18,borderWidth:1,borderColor:'#254c3c'},
+ selectRowCardActive:{borderColor:C.ink,backgroundColor:'#ede9f8'},
+ selectRowIcon:{width:40,height:40,borderRadius:13,backgroundColor:'#ebe8f5',alignItems:'center',justifyContent:'center'},
+ btcHeroCard:{backgroundColor:'#2a0a8a',borderRadius:22,overflow:'hidden',marginBottom:18,borderWidth:1,borderColor:'#2e234e'},
  btcHeroImg:{width:'100%',height:122},
  btcHeroBody:{padding:16,paddingTop:14},
  btcHeroTitle:{fontSize:16,fontWeight:'800',color:'#FFFFFF',letterSpacing:-0.3},
- btcHeroSub:{fontSize:11,color:'#bfd1b6',lineHeight:16,marginTop:4},
+ btcHeroSub:{fontSize:11,color:'#bcb5d2',lineHeight:16,marginTop:4},
  btcNetCard:{flex:1,flexDirection:'row',alignItems:'center',gap:10,backgroundColor:'#FFFFFF',borderRadius:18,padding:11,minHeight:60,borderWidth:1.5,borderColor:C.line},
- btcNetCardActive:{borderColor:C.ink,backgroundColor:'#f2f7ea'},
+ btcNetCardActive:{borderColor:C.ink,backgroundColor:'#ede9f8'},
  btcNetIcon:{width:42,height:42,borderRadius:12},
  btcConvertCard:{flexDirection:'row',alignItems:'center',justifyContent:'space-between',backgroundColor:'#FFFFFF',borderRadius:18,padding:16,marginBottom:14,borderWidth:1,borderColor:C.line},
  btcSwapCircle:{width:36,height:36,borderRadius:18,backgroundColor:C.lime,alignItems:'center',justifyContent:'center',marginHorizontal:8},
- btcAddrCard:{flexDirection:'row',alignItems:'center',gap:12,backgroundColor:'#f0f4e9',borderRadius:18,padding:14,marginBottom:18,borderWidth:1,borderColor:C.line},
+ btcAddrCard:{flexDirection:'row',alignItems:'center',gap:12,backgroundColor:'#ebe8f5',borderRadius:18,padding:14,marginBottom:18,borderWidth:1,borderColor:C.line},
  btcMiniQr:{width:50,height:50,borderRadius:14,backgroundColor:'#FFFFFF',alignItems:'center',justifyContent:'center',borderWidth:1,borderColor:C.line},
  btcCopyIconBtn:{width:48,height:48,borderRadius:14,backgroundColor:'#FFFFFF',alignItems:'center',justifyContent:'center',borderWidth:1,borderColor:C.line},
  terminalStepsBox:{backgroundColor:'#FFFFFF',borderRadius:18,padding:16,gap:12,marginBottom:18,borderWidth:1,borderColor:C.line},

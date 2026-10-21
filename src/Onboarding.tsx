@@ -13,8 +13,8 @@ const SLIDES=[
  {
   key:'cards',
   image:require('../assets/cards/onboarding-virtual-shield.png'),
-  title:'Satıcıya kilidli\nvirtual kartlar',
-  desc:'Yalnız seçdiyin xidmətdə işləyən kartlarla abunəliklərini təhlükəsiz saxla.'
+  title:'Bütün bankların\nkartları bir yerdə',
+  desc:'Digər bankların hesab və kartlarını yalnız oxumaq icazəsi ilə bağla, xərclərini izlə.'
  },
  {
   key:'split',
@@ -58,7 +58,7 @@ export default function Onboarding({onFinish}:{onFinish:()=>void}){
 }
 
 const s=StyleSheet.create({
- screen:{flex:1,backgroundColor:'#091d1b',justifyContent:'space-between',overflow:'hidden'},
+ screen:{flex:1,backgroundColor:'#120a33',justifyContent:'space-between',overflow:'hidden'},
  topBar:{flexDirection:'row',alignItems:'center',justifyContent:'space-between',paddingHorizontal:24,paddingTop:Platform.OS==='web'?20:12,zIndex:10},
  wordmark:{fontSize:26,fontWeight:'800',color:'#FFFFFF',letterSpacing:-0.8},
  skip:{backgroundColor:'rgba(255,255,255,0.14)',paddingHorizontal:18,paddingVertical:8,borderRadius:999,borderWidth:1,borderColor:'rgba(255,255,255,0.22)'},
@@ -72,5 +72,5 @@ const s=StyleSheet.create({
  dot:{width:8,height:8,borderRadius:4,backgroundColor:'rgba(255,255,255,0.3)'},
  dotActive:{width:30,borderRadius:4,backgroundColor:C.lime},
  primary:{minHeight:52,backgroundColor:C.lime,borderRadius:16,alignItems:'center',justifyContent:'center'},
- primaryText:{color:'#091d1b',fontSize:15,fontWeight:'800'}
+ primaryText:{color:'#120a33',fontSize:15,fontWeight:'800'}
 });
