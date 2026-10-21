@@ -67,7 +67,7 @@ export function CardsSection(){
     return (
      <View key={c.id} style={{marginBottom:6}}>
       <LinearGradient
-       colors={i%2?['#cde8a7','#e0f0c7']:['#173a30','#2d5139']}
+       colors={i%2?['#b6a4eb','#d0c5f2']:['#2a0a8a','#352b53']}
        style={[hs.bankCard,c.status!=='ACTIVE'&&{opacity:0.65}]}
       >
        <View style={S.between}>
@@ -83,7 +83,7 @@ export function CardsSection(){
         />
        </View>
        <View style={S.between}>
-        <Icon name="hardware-chip-outline" color={i%2?C.ink:'#b6c8a7'} size={32}/>
+        <Icon name="hardware-chip-outline" color={i%2?C.ink:'#aea5ca'} size={32}/>
         {rev&&<Badge text="30 SAN AÇIQDIR" tone="warn"/>}
        </View>
        <View>
@@ -91,7 +91,7 @@ export function CardsSection(){
          {rev?rev.pan.replace(/(.{4})/g,'$1 ').trim():'••••  ••••  ••••  '+c.last4}
         </Text>
         <View style={[S.between,{marginTop:12}]}>
-         <Text numberOfLines={1} style={{color:i%2?C.ink:'#bfd1b6',fontSize:11,fontWeight:'600',flex:1,paddingRight:8}}>
+         <Text numberOfLines={1} style={{color:i%2?C.ink:'#bcb5d2',fontSize:11,fontWeight:'600',flex:1,paddingRight:8}}>
           {rev?'EXP '+rev.expiry+' · CVV '+rev.cvv:(c.name||c.merchantName||'Kampus virtual')}
          </Text>
          <Text style={{color:i%2?C.ink:'white',fontWeight:'800',fontStyle:'italic',fontSize:18}}>VISA</Text>
@@ -107,7 +107,7 @@ export function CardsSection(){
         </Text>
        </View>
        <View style={hs.progressTrack}>
-        <View style={[hs.progressFill,{width:pct+'%',backgroundColor:pct>=90?C.red:'#7ea850'}]}/>
+        <View style={[hs.progressFill,{width:pct+'%',backgroundColor:pct>=90?C.red:'#644cac'}]}/>
        </View>
 
        <Text style={[S.label,{marginTop:14}]}>Ödəniş kanalları</Text>
@@ -221,15 +221,15 @@ export function CreditSection(){
 
  return (
   <>
-   <LinearGradient colors={['#173b30','#254c36']} style={[hs.bnplCard,{marginBottom:16}]}>
+   <LinearGradient colors={['#2a0a8a','#2e234e']} style={[hs.bnplCard,{marginBottom:16}]}>
     <View style={S.between}>
      <View style={{flex:1,paddingRight:10}}>
       <Badge text="SONRA ÖDƏ · 0% FAİZ" dark/>
       <Text style={[hs.bnplAmount,{marginTop:12}]}>
        {money(bnplAvail)}
-       <Text style={{fontSize:14,fontWeight:'500',color:'#b6ccb0'}}> / 50.00 ₼</Text>
+       <Text style={{fontSize:14,fontWeight:'500',color:'#b6afcd'}}> / 50.00 ₼</Text>
       </Text>
-      <Text style={{color:'#c5d8bf',fontSize:11,lineHeight:17,marginTop:6}}>
+      <Text style={{color:'#c5bed9',fontSize:11,lineHeight:17,marginTop:6}}>
        Kassa QR ödənişində &quot;Sonra ödə&quot; seçərək 30 gün faizsiz istifadə edin. Ödəniş tarixində borc balansdan avtomatik tutulur.
       </Text>
      </View>
@@ -242,7 +242,7 @@ export function CreditSection(){
 
    {d.bnplEligibility?.eligible===false&&<Box><Text style={S.muted}>Sonra ödə üçün hesab 14 günlük olmalı, son 30 gündə ən azı iki daxilolma olmalı və gecikmiş borc olmamalıdır.</Text></Box>}
    {d.bnplLoans?.filter((l:Row)=>['ACTIVE','OVERDUE','BAD'].includes(l.status)).map((l:Row)=>(
-    <Box key={l.id} style={{backgroundColor:'#f3f7ec',borderColor:'#cfe0b8'}}>
+    <Box key={l.id} style={{backgroundColor:'#eeebf8',borderColor:'#c1b6e2'}}>
      <View style={[S.between,{marginBottom:12}]}>
       <View>
        <Text style={S.label}>AKTİV SONRA ÖDƏ BORCU</Text>
@@ -396,7 +396,7 @@ export function CryptoSection(){
 
  return (
   <>
-   <LinearGradient colors={['#173b30','#2a4d39']} style={hs.cryptoCard}>
+   <LinearGradient colors={['#2a0a8a','#32284f']} style={hs.cryptoCard}>
     <View style={S.between}>
      <Text style={{color:'white',fontWeight:'700',fontSize:14}}>Tether · USDT (TRC-20)</Text>
      <Badge text="VASP PİLOT" dark/>
@@ -404,7 +404,7 @@ export function CryptoSection(){
     <Text style={hs.cryptoBal}>
      {portfolio?new Intl.NumberFormat('az-AZ',{maximumFractionDigits:6}).format(usdtBal):'…'} USDT
     </Text>
-    <Text style={{color:'#b6ccb0',fontSize:11,marginTop:6}}>
+    <Text style={{color:'#b6afcd',fontSize:11,marginTop:6}}>
      Təxmini dəyər: ≈ {money(Math.round(usdtBal*170))} · Ünvan: TKampus{String(d.user?.id||'U1').toUpperCase()}Demo994
     </Text>
    </LinearGradient>
@@ -428,7 +428,7 @@ export function CryptoSection(){
     <Check value={consent} onChange={setConsent} text="Demo kripto risk xəbərdarlığını qəbul edirəm."/>
 
     {quote&&(
-     <Box style={{backgroundColor:'#f2f7ea',borderColor:'#cfe0b8'}}>
+     <Box style={{backgroundColor:'#ede9f8',borderColor:'#c1b6e2'}}>
       <View style={[S.between,{marginBottom:8}]}>
        <Text style={S.label}>MƏZƏNNƏ TƏKLİFİ (QUOTE)</Text>
        <Badge text={seconds>0?`${seconds} san aktivdir`:'Müddəti bitdi'} tone={seconds>0?'success':'danger'}/>
@@ -523,17 +523,17 @@ const hs=StyleSheet.create({
  bankCard:{borderRadius:20,padding:22,height:210,justifyContent:'space-between',zIndex:1},
  cardBrand:{fontWeight:'800',color:'white',fontSize:22,letterSpacing:-1},
  cardNumber:{color:'white',fontSize:18,letterSpacing:1.5,fontWeight:'600'},
- progressTrack:{height:7,backgroundColor:'#ebf1e2',borderRadius:4,overflow:'hidden'},
+ progressTrack:{height:7,backgroundColor:'#e5e1f2',borderRadius:4,overflow:'hidden'},
  progressFill:{height:7,borderRadius:4},
  bnplCard:{borderRadius:22,padding:20},
  bnplAmount:{fontSize:32,fontWeight:'800',color:'white',letterSpacing:-1},
  offerGrid:{flexDirection:'row',flexWrap:'wrap',gap:8,marginVertical:12},
- offerCell:{width:'48%',backgroundColor:'#f3f6ec',borderRadius:12,padding:10},
+ offerCell:{width:'48%',backgroundColor:'#eeebf7',borderRadius:12,padding:10},
  offerCellLabel:{fontSize:10,color:C.muted,fontWeight:'600'},
  offerCellVal:{fontSize:13,color:C.ink,fontWeight:'700',marginTop:3},
  cryptoCard:{borderRadius:22,padding:20,marginBottom:16},
  cryptoBal:{fontSize:30,fontWeight:'800',color:'white',letterSpacing:-1,marginTop:12},
- segmentWrap:{flexDirection:'row',backgroundColor:'#edf2e4',padding:4,borderRadius:13,marginBottom:16},
+ segmentWrap:{flexDirection:'row',backgroundColor:'#e7e3f3',padding:4,borderRadius:13,marginBottom:16},
  segment:{flex:1,minHeight:44,alignItems:'center',justifyContent:'center',paddingHorizontal:8,borderRadius:10},
  segmentActive:{backgroundColor:'white'}
 });

@@ -13,16 +13,16 @@ export function livenessHtml(base:string,actions:string[]){
 <html lang="az"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <style>
-*{box-sizing:border-box}html,body{margin:0;height:100%;background:#091d1b;color:#fff;font-family:-apple-system,system-ui,sans-serif}
+*{box-sizing:border-box}html,body{margin:0;height:100%;background:#120a33;color:#fff;font-family:-apple-system,system-ui,sans-serif}
 #wrap{min-height:100%;display:flex;flex-direction:column;align-items:center;padding:14px}
-#stage{position:relative;width:100%;max-width:380px;aspect-ratio:4/5;border-radius:22px;overflow:hidden;background:#0d1411}
+#stage{position:relative;width:100%;max-width:380px;aspect-ratio:4/5;border-radius:22px;overflow:hidden;background:#0f0d14}
 video{width:100%;height:100%;object-fit:cover;transform:scaleX(-1);display:block}
 #oval{position:absolute;top:8%;bottom:8%;left:18%;right:18%;border-radius:999px;border:2px solid rgba(255,255,255,.4)}
-#oval.on{border-color:#cbef93}
-#dots{display:flex;gap:6px;margin:14px 0 10px}.dot{width:8px;height:8px;border-radius:4px;background:#24423b}.dot.cur{width:22px;background:#cbef93}.dot.done{background:#fff}
+#oval.on{border-color:#e4d9ff}
+#dots{display:flex;gap:6px;margin:14px 0 10px}.dot{width:8px;height:8px;border-radius:4px;background:#2b2244}.dot.cur{width:22px;background:#e4d9ff}.dot.done{background:#fff}
 #msg{font-size:18px;font-weight:800;text-align:center}#sub{font-size:13px;color:rgba(255,255,255,.75);margin-top:4px;min-height:18px;text-align:center}
 button{margin-top:14px;border:0;border-radius:14px;padding:13px 22px;font-size:15px;font-weight:700;background:rgba(255,255,255,.14);color:#fff}
-#retry{display:none;background:#cbef93;color:#17352e}
+#retry{display:none;background:#e4d9ff;color:#1b1838}
 </style></head><body>
 <div id="wrap">
  <div id="stage"><video id="v" playsinline muted autoplay></video><div id="oval"></div></div>

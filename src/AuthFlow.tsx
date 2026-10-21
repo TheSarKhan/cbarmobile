@@ -3,7 +3,7 @@ import {Image,KeyboardAvoidingView,Platform,Pressable,ScrollView,StyleSheet,Text
 import {SafeAreaView} from 'react-native-safe-area-context';
 import {ApiError,request,storage} from './api';
 import type {Row} from './api';
-import {C,Check,Field,Icon} from './ui';
+import {C,Check,Field,HeroArt,Icon} from './ui';
 import DatePickerField,{isAdult} from './DatePickerField';
 import Liveness from './Liveness';
 import PinPad from './PinPad';
@@ -26,8 +26,9 @@ const SERIES=/^(AZE[0-9]{8}|AA[0-9]{7})$/;
 const NEW_PIN_LENGTH=4; // new accounts use four digits; older accounts keep the length they were created with
 const CODE_LENGTH=6;
 const RESEND_SECONDS=180;
-const BG='#f9f9f9';
-const BOX='#eeeef0';
+const BG='#ffffff';
+const BOX='#f3f0fb';
+const HERO_BG='#f6f3ff';
 
 type Props={
  base:string;
@@ -58,18 +59,26 @@ function useCountdown(from:number){
  return {left,restart:()=>{setLeft(from);setRound(r=>r+1);}};
 }
 
-function Screen({onBack,right,title,subtitle,children,footer,scroll=true}:{onBack?:()=>void;right?:React.ReactNode;title?:string;subtitle?:string;children:React.ReactNode;footer?:React.ReactNode;scroll?:boolean}){
+function Screen({onBack,right,title,subtitle,children,footer,scroll=true,hero}:{onBack?:()=>void;right?:React.ReactNode;title?:string;subtitle?:string;children:React.ReactNode;footer?:React.ReactNode;scroll?:boolean;hero?:'phone'|'shield'}){
  return (
-  <SafeAreaView style={s.screen}>
+  <SafeAreaView style={[s.screen,!!hero&&{backgroundColor:HERO_BG}]}>
    <KeyboardAvoidingView style={{flex:1}} behavior={Platform.OS==='ios'?'padding':undefined}>
     <View style={s.header}>
      {onBack?(
       <Pressable accessibilityRole="button" accessibilityLabel="Geri" hitSlop={12} onPress={onBack} style={s.iconButton}>
-       <Icon name="arrow-back" size={26} color={C.ink}/>
+       <Icon name="chevron-back" size={24} color="#1d5bd6"/>
+       <Text style={s.backText}>Geri</Text>
       </Pressable>
      ):<View style={s.iconButton}/>}
      <View style={{flexDirection:'row',gap:6}}>{right}</View>
     </View>
+    {!!hero&&(
+     <View style={{alignItems:'center',paddingBottom:22}}>
+      <Text style={s.brand}>Kampus<Text style={{color:C.yellow}}>.</Text></Text>
+      <HeroArt kind={hero}/>
+     </View>
+    )}
+    <View style={[{flex:1},!!hero&&s.sheetTop]}>
     {scroll?(
      <ScrollView keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false} contentContainerStyle={s.body}>
       {!!title&&<Text style={s.title}>{title}</Text>}
@@ -86,6 +95,7 @@ function Screen({onBack,right,title,subtitle,children,footer,scroll=true}:{onBac
      </View>
     )}
     {!!footer&&<View style={s.footer}>{footer}</View>}
+    </View>
    </KeyboardAvoidingView>
   </SafeAreaView>
  );
@@ -308,8 +318,9 @@ export default function AuthFlow({base,device,onAuthenticated,onConfig,onReplayI
  if(step==='phone'){
   return (
    <Screen
-    title="Kampus-a xoş gəldin!"
-    subtitle="Mobil nömrəni yaz və davam et"
+    hero="phone"
+    title="Mobil nömrəni yaz"
+    subtitle="Sənə SMS ilə təsdiq kodu göndərəcəyik"
     right={<>
      <Pressable accessibilityRole="button" accessibilityLabel="Tanışlığa yenidən bax" hitSlop={8} onPress={onReplayIntro} style={s.iconButton}><Icon name="play-circle-outline" size={24} color={C.muted}/></Pressable>
      <Pressable accessibilityRole="button" accessibilityLabel="API bağlantısını tənzimlə" hitSlop={8} onPress={onConfig} style={s.iconButton}><Icon name="options-outline" size={22} color={C.muted}/></Pressable>
@@ -359,7 +370,7 @@ export default function AuthFlow({base,device,onAuthenticated,onConfig,onReplayI
     footer={verified?<Cta title="Davam et" onPress={()=>go('identity')}/>:<Cta title={busy?'Yoxlanılır…':'Davam et'} disabled={busy||code.length!==CODE_LENGTH} onPress={verifyCode}/>}
    >
     {verified?(
-     <View style={s.okRow}><Icon name="checkmark-circle" size={22} color="#4e7a27"/><Text style={s.okText}>Nömrə təsdiqləndi</Text></View>
+     <View style={s.okRow}><Icon name="checkmark-circle" size={22} color="#2f9e63"/><Text style={s.okText}>Nömrə təsdiqləndi</Text></View>
     ):(
      <View style={{marginTop:40}}>
       <CodeBoxes value={code} onChange={t=>{setCode(t);setError('');}}/>
@@ -463,14 +474,17 @@ export default function AuthFlow({base,device,onAuthenticated,onConfig,onReplayI
 const s=StyleSheet.create({
  screen:{flex:1,backgroundColor:BG},
  header:{flexDirection:'row',justifyContent:'space-between',alignItems:'center',paddingHorizontal:20,paddingTop:10,minHeight:56},
- iconButton:{width:40,height:40,alignItems:'center',justifyContent:'center'},
+ iconButton:{minWidth:40,height:40,alignItems:'center',justifyContent:'center',flexDirection:'row'},
+ backText:{fontSize:15,fontWeight:'600',color:'#1d5bd6'},
+ brand:{fontSize:24,fontWeight:'800',color:C.primary,letterSpacing:-0.6,marginBottom:6},
+ sheetTop:{backgroundColor:'#fff',borderTopLeftRadius:0,borderTopRightRadius:0},
  body:{flexGrow:1,paddingHorizontal:24,paddingBottom:16},
  footer:{paddingHorizontal:24,paddingTop:8,paddingBottom:16},
- title:{fontSize:30,fontWeight:'800',color:'#141414',letterSpacing:-0.8,marginTop:16},
+ title:{fontSize:24,fontWeight:'700',color:'#141414',letterSpacing:-0.4,marginTop:16},
  subtitle:{fontSize:16,lineHeight:22,color:'#707074',marginTop:8},
  error:{fontSize:13,lineHeight:18,color:C.red,fontWeight:'600',textAlign:'center',marginTop:14},
- cta:{height:56,borderRadius:16,backgroundColor:C.forest,alignItems:'center',justifyContent:'center'},
- ctaOff:{backgroundColor:'#e0e0e2'},
+ cta:{height:54,borderRadius:12,backgroundColor:C.primary,alignItems:'center',justifyContent:'center'},
+ ctaOff:{backgroundColor:'#e4e1ee'},
  ctaText:{fontSize:17,fontWeight:'600',color:'#ffffff'},
  ctaTextOff:{color:'#a4a4a8'},
  hiddenInput:{position:'absolute',top:0,left:0,right:0,bottom:0,opacity:0.015,color:'transparent',backgroundColor:'transparent',borderWidth:0,...(Platform.OS==='web'?{outlineStyle:'none'}:null)} as object,
@@ -478,13 +492,13 @@ const s=StyleSheet.create({
  phoneText:{fontSize:34,fontWeight:'600',color:'#141414',letterSpacing:-0.5,textAlign:'center'},
  phoneGhost:{color:'#c6c6ca'},
  codeRow:{flexDirection:'row',gap:10},
- codeBox:{flex:1,height:92,maxWidth:64,borderRadius:16,backgroundColor:BOX,borderWidth:1.5,borderColor:'transparent',alignItems:'center',justifyContent:'center'},
- codeBoxActive:{borderColor:C.forest},
+ codeBox:{flex:1,height:84,maxWidth:60,borderRadius:12,backgroundColor:BOX,borderWidth:1.5,borderColor:'transparent',alignItems:'center',justifyContent:'center'},
+ codeBoxActive:{borderColor:C.primary,backgroundColor:'#fff'},
  codeDigit:{fontSize:28,fontWeight:'700',color:'#141414'},
  testHint:{fontSize:12,lineHeight:17,color:'#8a8a8e',textAlign:'center',marginTop:22},
  resend:{fontSize:16,color:'#707074'},
- resendTime:{color:'#5b7d34',fontWeight:'700'},
- okRow:{flexDirection:'row',alignItems:'center',gap:10,marginTop:36,backgroundColor:'#eef6df',borderRadius:16,padding:16},
+ resendTime:{color:'#443081',fontWeight:'700'},
+ okRow:{flexDirection:'row',alignItems:'center',gap:10,marginTop:36,backgroundColor:'#e4def7',borderRadius:16,padding:16},
  okText:{fontSize:15,fontWeight:'700',color:C.ink},
  pinTop:{alignItems:'center',marginTop:12,paddingHorizontal:24},
  avatar:{width:108,height:108,borderRadius:54,backgroundColor:BOX,alignItems:'center',justifyContent:'center'},

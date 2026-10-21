@@ -50,7 +50,7 @@ export default function Liveness({actions,onDone,onCancel}:LivenessProps){
 
  return (
   <View>
-   <View style={{height:580,borderRadius:22,overflow:'hidden',backgroundColor:'#091d1b'}}>
+   <View style={{height:580,borderRadius:22,overflow:'hidden',backgroundColor:'#120a33'}}>
     <WebView
      key={attempt}
      source={{html:livenessHtml(origin,actions),baseUrl:origin}}
@@ -61,7 +61,7 @@ export default function Liveness({actions,onDone,onCancel}:LivenessProps){
      mediaCapturePermissionGrantType="grant"
      onMessage={onMessage}
      onError={()=>setError('Yoxlama səhifəsi yüklənmədi. İnternet bağlantısını yoxlayın.')}
-     style={{backgroundColor:'#091d1b'}}
+     style={{backgroundColor:'#120a33'}}
     />
    </View>
    {!!error&&(

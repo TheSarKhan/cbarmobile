@@ -190,7 +190,7 @@ export function CardTransferForm(a:Props){
      />
 
      {session&&(
-      <Box style={{backgroundColor:'#f2f7ea'}}>
+      <Box style={{backgroundColor:'#ede9f8'}}>
        <Badge text="HOSTED PCI FORMASI"/>
        <Text style={[S.muted,{marginTop:8,marginBottom:12}]}>
         Mock PCI formasında 16 rəqəmli kart nömrəsini daxil edib bu ekrana qayıdın, sonra aşağıdakı düyməni sıxın.
@@ -227,7 +227,7 @@ export function CardTransferForm(a:Props){
      {!savedCard&&<Field label="Kartı yadda saxla (istəyə bağlı ad, məs: Kapital Maaş)" value={saveAs} onChange={setSaveAs}/>}
 
      {quote&&(
-      <Box style={{backgroundColor:'#f3f7ec',borderColor:'#d5e4be'}}>
+      <Box style={{backgroundColor:'#eeebf8',borderColor:'#c7bce6'}}>
        <Text style={[S.label,{marginBottom:10}]}>ÖDƏNİŞ XÜLASƏSİ</Text>
        <View style={[S.between,{marginBottom:8}]}>
         <Text style={S.muted}>Alıcı karta çatacaq</Text>
@@ -287,7 +287,7 @@ export function CardTransferForm(a:Props){
     </>
    )}
 
-   <Box style={{marginTop:8,backgroundColor:'#f2f5ec'}}>
+   <Box style={{marginTop:8,backgroundColor:'#eeecf5'}}>
     <Text style={[S.label,{marginBottom:6}]}>DEMO TEST KART NÖMRƏLƏRİ (BIN)</Text>
     <Text style={[S.muted,{fontSize:11,lineHeight:17}]}>
      • Kapital: 4169738855551234{'\n'}
@@ -303,6 +303,6 @@ const cs=StyleSheet.create({
  heroCard:{flexDirection:'row',alignItems:'center',backgroundColor:'white',borderRadius:20,padding:15,marginBottom:16,borderWidth:1,borderColor:C.line},
  heroImg:{width:68,height:68,borderRadius:14},
  modeCard:{flex:1,minHeight:76,backgroundColor:'white',borderRadius:16,padding:13,borderWidth:1.5,borderColor:C.line,justifyContent:'space-between',gap:4},
- modeCardActive:{borderColor:C.ink,backgroundColor:'#f1f7e7'},
+ modeCardActive:{borderColor:C.ink,backgroundColor:'#ebe6f8'},
  delBtn:{width:48,height:48,alignItems:'center',justifyContent:'center',borderRadius:12}
 });

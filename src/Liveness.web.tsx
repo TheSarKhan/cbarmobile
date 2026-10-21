@@ -157,7 +157,7 @@ export default function Liveness({actions,onDone,onCancel}:LivenessProps){
 
  return (
   <View>
-   <View style={{borderRadius:22,overflow:'hidden',backgroundColor:'#0d1411',aspectRatio:4/5,maxHeight:430,alignSelf:'center',width:'100%'}}>
+   <View style={{borderRadius:22,overflow:'hidden',backgroundColor:'#0f0d14',aspectRatio:4/5,maxHeight:430,alignSelf:'center',width:'100%'}}>
     {React.createElement('video',{ref:video,playsInline:true,muted:true,autoPlay:true,style:{width:'100%',height:'100%',objectFit:'cover',transform:'scaleX(-1)',display:'block'}})}
     <View pointerEvents="none" style={{position:'absolute',top:'8%',bottom:'8%',left:'18%',right:'18%',borderRadius:999,borderWidth:2,borderColor:phase==='running'?C.lime:'#ffffff66'}}/>
     {phase==='loading'&&<View style={{position:'absolute',top:0,bottom:0,left:0,right:0,alignItems:'center',justifyContent:'center',backgroundColor:'#0d1411cc'}}><ActivityIndicator color={C.lime}/></View>}

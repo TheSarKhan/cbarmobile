@@ -77,7 +77,7 @@ export default function DatePickerField({label,value,onChange,placeholder='GG.AA
   <View style={{marginBottom:16}}>
    <Text style={S.label}>{label}</Text>
    <Pressable accessibilityRole="button" accessibilityLabel={label} onPress={show} style={[S.input,s.field]}>
-    <Text style={{fontSize:15,color:shown?C.ink:'#9aa696'}}>{shown||placeholder}</Text>
+    <Text style={{fontSize:15,color:shown?C.ink:'#9a95a7'}}>{shown||placeholder}</Text>
     <Icon name="calendar-outline" size={20} color={C.muted}/>
    </Pressable>
    <Sheet title={label} visible={open} onClose={()=>setOpen(false)}>
@@ -97,7 +97,7 @@ const s=StyleSheet.create({
  field:{flexDirection:'row',alignItems:'center',justifyContent:'space-between'},
  wheels:{flexDirection:'row',gap:10,marginTop:4},
  wheelLabel:{fontSize:11,fontWeight:'700',color:C.muted,textAlign:'center',marginBottom:6},
- wheel:{height:ITEM*VISIBLE,backgroundColor:'#f7f8f3',borderRadius:14},
+ wheel:{height:ITEM*VISIBLE,backgroundColor:'#ffffff',borderRadius:14},
  item:{height:ITEM,alignItems:'center',justifyContent:'center',borderRadius:12,marginHorizontal:4},
  itemActive:{backgroundColor:C.lime},
  itemText:{fontSize:16,color:C.muted},

@@ -228,7 +228,7 @@ export function BanksSection(){
 
    {!consents.length&&!pending&&(
     <Box>
-     <View style={[S.tile,{width:52,height:52,borderRadius:18,backgroundColor:'#e8f3d8',marginBottom:12}]}><Icon name="business-outline" size={26} color={C.green}/></View>
+     <View style={[S.tile,{width:52,height:52,borderRadius:18,backgroundColor:'#ded7f4',marginBottom:12}]}><Icon name="business-outline" size={26} color={C.green}/></View>
      <Text style={S.h2}>Bütün banklar bir yerdə</Text>
      <Text style={[S.muted,{marginTop:6,lineHeight:19}]}>Digər bankların kart və hesablarını bağla, balansı və xərclərini Kampus-da izlə.</Text>
      {['Yalnız oxuma: Kampus pul köçürə bilməz','İcazəni bankın öz səhifəsində verirsən','İstədiyin vaxt ləğv edə bilərsən'].map(line=>(
@@ -251,6 +251,6 @@ const bs=StyleSheet.create({
  bankHeader:{flexDirection:'row',alignItems:'center',gap:10,padding:14},
  bankName:{flex:1,color:'#fff',fontSize:16,fontWeight:'800'},
  accountRow:{flexDirection:'row',alignItems:'center',gap:12,paddingVertical:8},
- notice:{flexDirection:'row',alignItems:'center',gap:8,backgroundColor:'#eef6df',borderRadius:14,padding:12,marginBottom:12},
+ notice:{flexDirection:'row',alignItems:'center',gap:8,backgroundColor:'#e4def7',borderRadius:14,padding:12,marginBottom:12},
  confirm:{marginTop:14,backgroundColor:'#fbe8e2',borderRadius:14,padding:12}
 });
