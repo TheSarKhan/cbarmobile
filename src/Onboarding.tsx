@@ -1,5 +1,5 @@
-import React,{useState} from 'react';
-import {Animated,Easing,Image,Platform,Pressable,StyleSheet,View,useWindowDimensions} from 'react-native';
+import React,{useRef,useState} from 'react';
+import {Image,Platform,Pressable,ScrollView,StyleSheet,View,useWindowDimensions} from 'react-native';
 import {Text} from './text';
 import {SafeAreaView} from 'react-native-safe-area-context';
 import {C} from './ui';
@@ -31,21 +31,19 @@ const SLIDES=[
  }
 ];
 
-/** Light, illustrated introduction: tap through the slides or the dots, skip at any time. */
+/** Light, illustrated introduction: swipe between slides (or tap the dots / the button), skip at any time. */
 export default function Onboarding({onFinish}:{onFinish:()=>void}){
  const {width}=useWindowDimensions();
+ const pager=useRef<React.ComponentRef<typeof ScrollView>>(null);
  const [index,setIndex]=useState(0);
- const [fade]=useState(()=>new Animated.Value(1));
- const slide=SLIDES[index];
+ const [box,setBox]=useState({w:0,h:0});
  const last=index===SLIDES.length-1;
- const heroSize=Math.min(width-32,360);
+ const heroSize=Math.min((box.w||width)-32,360,Math.max(180,box.h-190));
 
  function go(next:number){
-  if(next<0||next>=SLIDES.length||next===index)return;
-  Animated.timing(fade,{toValue:0,duration:110,easing:Easing.out(Easing.quad),useNativeDriver:Platform.OS!=='web'}).start(()=>{
-   setIndex(next);
-   Animated.timing(fade,{toValue:1,duration:200,easing:Easing.out(Easing.cubic),useNativeDriver:Platform.OS!=='web'}).start();
-  });
+  if(next<0||next>=SLIDES.length)return;
+  setIndex(next);
+  pager.current?.scrollTo({x:next*box.w,animated:true});
  }
 
  return (
@@ -58,15 +56,33 @@ export default function Onboarding({onFinish}:{onFinish:()=>void}){
     </Pressable>
    </SafeAreaView>
 
-   <Animated.View style={[s.heroWrap,{opacity:fade,transform:[{scale:fade.interpolate({inputRange:[0,1],outputRange:[0.94,1]})}]}]}>
-    <Image accessibilityRole="image" source={slide.image} style={{width:heroSize,height:heroSize}} resizeMode="contain"/>
-   </Animated.View>
+   <View style={{flex:1}} onLayout={e=>setBox({w:e.nativeEvent.layout.width,h:e.nativeEvent.layout.height})}>
+    {box.w>0&&(
+     <ScrollView
+      ref={pager}
+      horizontal
+      pagingEnabled
+      showsHorizontalScrollIndicator={false}
+      bounces={false}
+      scrollEventThrottle={16}
+      onScroll={e=>setIndex(Math.max(0,Math.min(SLIDES.length-1,Math.round(e.nativeEvent.contentOffset.x/box.w))))}
+     >
+      {SLIDES.map(slide=>(
+       <View key={slide.key} style={{width:box.w,height:box.h}}>
+        <View style={s.heroWrap}>
+         <Image accessibilityRole="image" source={slide.image} style={{width:heroSize,height:heroSize}} resizeMode="contain"/>
+        </View>
+        <View style={s.text}>
+         <Text style={s.title}>{slide.title}</Text>
+         <Text style={s.desc}>{slide.desc}</Text>
+        </View>
+       </View>
+      ))}
+     </ScrollView>
+    )}
+   </View>
 
    <View style={s.bottom}>
-    <Animated.View style={{opacity:fade}}>
-     <Text style={s.title}>{slide.title}</Text>
-     <Text style={s.desc}>{slide.desc}</Text>
-    </Animated.View>
     <View style={s.dots}>
      {SLIDES.map((item,i)=>(
       <Pressable key={item.key} accessibilityRole="button" accessibilityLabel={`Slayd ${i+1}`} onPress={()=>go(i)} hitSlop={8} style={[s.dot,index===i&&s.dotActive]}/>
@@ -87,9 +103,10 @@ const s=StyleSheet.create({
  skip:{backgroundColor:'rgba(86,50,192,0.10)',paddingHorizontal:18,paddingVertical:8,borderRadius:999},
  skipText:{fontSize:13,fontWeight:'700',color:C.primary},
  heroWrap:{flex:1,justifyContent:'center',alignItems:'center',paddingHorizontal:16},
+ text:{paddingHorizontal:24},
  bottom:{paddingHorizontal:24,paddingBottom:Platform.OS==='web'?28:38},
  title:{fontSize:28,fontWeight:'800',color:C.ink,letterSpacing:-0.6,lineHeight:35,marginBottom:10},
- desc:{fontSize:15,color:'#5d5a73',lineHeight:22,marginBottom:22,minHeight:44},
+ desc:{fontSize:15,color:'#5d5a73',lineHeight:22,marginBottom:18,minHeight:44},
  dots:{flexDirection:'row',alignItems:'center',gap:8,marginBottom:22},
  dot:{width:8,height:8,borderRadius:4,backgroundColor:'rgba(86,50,192,0.22)'},
  dotActive:{width:30,borderRadius:4,backgroundColor:C.primary},
