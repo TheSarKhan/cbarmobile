@@ -12,6 +12,10 @@ const FRIENDS:Contact[]=[
  {name:'Kamran Quliyev',phone:'+994501000004'}
 ];
 
+const FIN=/^[A-Z0-9]{7}$/;
+/** A recipient is either a phone number or an AniPay FIN code; both travel in the contact's phone field. */
+const identifier=(v:string)=>FIN.test(v)?'FİN '+v:v;
+
 const KEYS=[['1','2','3'],['4','5','6'],['7','8','9'],['.','0','del']];
 
 /** Amount keypad: digits, one decimal point with at most two decimals, and a delete key. */
@@ -39,6 +43,8 @@ export function TransferFlow({initialPhone,hidden,close}:{initialPhone:string;hi
  const [target,setTarget]=useState<Contact|null>(initialPhone?{name:initialPhone,phone:initialPhone}:null);
  const [manual,setManual]=useState(false),
   [phone,setPhone]=useState('+994'),
+  [byFin,setByFin]=useState(false),
+  [fin,setFin]=useState(''),
   [search,setSearch]=useState(''),
   [amount,setAmount]=useState(''),
   [note,setNote]=useState(''),
@@ -115,21 +121,47 @@ export function TransferFlow({initialPhone,hidden,close}:{initialPhone:string;hi
       <Text style={t.title}>Kimə köçürürsən</Text>
       <Pressable accessibilityRole="button" style={t.newRow} onPress={()=>setManual(m=>!m)}>
        <View style={t.plus}><Icon name="add" size={24} color={C.primary}/></View>
-       <Text style={t.newText}>Yeni nömrə</Text>
+       <Text style={t.newText}>Yeni alıcı</Text>
       </Pressable>
       {manual&&(
        <View style={{marginTop:10}}>
-        <TextInput
-         accessibilityLabel="Telefon nömrəsi"
-         value={phone}
-         onChangeText={setPhone}
-         keyboardType="phone-pad"
-         placeholder="+994 50 000 00 00"
-         placeholderTextColor="#aaa6bd"
-         style={S.input}
-        />
+        <View style={t.modes}>
+         {[{id:false,label:'Telefon nömrəsi'},{id:true,label:'FİN kod'}].map(o=>(
+          <Pressable key={o.label} accessibilityRole="button" accessibilityState={{selected:byFin===o.id}} onPress={()=>setByFin(o.id)} style={[t.mode,byFin===o.id&&{backgroundColor:C.primary,borderColor:C.primary}]}>
+           <Text style={[t.modeText,byFin===o.id&&{color:'#fff'}]}>{o.label}</Text>
+          </Pressable>
+         ))}
+        </View>
+        {byFin?(
+         <>
+          <TextInput
+           accessibilityLabel="FİN kod"
+           value={fin}
+           onChangeText={v=>setFin(v.toUpperCase().replace(/[^A-Z0-9]/g,'').slice(0,7))}
+           autoCapitalize="characters"
+           placeholder="7 simvol, məsələn 5ABC123"
+           placeholderTextColor="#aaa6bd"
+           style={S.input}
+          />
+          <Text style={[S.muted,{fontSize:11,marginTop:6}]}>FİN kodla başqa bankın müştərisinə AniPay ilə köçürə bilərsən.</Text>
+         </>
+        ):(
+         <TextInput
+          accessibilityLabel="Telefon nömrəsi"
+          value={phone}
+          onChangeText={setPhone}
+          keyboardType="phone-pad"
+          placeholder="+994 50 000 00 00"
+          placeholderTextColor="#aaa6bd"
+          style={S.input}
+         />
+        )}
         <View style={{height:10}}/>
-        <Button title="Davam et" disabled={phone.replace(/\D/g,'').length<12} onPress={()=>{setTarget({name:phone,phone:phone.replace(/\s/g,'')});setStep('amount');}}/>
+        <Button
+         title="Davam et"
+         disabled={byFin?!FIN.test(fin):phone.replace(/\D/g,'').length<12}
+         onPress={()=>{const id=byFin?fin:phone.replace(/\s/g,'');setTarget({name:id,phone:id});setStep('amount');}}
+        />
        </View>
       )}
       <View style={t.or}><View style={t.orLine}/><Text style={t.orText}>və ya</Text><View style={t.orLine}/></View>
@@ -141,7 +173,7 @@ export function TransferFlow({initialPhone,hidden,close}:{initialPhone:string;hi
       {!needle&&frequent.map(c=><ContactRow key={'f'+c.phone} c={c} onPress={()=>{setTarget(c);setStep('amount');}}/>)}
       <Text style={t.group}>{needle?'Nəticələr':'Bütün kontaktlar'}</Text>
       {shown.map(c=><ContactRow key={c.phone} c={c} onPress={()=>{setTarget(c);setStep('amount');}}/>)}
-      {!shown.length&&<Text style={[S.muted,{marginTop:12}]}>Kontakt tapılmadı. “Yeni nömrə” ilə əlavə edə bilərsən.</Text>}
+      {!shown.length&&<Text style={[S.muted,{marginTop:12}]}>Kontakt tapılmadı. “Yeni alıcı” ilə telefon nömrəsi və ya FİN kod əlavə edə bilərsən.</Text>}
      </ScrollView>
     )}
 
@@ -154,7 +186,7 @@ export function TransferFlow({initialPhone,hidden,close}:{initialPhone:string;hi
         <Avatar name={target.name} size={64}/>
         <View>
          <Text style={t.personName}>{target.name}</Text>
-         <Text style={t.personPhone}>{target.phone}</Text>
+         <Text style={t.personPhone}>{identifier(target.phone)}</Text>
         </View>
        </View>
        <Text style={t.hint}>Məbləği daxil et</Text>
@@ -194,7 +226,7 @@ export function TransferFlow({initialPhone,hidden,close}:{initialPhone:string;hi
         <Avatar name={target.name} size={64}/>
         <View>
          <Text style={t.personName}>{target.name}</Text>
-         <Text style={t.personPhone}>{target.phone}</Text>
+         <Text style={t.personPhone}>{identifier(target.phone)}</Text>
         </View>
        </View>
        <Text style={t.hint}>Məbləğ</Text>
@@ -279,7 +311,7 @@ function ContactRow({c,onPress}:{c:Contact;onPress:()=>void}){
    <Avatar name={c.name} size={48}/>
    <View style={{flex:1}}>
     <Text style={t.contactName}>{c.name}</Text>
-    <Text style={t.contactPhone}>{c.phone}</Text>
+    <Text style={t.contactPhone}>{identifier(c.phone)}</Text>
    </View>
    <Icon name="chevron-forward" size={18} color="#8d89a3"/>
   </Pressable>
@@ -304,6 +336,9 @@ const t=StyleSheet.create({
  newRow:{flexDirection:'row',alignItems:'center',gap:12,minHeight:56},
  plus:{width:48,height:48,borderRadius:24,backgroundColor:C.lav,alignItems:'center',justifyContent:'center'},
  newText:{fontSize:14,color:C.ink,fontWeight:'600'},
+ modes:{flexDirection:'row',gap:8,marginBottom:12},
+ mode:{flex:1,minHeight:44,borderRadius:10,borderWidth:1,borderColor:'#dedaeb',alignItems:'center',justifyContent:'center'},
+ modeText:{fontSize:13,fontWeight:'700',color:C.ink},
  or:{flexDirection:'row',alignItems:'center',gap:12,marginVertical:14},
  orLine:{flex:1,height:1,backgroundColor:'#ebe8f4'},
  orText:{fontSize:12,color:'#76738a'},
