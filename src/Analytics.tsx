@@ -102,10 +102,6 @@ export function AnalyticsView(){
         <Text style={s.amountOut}>−{money(x.amountMinor)}</Text>
        </View>
        <Text style={[S.muted,{marginTop:6}]}>{x.explanation}</Text>
-       <View style={{flexDirection:'row',gap:8,marginTop:12}}>
-        <View style={{flex:1}}><Button title="Bu mənəm" secondary disabled={busy} onPress={()=>{void post('analytics/anomalies/'+x.id+'/feedback',{decision:'MINE'});}}/></View>
-        <View style={{flex:1}}><Button title="Bu mən deyiləm" danger disabled={busy} onPress={()=>{void post('analytics/anomalies/'+x.id+'/feedback',{decision:'NOT_MINE'});}}/></View>
-       </View>
       </Box>
      ))}
     </>
