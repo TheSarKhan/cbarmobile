@@ -170,20 +170,14 @@ export function BackBar({onBack,title,right}:{onBack:()=>void;title?:string;righ
 }
 
 export const CARD_IMAGES={
- authHero:require('../assets/cards/auth-login-hero.jpg'),
  credit:require('../assets/cards/credit-cash.jpg'),
  btc:require('../assets/cards/btc-topup.jpg'),
- virtualCard:require('../assets/cards/virtual-card.jpg'),
- split:require('../assets/cards/split-bill.jpg'),
  btcHero:require('../assets/cards/btc-hero-banner.jpg'),
  btcLightning:require('../assets/cards/btc-lightning.jpg'),
  btcOnchain:require('../assets/cards/btc-onchain.jpg'),
  topupCard:require('../assets/cards/topup-card.jpg'),
  topupBank:require('../assets/cards/topup-bank.jpg'),
  topupTerminal:require('../assets/cards/topup-terminal.jpg'),
- onboarding1:require('../assets/cards/onboarding-wallet-qr.png'),
- onboarding2:require('../assets/cards/onboarding-virtual-shield.png'),
- onboarding3:require('../assets/cards/onboarding-split-bnpl.png')
 };
 
 export type AppContextType={
