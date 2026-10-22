@@ -4,7 +4,7 @@ import {Text,TextInput} from './text';
 import {SafeAreaView} from 'react-native-safe-area-context';
 import {ApiError,request,storage} from './api';
 import type {Row} from './api';
-import {C,Check,ErrorPopupModal,Field,HeroArt,Icon} from './ui';
+import {Avatar,C,Check,ErrorPopupModal,Field,HeroArt,Icon} from './ui';
 import DatePickerField,{isAdult} from './DatePickerField';
 import Liveness from './Liveness';
 import PinPad from './PinPad';
@@ -42,7 +42,6 @@ type Props={
 type LastUser={phone:string;name:string;pinLength?:number};
 const PHONE_FULL=/^\+994[0-9]{9}$/;
 
-const initials=(name:string)=>name.split(/\s+/).filter(Boolean).slice(0,2).map(part=>part[0]).join('').toUpperCase();
 const formatPhone=(digits:string)=>{
  const groups=[2,3,2,2];let at=0;
  return groups.map(size=>{const part=digits.slice(at,at+size);at+=size;return part;}).filter(Boolean).join(' ');
@@ -345,7 +344,7 @@ export default function AuthFlow({base,device,onAuthenticated,onConfig,onReplayI
    >
     <View style={s.pinTop}>
      <View style={s.avatar}>
-      {known?<Text style={s.avatarText}>{initials(known.name)}</Text>:<Icon name="person" size={44} color="#9a9a9e"/>}
+      {known?<Avatar name={known.name} size={108}/>:<Icon name="person" size={44} color="#9a9a9e"/>}
      </View>
      <Text style={s.pinName}>{known?known.name.toUpperCase():`+994 ${formatPhone(digits)}`}</Text>
      <Text style={s.pinHint}>Giriş üçün PIN kodu daxil et</Text>

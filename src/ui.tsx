@@ -1,5 +1,5 @@
 import React,{createContext,useContext,useEffect,useState} from 'react';
-import {View,Pressable,StyleSheet,Modal,ScrollView,KeyboardAvoidingView,Platform} from 'react-native';
+import {View,Pressable,StyleSheet,Modal,ScrollView,KeyboardAvoidingView,Platform,Image} from 'react-native';
 import {Text,TextInput} from './text';
 import {Ionicons} from '@expo/vector-icons';
 import {useSafeAreaInsets} from 'react-native-safe-area-context';
@@ -23,68 +23,43 @@ export const C={
  yellowInk:'#2a1b00'
 };
 
-const AVATAR_TINTS=['#fde3c8','#f6c9d8','#ffd2c2','#ffe9a8','#e0d4ff','#cdeedd','#cfe3ff','#eadfce'];
-export function tintFor(name:string){
+export const ILLUSTRATIONS={
+ avatars:[
+  require('../assets/illustrations/avatar-1.png'),require('../assets/illustrations/avatar-2.png'),require('../assets/illustrations/avatar-3.png'),require('../assets/illustrations/avatar-4.png'),
+  require('../assets/illustrations/avatar-5.png'),require('../assets/illustrations/avatar-6.png'),require('../assets/illustrations/avatar-7.png'),require('../assets/illustrations/avatar-8.png')
+ ],
+ phone:require('../assets/illustrations/hero-phone.png'),
+ shield:require('../assets/illustrations/hero-shield.png'),
+ success:require('../assets/illustrations/result-success.png'),
+ failed:require('../assets/illustrations/result-failed.png'),
+ review:require('../assets/illustrations/result-review.png'),
+ bank:require('../assets/illustrations/bank-notification-icon.png')
+};
+
+// the demo people keep a face that matches their name; everybody else gets one from a hash of the name
+const DEMO_FACES:Record<string,number>={aytən:7,murad:0,leyla:5,kamran:6,admin:2};
+function faceFor(name:string){
+ const first=String(name||'').trim().split(/\s+/)[0].toLowerCase();
+ if(first in DEMO_FACES)return DEMO_FACES[first];
  let h=0;
  for(const ch of String(name||'?'))h=(h*31+ch.charCodeAt(0))>>>0;
- return AVATAR_TINTS[h%AVATAR_TINTS.length];
+ return h%ILLUSTRATIONS.avatars.length;
 }
 
-export function Avatar({name,size=48,dark=false}:{name:string;size?:number;dark?:boolean}){
- const letter=(String(name||'K').trim()[0]||'K').toUpperCase();
- return (
-  <View style={{width:size,height:size,borderRadius:size/2,backgroundColor:dark?'rgba(255,255,255,0.16)':tintFor(name),alignItems:'center',justifyContent:'center'}}>
-   <Text style={{fontSize:size*0.4,fontWeight:'800',color:dark?'#fff':C.deep}}>{letter}</Text>
-  </View>
- );
+export function Avatar({name,size=48}:{name:string;size?:number;dark?:boolean}){
+ return <Image accessibilityLabel={name} source={ILLUSTRATIONS.avatars[faceFor(name)]} style={{width:size,height:size,borderRadius:size/2}} resizeMode="cover"/>;
 }
 
-/** Round result artwork: a coloured disc with a paper receipt on it, as in the design. */
+/** Result artwork: a coloured disc with a paper receipt on it, as in the design. */
 export function ResultArt({tone}:{tone:'success'|'failed'|'review'}){
- const color=tone==='success'?'#4ca66b':tone==='failed'?'#e05a5a':C.yellow;
- const soft=tone==='success'?'#d8efe0':tone==='failed'?'#f8d9d9':'#fff0c2';
- const icon=tone==='success'?'checkmark':tone==='failed'?'close':'hourglass-outline';
- return (
-  <View style={{width:190,height:170,alignItems:'center',justifyContent:'center'}}>
-   {[[8,38,10],[170,26,8],[22,128,7],[162,118,12]].map(([l,t,d],i)=>(
-    <View key={i} style={{position:'absolute',left:l,top:t,width:d,height:d,borderRadius:d/2,backgroundColor:soft}}/>
-   ))}
-   <View style={{width:132,height:132,borderRadius:66,backgroundColor:color,alignItems:'center',justifyContent:'flex-end',overflow:'hidden'}}>
-    <View style={{width:62,height:92,borderTopLeftRadius:10,borderTopRightRadius:10,backgroundColor:'#fff',alignItems:'center',paddingTop:14}}>
-     <Ionicons name={icon} size={30} color={color}/>
-     <View style={{width:36,height:3,borderRadius:2,backgroundColor:'#d9d7e2',marginTop:14}}/>
-     <View style={{width:36,height:3,borderRadius:2,backgroundColor:'#d9d7e2',marginTop:5}}/>
-    </View>
-   </View>
-  </View>
- );
+ return <Image accessibilityRole="image" source={ILLUSTRATIONS[tone]} style={{width:200,height:196}} resizeMode="contain"/>;
 }
 
-/** Hero artwork of the login screens: a tilted phone, or a shield with a lock. */
+/** Hero artwork of the sign-in screens: a tilted phone, or a shield with a lock. */
 export function HeroArt({kind}:{kind:'phone'|'shield'}){
- if(kind==='phone'){
-  return (
-   <View style={{height:170,alignItems:'center',justifyContent:'flex-end'}}>
-    <View style={{width:92,height:158,borderRadius:16,backgroundColor:C.primary,padding:5,transform:[{rotate:'-6deg'}],shadowColor:C.primary,shadowOpacity:0.25,shadowRadius:14,shadowOffset:{width:0,height:10},elevation:6}}>
-     <View style={{flex:1,borderRadius:12,backgroundColor:'#e9e4ff',alignItems:'center',justifyContent:'center'}}>
-      <Ionicons name="chatbubble-ellipses" size={34} color="#fff"/>
-      <View style={{position:'absolute',top:12,right:12,width:10,height:10,borderRadius:5,backgroundColor:C.yellow}}/>
-    </View>
-    </View>
-    <View style={{width:130,height:10,borderRadius:5,backgroundColor:'rgba(86,50,192,0.12)',marginTop:2}}/>
-   </View>
-  );
- }
  return (
-  <View style={{height:170,alignItems:'center',justifyContent:'center'}}>
-   <View style={{width:118,height:132,borderRadius:34,backgroundColor:C.primary,alignItems:'center',justifyContent:'center'}}>
-    <View style={{width:88,height:100,borderRadius:26,backgroundColor:'#7b5ae0',alignItems:'center',justifyContent:'center'}}>
-     <Ionicons name="lock-closed" size={36} color="#fff"/>
-    </View>
-    <View style={{position:'absolute',right:-12,bottom:-6,width:42,height:42,borderRadius:21,backgroundColor:C.yellow,alignItems:'center',justifyContent:'center',borderWidth:3,borderColor:'#f6f3ff'}}>
-     <Ionicons name="checkmark" size={22} color={C.yellowInk}/>
-    </View>
-   </View>
+  <View style={{height:176,alignItems:'center',justifyContent:'center'}}>
+   <Image source={ILLUSTRATIONS[kind]} style={{width:kind==='phone'?146:172,height:172}} resizeMode="contain"/>
   </View>
  );
 }

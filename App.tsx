@@ -1,5 +1,5 @@
 import React,{useState,useEffect,useRef,useCallback} from 'react';
-import {View,ScrollView,Pressable,StyleSheet,Platform,RefreshControl,AppState,ActivityIndicator,useWindowDimensions,Animated,Easing,BackHandler} from 'react-native';
+import {View,ScrollView,Pressable,StyleSheet,Platform,RefreshControl,AppState,ActivityIndicator,useWindowDimensions,Animated,Easing,BackHandler,Image} from 'react-native';
 import {Text,TextInput} from './src/text';
 import {StatusBar} from 'expo-status-bar';
 import {useFonts} from 'expo-font';
@@ -10,7 +10,7 @@ import {NavigationContainer,createNavigationContainerRef,useFocusEffect,useIsFoc
 import {createBottomTabNavigator} from '@react-navigation/bottom-tabs';
 import {LinearGradient} from 'expo-linear-gradient';
 import {CameraView,useCameraPermissions} from 'expo-camera';
-import {C,S,Avatar,BackBar,ErrorPopup,fmtDate,fmtDateTime,cardLabel,linkedCards,AppContextType,Context,useApp,statusLabel,statusTone,Icon,Button,Field,Check,Badge,Box,Empty,Sheet,Tx,EXPENSE_CATEGORIES} from './src/ui';
+import {C,S,ILLUSTRATIONS,Avatar,BackBar,ErrorPopup,fmtDate,fmtDateTime,cardLabel,linkedCards,AppContextType,Context,useApp,statusLabel,statusTone,Icon,Button,Field,Check,Badge,Box,Empty,Sheet,Tx,EXPENSE_CATEGORIES} from './src/ui';
 import {Operations} from './src/OperationsSheet';
 import AuthFlow from './src/AuthFlow';
 import Onboarding from './src/Onboarding';
@@ -636,7 +636,7 @@ function CardsTab(){
 
    {!consents.length&&(
     <View style={styles.emptyCards}>
-     <View style={styles.connectIcon}><Icon name="card-outline" size={30} color={C.primary}/></View>
+     <Image source={ILLUSTRATIONS.bank} style={{width:96,height:104}} resizeMode="contain"/>
      <Text style={styles.emptyTitle}>Bank kartın hələ əlavə olunmayıb</Text>
      <Text style={[S.muted,{textAlign:'center',marginTop:6,marginBottom:18}]}>Kapital, PAŞA, ABB və Rabitəbank kartlarını bağla, balans və xərclərini bir yerdə izlə və kartlarından ödəniş et.</Text>
      <Button title="Bank kartı əlavə et" icon="add" onPress={()=>a.open('link-bank')}/>
