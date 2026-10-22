@@ -1,5 +1,6 @@
 import React,{useState} from 'react';
-import {Image,Platform,Pressable,StyleSheet,Text,View} from 'react-native';
+import {Image,Platform,Pressable,StyleSheet,View} from 'react-native';
+import {Text} from './text';
 import {SafeAreaView} from 'react-native-safe-area-context';
 import {C} from './ui';
 

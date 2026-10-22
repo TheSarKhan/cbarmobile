@@ -1,5 +1,6 @@
 import React,{useState,useEffect} from 'react';
-import {View,Text,Platform,Pressable,Image,StyleSheet} from 'react-native';
+import {View,Platform,Pressable,Image,StyleSheet} from 'react-native';
+import {Text} from './text';
 import * as Linking from 'expo-linking';
 import {Row,minor,money,storage} from './api';
 import {S,C,CARD_IMAGES,Button,Field,Box,Badge,Icon,statusTone} from './ui';

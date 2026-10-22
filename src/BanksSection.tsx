@@ -1,5 +1,6 @@
 import React,{useState} from 'react';
-import {Pressable,StyleSheet,Text,View} from 'react-native';
+import {Pressable,StyleSheet,View} from 'react-native';
+import {Text} from './text';
 import {money} from './api';
 import type {Row} from './api';
 import {Badge,Box,Button,C,Empty,Icon,S,Tx,fmtDate,fmtDateTime,useApp} from './ui';

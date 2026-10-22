@@ -1,6 +1,10 @@
 import React,{useState,useEffect,useRef,useCallback} from 'react';
-import {View,Text,ScrollView,Pressable,StyleSheet,Platform,RefreshControl,AppState,ActivityIndicator,useWindowDimensions,Animated,Easing,BackHandler,TextInput} from 'react-native';
+import {View,ScrollView,Pressable,StyleSheet,Platform,RefreshControl,AppState,ActivityIndicator,useWindowDimensions,Animated,Easing,BackHandler} from 'react-native';
+import {Text,TextInput} from './src/text';
 import {StatusBar} from 'expo-status-bar';
+import {useFonts} from 'expo-font';
+import {PlusJakartaSans_400Regular,PlusJakartaSans_500Medium,PlusJakartaSans_600SemiBold,PlusJakartaSans_700Bold,PlusJakartaSans_800ExtraBold} from '@expo-google-fonts/plus-jakarta-sans';
+import {FONT_FILES} from './src/text';
 import {SafeAreaProvider,SafeAreaView} from 'react-native-safe-area-context';
 import {NavigationContainer,createNavigationContainerRef,useFocusEffect,useIsFocused,useNavigation} from '@react-navigation/native';
 import {createBottomTabNavigator} from '@react-navigation/bottom-tabs';
@@ -947,6 +951,10 @@ function CustomTabBar({state,descriptors,navigation}:any){
 }
 
 export default function App(){
+ const [fontsReady,fontError]=useFonts({
+  [FONT_FILES[400]]:PlusJakartaSans_400Regular,[FONT_FILES[500]]:PlusJakartaSans_500Medium,[FONT_FILES[600]]:PlusJakartaSans_600SemiBold,
+  [FONT_FILES[700]]:PlusJakartaSans_700Bold,[FONT_FILES[800]]:PlusJakartaSans_800ExtraBold
+ });
  const {width:winWidth,height:winHeight}=useWindowDimensions();
  const [phoneFrame,setPhoneFrame]=useState(true);
  const [base,setBase]=useState(DEFAULT_API),
@@ -1152,7 +1160,7 @@ export default function App(){
    onTouchStart={()=>{lastInteraction.current=Date.now();}}
    onPointerDown={()=>{lastInteraction.current=Date.now();}}
   >
-   {boot?(
+   {boot||(!fontsReady&&!fontError)?(
     <View style={styles.loading}><ActivityIndicator color={C.ink}/></View>
    ):!token&&showOnboarding?(
     <Onboarding onFinish={finishOnboarding}/>

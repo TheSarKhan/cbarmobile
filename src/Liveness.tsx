@@ -1,5 +1,6 @@
 import React,{useState} from 'react';
-import {ActivityIndicator,Linking,Text,View} from 'react-native';
+import {ActivityIndicator,Linking,View} from 'react-native';
+import {Text} from './text';
 import {useCameraPermissions} from 'expo-camera';
 import {WebView} from 'react-native-webview';
 import type {WebViewMessageEvent} from 'react-native-webview';

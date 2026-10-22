@@ -1,5 +1,6 @@
 import React,{useEffect,useRef,useState} from 'react';
-import {Image,KeyboardAvoidingView,Platform,Pressable,ScrollView,StyleSheet,Text,TextInput,View} from 'react-native';
+import {Image,KeyboardAvoidingView,Platform,Pressable,ScrollView,StyleSheet,View} from 'react-native';
+import {Text,TextInput} from './text';
 import {SafeAreaView} from 'react-native-safe-area-context';
 import {ApiError,request,storage} from './api';
 import type {Row} from './api';

@@ -1,8 +1,9 @@
 import React,{useEffect,useMemo,useState} from 'react';
-import {Modal,Pressable,ScrollView,StyleSheet,Text,TextInput,View} from 'react-native';
+import {Modal,Pressable,ScrollView,StyleSheet,View} from 'react-native';
+import {Text,TextInput} from './text';
 import {SafeAreaProvider,SafeAreaView} from 'react-native-safe-area-context';
 import {Avatar,BackBar,Button,C,ErrorPopup,Icon,ResultArt,S,cardLabel,linkedCards,useApp,useModalHost} from './ui';
-import {minor,money,Row} from './api';
+import {errorCode,minor,money,Row} from './api';
 
 type Contact={name:string;phone:string};
 const FRIENDS:Contact[]=[
@@ -46,6 +47,7 @@ export function TransferFlow({initialPhone,hidden,close}:{initialPhone:string;hi
   [result,setResult]=useState<Row|null>(null),
   [failure,setFailure]=useState(''),
   [source,setSource]=useState('WALLET'),
+  [recipientToken,setRecipientToken]=useState(''),
   [count,setCount]=useState(5);
 
  const contacts=useMemo(()=>{
@@ -79,6 +81,7 @@ export function TransferFlow({initialPhone,hidden,close}:{initialPhone:string;hi
   try{
    const r=await a.call('transfers/resolve?phone='+encodeURIComponent(target.phone));
    setTarget({name:r.maskedName||target.name,phone:target.phone});
+   setRecipientToken(r.recipientToken||'');
    setStep('confirm');
   }catch(e){setLocal((e as Error).message);}
   finally{setBusy(false);}
@@ -88,12 +91,13 @@ export function TransferFlow({initialPhone,hidden,close}:{initialPhone:string;hi
   if(!target)return;
   setBusy(true);setLocal('');
   try{
-   const t=await a.act('transfers',{phone:target.phone,amountMinor:parsed,note,...(source!=='WALLET'?{fundingAccountId:source}:{})});
+   const t=await a.act('transfers',{phone:target.phone,amountMinor:parsed,note,recipientToken,...(source!=='WALLET'?{fundingAccountId:source}:{})});
    setResult(t);setFailure('');setStep('result');
   }catch(e){
    const message=(e as Error).message;
    // a cancelled PIN or face check leaves the person on the confirm screen
    if(message==='Ləğv edildi')setLocal('');
+   else if(errorCode(message).startsWith('TOKEN_'))setStep('amount'); // the recipient session ran out: look the recipient up again
    else{setFailure(message);setResult(null);setStep('result');a.setError('');}
   }finally{setBusy(false);}
  }

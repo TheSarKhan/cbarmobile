@@ -1,5 +1,6 @@
 import React,{useState,useEffect} from 'react';
-import {View,Text,Pressable,StyleSheet,Image} from 'react-native';
+import {View,Pressable,StyleSheet,Image} from 'react-native';
+import {Text} from './text';
 import {LinearGradient} from 'expo-linear-gradient';
 import {Row,minor,money} from './api';
 import {C,S,CARD_IMAGES,useApp,Icon,Button,Field,Check,Badge,Box,Empty,statusLabel,statusTone} from './ui';

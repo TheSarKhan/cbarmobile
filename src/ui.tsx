@@ -1,5 +1,6 @@
 import React,{createContext,useContext,useEffect,useState} from 'react';
-import {View,Text,Pressable,TextInput,StyleSheet,Modal,ScrollView,KeyboardAvoidingView,Platform} from 'react-native';
+import {View,Pressable,StyleSheet,Modal,ScrollView,KeyboardAvoidingView,Platform} from 'react-native';
+import {Text,TextInput} from './text';
 import {Ionicons} from '@expo/vector-icons';
 import {useSafeAreaInsets} from 'react-native-safe-area-context';
 import {Row,money,errorCode} from './api';

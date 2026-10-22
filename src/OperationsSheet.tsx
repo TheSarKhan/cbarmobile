@@ -1,5 +1,6 @@
 import React,{useState,useEffect} from 'react';
-import {View,Text,Pressable,StyleSheet,ActivityIndicator,Animated,Easing,Image} from 'react-native';
+import {View,Pressable,StyleSheet,ActivityIndicator,Animated,Easing,Image} from 'react-native';
+import {Text} from './text';
 import {C,S,CARD_IMAGES,useApp,fmtDate,fmtDateTime,statusLabel,statusTone,Icon,Button,Field,Check,Badge,Box,Empty,Sheet,Tx,EXPENSE_CATEGORIES} from './ui';
 import {CardTransferForm} from './CardTransferSheet';
 import {CreditSection,CryptoSection} from './HubSections';

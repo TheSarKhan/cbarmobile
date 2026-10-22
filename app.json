@@ -31,7 +31,8 @@
       ],
       "./plugins/withDemoNetwork",
       "./plugins/withReleaseSigning",
-      "expo-sharing"
+      "expo-sharing",
+      "expo-font"
     ],
     "scheme": "kampus"
   }

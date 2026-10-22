@@ -1,5 +1,6 @@
 import React,{useEffect,useState} from 'react';
-import {ActivityIndicator,Animated,Easing,Modal,Platform,Pressable,ScrollView,StyleSheet,Text,View} from 'react-native';
+import {ActivityIndicator,Animated,Easing,Modal,Platform,Pressable,ScrollView,StyleSheet,View} from 'react-native';
+import {Text} from './text';
 import {SafeAreaProvider,SafeAreaView} from 'react-native-safe-area-context';
 import {LinearGradient} from 'expo-linear-gradient';
 import {File,Paths} from 'expo-file-system';

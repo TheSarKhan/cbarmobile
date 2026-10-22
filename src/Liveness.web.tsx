@@ -1,5 +1,6 @@
 import React,{useEffect,useRef,useState} from 'react';
-import {ActivityIndicator,Text,View} from 'react-native';
+import {ActivityIndicator,View} from 'react-native';
+import {Text} from './text';
 import type {FaceLandmarker} from '@mediapipe/tasks-vision';
 import {Button,C,S} from './ui';
 import {ACTION_TEXT} from './livenessTypes';

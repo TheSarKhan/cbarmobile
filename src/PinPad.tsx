@@ -1,5 +1,6 @@
 import React from 'react';
-import {Pressable,StyleSheet,Text,View} from 'react-native';
+import {Pressable,StyleSheet,View} from 'react-native';
+import {Text} from './text';
 import {C,Icon} from './ui';
 
 /** PIN dots above an on-screen number pad; the caller decides what happens when the last digit lands. */
