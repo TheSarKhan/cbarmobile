@@ -15,6 +15,7 @@ import {Operations} from './src/OperationsSheet';
 import AuthFlow from './src/AuthFlow';
 import Onboarding from './src/Onboarding';
 import {BankMark} from './src/BanksSection';
+import {AnalyticsView} from './src/Analytics';
 import PinPad from './src/PinPad';
 import Liveness from './src/Liveness';
 import type {LivenessResult} from './src/livenessTypes';
@@ -131,6 +132,16 @@ function Home({navigation}:any){
       ))}
      </ScrollView>
 
+     {d.insightsBrief?.enabled&&d.insightsBrief.monthSpentMinor>0&&(
+      <Pressable accessibilityRole="button" accessibilityLabel="Analitikaya bax" onPress={()=>navigation.navigate('Analytics')} style={styles.insightCard}>
+       <View style={styles.insightIcon}><Icon name="sparkles-outline" size={20} color={C.primary}/></View>
+       <View style={{flex:1}}>
+        <Text style={styles.insightTitle}>Bu ay {money(d.insightsBrief.monthSpentMinor)} xərcləmisən</Text>
+        <Text style={styles.insightSub}>Ay sonu ~{money(d.insightsBrief.projectedMinor)}{d.insightsBrief.vsLastMonthPct!=null?` · keçən aya görə ${d.insightsBrief.vsLastMonthPct>0?'+':''}${d.insightsBrief.vsLastMonthPct}%`:''}</Text>
+       </View>
+       {d.insightsBrief.openAnomalies>0?<Badge text={`${d.insightsBrief.openAnomalies} QEYRİ-ADİ`} tone="warn"/>:<Icon name="chevron-forward" size={18} color="#8d89a3"/>}
+      </Pressable>
+     )}
      <View style={[S.between,{marginTop:26}]}>
       <Text style={styles.sectionTitle}>Son əməliyyatlar</Text>
       <Pressable accessibilityRole="button" onPress={()=>navigation.navigate('History')} hitSlop={10}>
@@ -733,7 +744,7 @@ function MoreTab({navigation}:any){
     <MoreRow {...Y} icon="receipt-outline" label="Ödənişlərim" sub="Etibarlı alıcılar, sorğular, bölünmüş hesablar" onPress={()=>navigation.navigate('Payments')} last/>
    </View>
    <View style={styles.moreGroup}>
-    <MoreRow {...P} icon="pie-chart-outline" label="Analitika və büdcə" onPress={()=>navigation.navigate('History',{budget:true})}/>
+    <MoreRow {...P} icon="pie-chart-outline" label="Analitika və büdcə" sub="Proqnoz, abunəliklər, qeyri-adi ödənişlər" onPress={()=>navigation.navigate('Analytics')}/>
     <MoreRow {...B} icon="business-outline" label="Digər banklar" sub={banks>0?`${banks} bank bağlı · ${money(d.openBanking?.totalBalanceMinor||0)}`:'Kartlarını və xərclərini bir yerdə izlə'} onPress={()=>a.open('banks-hub')}/>
     <MoreRow {...G} icon="school-outline" label="Sonra ödə və kredit" sub={`0% BNPL · ${money(d.bnplAvailableMinor)}`} onPress={()=>a.open('credit-hub')}/>
     <MoreRow {...Y} icon="diamond-outline" label="Kripto cüzdanı (Pilot)" onPress={()=>a.open('crypto-hub')}/>
@@ -875,6 +886,10 @@ function HistoryTab({route}:any){
  );
 }
 
+function AnalyticsTab(){
+ return <Page back><AnalyticsView/></Page>;
+}
+
 function ProfileTab(){
  const a=useApp(),d=a.data;
  const rows:[string,string,string,string][]=[
@@ -901,6 +916,14 @@ function ProfileTab(){
      </View>
     ))}
    </View>
+   <Pressable accessibilityRole="switch" accessibilityState={{checked:d.insightsBrief?.enabled!==false}} onPress={()=>{a.act('analytics/consent',{enabled:d.insightsBrief?.enabled===false}).catch(()=>{});}} style={styles.prefRow}>
+    <View style={[styles.moreIcon,{backgroundColor:C.lav}]}><Icon name="sparkles-outline" size={19} color={C.primary}/></View>
+    <View style={{flex:1}}>
+     <Text style={styles.moreLabel}>Xərc təhlili</Text>
+     <Text style={styles.moreSub}>Proqnoz, abunəliklər və qeyri-adi ödəniş xəbərdarlıqları</Text>
+    </View>
+    <View style={[styles.switchTrack,d.insightsBrief?.enabled!==false&&{backgroundColor:C.primary}]}><View style={[styles.switchKnob,d.insightsBrief?.enabled!==false&&{alignSelf:'flex-end'}]}/></View>
+   </Pressable>
    <Text style={[S.muted,{marginBottom:18}]}>5 dəqiqə aktivlik olmadıqda sessiya avtomatik bağlanır.</Text>
    <Button title="Hesabdan çıx" danger icon="log-out-outline" onPress={a.logout}/>
   </Page>
@@ -915,7 +938,7 @@ const TAB_ICONS:Record<string,[string,string]>={
  More:['wallet','wallet-outline']
 };
 // screens that live under a visible tab keep that tab highlighted
-const TAB_OWNER:Record<string,string>={Payments:'More',Profile:'Home'};
+const TAB_OWNER:Record<string,string>={Payments:'More',Profile:'Home',Analytics:'More'};
 
 function CustomTabBar({state,descriptors,navigation}:any){
  const current=state.routes[state.index]?.name;
@@ -1183,6 +1206,7 @@ export default function App(){
        <Tab.Screen name="Payments" component={Payments} options={{title:'Ödənişlərim'}}/>
        <Tab.Screen name="QR" component={QrTab} options={{title:'QR'}}/>
        <Tab.Screen name="Profile" component={ProfileTab} options={{title:'Profil'}}/>
+       <Tab.Screen name="Analytics" component={AnalyticsTab} options={{title:'Analitika'}}/>
       </Tab.Navigator>
      </NavigationContainer>
      {!sheet&&!sca&&!kycStep&&!!error&&<ErrorPopup page message={error} onClose={()=>setError('')}/>}
@@ -1294,6 +1318,10 @@ const styles=StyleSheet.create({
  action:{flex:1,minHeight:64,alignItems:'center',justifyContent:'center',gap:6},
  actionText:{color:'#fff',fontSize:12,fontWeight:'600'},
  actionDivider:{width:1,height:34,backgroundColor:'rgba(255,255,255,0.18)'},
+ insightCard:{flexDirection:'row',alignItems:'center',gap:12,backgroundColor:'#f6f3ff',borderRadius:16,padding:14,marginTop:22,minHeight:68},
+ insightIcon:{width:42,height:42,borderRadius:12,backgroundColor:'#fff',alignItems:'center',justifyContent:'center'},
+ insightTitle:{fontSize:14,fontWeight:'700',color:C.ink},
+ insightSub:{fontSize:12,color:'#5d5a73',marginTop:2},
  homeBody:{backgroundColor:'#fff',paddingHorizontal:18,paddingTop:22,width:'100%',maxWidth:430,alignSelf:'center'},
  sectionTitle:{fontSize:14,fontWeight:'700',color:C.ink},
  viewAll:{fontSize:12,color:'#5d5a73'},
@@ -1310,6 +1338,9 @@ const styles=StyleSheet.create({
  addCard:{fontSize:14,fontWeight:'600',color:'#1d5bd6'},
  emptyCards:{alignItems:'center',backgroundColor:'#faf9fe',borderRadius:18,padding:22,marginBottom:18},
  emptyTitle:{fontSize:16,fontWeight:'800',color:C.ink,marginTop:14,textAlign:'center'},
+ prefRow:{flexDirection:'row',alignItems:'center',gap:12,borderWidth:1,borderColor:'#ebe8f4',borderRadius:14,padding:14,marginBottom:14},
+ switchTrack:{width:46,height:28,borderRadius:14,backgroundColor:'#d9d6e6',padding:3,justifyContent:'center'},
+ switchKnob:{width:22,height:22,borderRadius:11,backgroundColor:'#fff',alignSelf:'flex-start'},
  bankHead:{flexDirection:'row',alignItems:'center',gap:10,paddingHorizontal:14,paddingVertical:12,backgroundColor:'#faf9fe',borderBottomWidth:1,borderBottomColor:'#f0eef6'},
  bankHeadName:{flex:1,fontSize:14,fontWeight:'700',color:C.ink},
  bankHeadTotal:{fontSize:13,fontWeight:'700',color:'#5d5a73'},

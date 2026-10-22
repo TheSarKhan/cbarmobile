@@ -409,6 +409,7 @@ export function Sheet({title,visible,onClose,children}:{title:string;visible:boo
 }
 
 export function Tx({t,onPress}:{t:Row;onPress?:()=>void}){
+ const flag=useApp().data.insightsBrief?.flags?.[t.id];
  const isIn=t.direction==='IN';
  const external=t.source==='OPEN_BANKING';
  const content=(
@@ -427,7 +428,11 @@ export function Tx({t,onPress}:{t:Row;onPress?:()=>void}){
     </View>
    )}
    <View style={{flex:1,minWidth:0}}>
-    <Text numberOfLines={1} style={{fontSize:14,color:C.ink,fontWeight:'700'}}>{t.name}</Text>
+    <View style={{flexDirection:'row',alignItems:'center',gap:6}}>
+     <Text numberOfLines={1} style={{fontSize:14,color:C.ink,fontWeight:'700',flexShrink:1}}>{t.name}</Text>
+     {flag==='ANOMALY'&&<View style={{backgroundColor:'#fdecec',borderRadius:6,paddingHorizontal:6,paddingVertical:2}}><Text style={{fontSize:9,fontWeight:'800',color:'#d04b4b'}}>QEYRİ-ADİ</Text></View>}
+     {flag==='RECURRING'&&<View style={{backgroundColor:C.lav,borderRadius:6,paddingHorizontal:6,paddingVertical:2}}><Text style={{fontSize:9,fontWeight:'800',color:C.primary}}>TƏKRAR</Text></View>}
+    </View>
     <Text numberOfLines={1} style={[S.muted,{fontSize:11,marginTop:2}]}>{fmtDate(t.createdAt)} · {t.category}{external?' · '+t.bankName:''}</Text>
    </View>
    <Text style={{fontWeight:'600',fontSize:13,color:isIn?C.green:C.red}}>
