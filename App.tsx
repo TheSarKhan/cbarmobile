@@ -892,6 +892,7 @@ function AnalyticsTab(){
 
 function ProfileTab(){
  const a=useApp(),d=a.data;
+ const [askDelete,setAskDelete]=useState(false);
  const rows:[string,string,string,string][]=[
   ['person-outline','Ad və soyad',d.user?.name||'','#ece6ff'],
   ['call-outline','Mobil nömrə',d.user?.phone||'','#dcf3e4'],
@@ -926,6 +927,18 @@ function ProfileTab(){
    </Pressable>
    <Text style={[S.muted,{marginBottom:18}]}>5 dəqiqə aktivlik olmadıqda sessiya avtomatik bağlanır.</Text>
    <Button title="Hesabdan çıx" danger icon="log-out-outline" onPress={a.logout}/>
+   {!askDelete?(
+    <Pressable accessibilityRole="button" onPress={()=>setAskDelete(true)} style={{alignItems:'center',padding:18}}>
+     <Text style={{color:C.red,fontWeight:'700',fontSize:15}}>Hesabı sil</Text>
+    </Pressable>
+   ):(
+    <View style={{marginTop:16,padding:16,borderRadius:18,backgroundColor:'#fff1f1',borderWidth:1,borderColor:'#f2c9c9'}}>
+     <Text style={[S.h3,{marginBottom:6}]}>Hesabı silmək istəyirsən?</Text>
+     <Text style={[S.muted,{marginBottom:14}]}>Əməliyyatlar, kartlar və şəxsi məlumatların silinir. Balansda qalan pul bağlanır. Eyni nömrə və FİN ilə yenidən qeydiyyatdan keçə bilərsən.</Text>
+     <Button title="Bəli, hesabı sil" danger icon="trash-outline" disabled={a.busy} onPress={()=>{a.act('account/delete',{}).catch(()=>{});}}/>
+     <Pressable accessibilityRole="button" onPress={()=>setAskDelete(false)} style={{alignItems:'center',padding:14}}><Text style={{color:C.muted,fontWeight:'600'}}>Ləğv et</Text></Pressable>
+    </View>
+   )}
   </Page>
  );
 }
@@ -1104,6 +1117,7 @@ export default function App(){
      result=await request(base,token,device,path,body,proof,key);
     }else throw e;
    }
+   if(path==='account/delete'){storage.remove('lastUser').catch(()=>{});logout();return result;}
    await refresh();
    if(path.startsWith('open-banking/')||path.endsWith('/category'))await loadExternal();
    if(!path.endsWith('/parse')&&!path.endsWith('/read')&&path!=='crypto/quotes')
@@ -1113,7 +1127,7 @@ export default function App(){
    if((e as Error).message!=='Ləğv edildi')setError((e as Error).message);
    throw e;
   }finally{setBusy(false);}
- },[base,token,device,refresh,loadExternal]);
+ },[base,token,device,refresh,loadExternal,logout]);
 
  function finishOnboarding(){
   storage.set('onboarding_done','1').catch(()=>{});
