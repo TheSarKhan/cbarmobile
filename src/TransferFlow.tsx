@@ -5,7 +5,7 @@ import {SafeAreaProvider,SafeAreaView} from 'react-native-safe-area-context';
 import {Avatar,BackBar,Button,C,ErrorPopup,Icon,ResultArt,S,cardLabel,linkedCards,useApp,useModalHost} from './ui';
 import {errorCode,minor,money,Row} from './api';
 
-type Contact={name:string;phone:string};
+type Contact={name:string;phone:string;avatar?:number|null};
 const FRIENDS:Contact[]=[
  {name:'Murad Əliyev',phone:'+994501000002'},
  {name:'Leyla Həsənova',phone:'+994501000003'},
@@ -86,7 +86,7 @@ export function TransferFlow({initialPhone,hidden,close}:{initialPhone:string;hi
   setBusy(true);setLocal('');
   try{
    const r=await a.call('transfers/resolve?phone='+encodeURIComponent(target.phone));
-   setTarget({name:r.maskedName||target.name,phone:target.phone});
+   setTarget({name:r.maskedName||target.name,phone:target.phone,avatar:r.avatar??target.avatar});
    setRecipientToken(r.recipientToken||'');
    setStep('confirm');
   }catch(e){setLocal((e as Error).message);}
@@ -183,7 +183,7 @@ export function TransferFlow({initialPhone,hidden,close}:{initialPhone:string;hi
       <View style={t.center}>
        <Text style={t.titleCenter}>Köçürmə məbləği</Text>
        <View style={t.person}>
-        <Avatar name={target.name} size={64}/>
+        <Avatar name={target.name} avatar={target.avatar} size={64}/>
         <View>
          <Text style={t.personName}>{target.name}</Text>
          <Text style={t.personPhone}>{identifier(target.phone)}</Text>
@@ -223,7 +223,7 @@ export function TransferFlow({initialPhone,hidden,close}:{initialPhone:string;hi
       <ScrollView contentContainerStyle={[t.body,{alignItems:'center'}]} keyboardShouldPersistTaps="handled">
        <Text style={t.titleCenter}>Köçürməni təsdiqlə</Text>
        <View style={t.person}>
-        <Avatar name={target.name} size={64}/>
+        <Avatar name={target.name} avatar={target.avatar} size={64}/>
         <View>
          <Text style={t.personName}>{target.name}</Text>
          <Text style={t.personPhone}>{identifier(target.phone)}</Text>
@@ -308,7 +308,7 @@ export function TransferFlow({initialPhone,hidden,close}:{initialPhone:string;hi
 function ContactRow({c,onPress}:{c:Contact;onPress:()=>void}){
  return (
   <Pressable accessibilityRole="button" onPress={onPress} style={t.contact}>
-   <Avatar name={c.name} size={48}/>
+   <Avatar name={c.name} avatar={c.avatar} size={48}/>
    <View style={{flex:1}}>
     <Text style={t.contactName}>{c.name}</Text>
     <Text style={t.contactPhone}>{identifier(c.phone)}</Text>

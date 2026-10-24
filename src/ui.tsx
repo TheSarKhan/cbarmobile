@@ -46,8 +46,10 @@ function faceFor(name:string){
  return h%ILLUSTRATIONS.avatars.length;
 }
 
-export function Avatar({name,size=48}:{name:string;size?:number;dark?:boolean}){
- return <Image accessibilityLabel={name} source={ILLUSTRATIONS.avatars[faceFor(name)]} style={{width:size,height:size,borderRadius:size/2}} resizeMode="cover"/>;
+/** `avatar` is the face the person picked when registering (0-7); older accounts and contacts without one get a face from their name. */
+export function Avatar({name,size=48,avatar}:{name:string;size?:number;dark?:boolean;avatar?:number|null}){
+ const index=typeof avatar==='number'&&avatar>=0&&avatar<ILLUSTRATIONS.avatars.length?avatar:faceFor(name);
+ return <Image accessibilityLabel={name} source={ILLUSTRATIONS.avatars[index]} style={{width:size,height:size,borderRadius:size/2}} resizeMode="cover"/>;
 }
 
 /** Result artwork: a coloured disc with a paper receipt on it, as in the design. */
@@ -302,7 +304,9 @@ export function Field({
  placeholder,
  secure=false,
  numeric=false,
- multiline=false
+ multiline=false,
+ error='',
+ eager=false
 }:{
  label:string;
  value:string;
@@ -311,13 +315,18 @@ export function Field({
  secure?:boolean;
  numeric?:boolean;
  multiline?:boolean;
+ error?:string;
+ eager?:boolean;
 }){
+ const [touched,setTouched]=useState(false);
+ const shown=!!error&&(touched||eager);
  return (
   <View style={{marginBottom:16}}>
    <Text style={S.label}>{label}</Text>
    <TextInput
     accessibilityLabel={label}
-    style={[S.input,multiline&&{minHeight:92,textAlignVertical:'top'}]}
+    style={[S.input,multiline&&{minHeight:92,textAlignVertical:'top'},shown&&{borderColor:C.red}]}
+    onBlur={()=>setTouched(true)}
     value={value}
     onChangeText={onChange}
     placeholder={placeholder}
@@ -327,6 +336,7 @@ export function Field({
     autoCapitalize="none"
     multiline={multiline}
    />
+   {shown&&<Text style={{color:C.red,fontSize:13,fontWeight:'600',marginTop:6}}>{error}</Text>}
   </View>
  );
 }

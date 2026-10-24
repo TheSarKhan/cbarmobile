@@ -4,26 +4,37 @@ import {Text,TextInput} from './text';
 import {SafeAreaView} from 'react-native-safe-area-context';
 import {ApiError,request,storage} from './api';
 import type {Row} from './api';
-import {Avatar,C,Check,ErrorPopupModal,Field,HeroArt,Icon} from './ui';
+import {Avatar,C,Check,ErrorPopupModal,Field,HeroArt,Icon,ILLUSTRATIONS} from './ui';
 import DatePickerField,{isAdult} from './DatePickerField';
 import Liveness from './Liveness';
 import PinPad from './PinPad';
 import type {LivenessResult} from './livenessTypes';
 
 // The phone number decides the path: a known number asks for the PIN, a new one walks through registration step by step.
-type Step='phone'|'pin'|'sms'|'identity'|'name'|'face'|'terms'|'secure';
+type Step='phone'|'pin'|'sms'|'identity'|'name'|'avatar'|'face'|'terms'|'secure';
 
-const BACK:Partial<Record<Step,Step>>={pin:'phone',sms:'phone',identity:'sms',name:'identity',face:'name',terms:'face',secure:'terms'};
+const BACK:Partial<Record<Step,Step>>={pin:'phone',sms:'phone',identity:'sms',name:'identity',avatar:'name',face:'avatar',terms:'face',secure:'terms'};
 // When the final request is refused, send the person to the step that owns the problem.
 const ERROR_STEP:Record<string,Step>={
  PHONE_EXISTS:'phone',INVALID_PHONE:'phone',
  INVALID_OTP:'sms',OTP_LOCKED:'sms',
  FIN_REQUIRED:'identity',FIN_EXISTS:'identity',ID_SERIES_REQUIRED:'identity',ID_SERIES_EXISTS:'identity',AGE_RESTRICTED:'name',
- INVALID_NAME:'name',INVALID_BIRTH_DATE:'name',
+ INVALID_NAME:'name',INVALID_BIRTH_DATE:'name',INVALID_AVATAR:'avatar',
  REJECTED_FACE_MATCH:'face',MULTIPLE_FACES:'face',INVALID_SELFIE:'face',SELFIE_REQUIRED:'face',LIVENESS_REQUIRED:'face'
 };
 
 const SERIES=/^(AZE[0-9]{8}|AA[0-9]{7})$/;
+// The same rules the server applies, shown next to the field while the person types instead of after the last step.
+const BAD_NAME_CHARS=/[^\p{L} '-]/u;
+const nameError=(v:string)=>{
+ const t=v.trim();
+ if(!t)return '';
+ if(/[0-9]/.test(t))return 'Adda rəqəm ola bilməz.';
+ if(BAD_NAME_CHARS.test(t))return 'Yalnız hərf yazın (nöqtə və işarələr olmaz).';
+ return t.length<2?'Ən azı 2 hərf yazın.':'';
+};
+const finError=(v:string)=>!v?'':/[^A-Z0-9]/.test(v)?'FİN yalnız latın hərfləri və rəqəmlərdən ibarətdir.':v.length<7?'FİN 7 simvol olmalıdır.':'';
+const seriesError=(v:string)=>!v||SERIES.test(v)?'':'Format: AZE12345678 və ya AA1234567.';
 const NEW_PIN_LENGTH=4; // new accounts use four digits; older accounts keep the length they were created with
 const CODE_LENGTH=6;
 const RESEND_SECONDS=180;
@@ -202,6 +213,7 @@ export default function AuthFlow({base,device,onAuthenticated,onConfig,onReplayI
  const [first,setFirst]=useState('');
  const [last,setLast]=useState('');
  const [birth,setBirth]=useState('');
+ const [avatar,setAvatar]=useState<number|null>(null);
  const [kyc,setKyc]=useState<LivenessResult|null>(null);
  const [camera,setCamera]=useState(false);
  const [consent,setConsent]=useState(false);
@@ -310,7 +322,7 @@ export default function AuthFlow({base,device,onAuthenticated,onConfig,onReplayI
    fin,idSeries:series,birthDate:birth,
    facesCount:kyc.facesCount,simaSigned,
    livenessMode:kyc.mode,livenessActions:kyc.actions,selfie:kyc.selfie,
-   pin:pinValue,deviceId:device,termsAccepted:consent,dataConsent:consent
+   pin:pinValue,deviceId:device,termsAccepted:consent,dataConsent:consent,avatar
   });
   storage.set('lastUser',JSON.stringify({phone,name:`${first.trim()} ${last.trim()}`,pinLength:NEW_PIN_LENGTH})).catch(()=>{});
   await onAuthenticated(r.accessToken);
@@ -406,8 +418,8 @@ export default function AuthFlow({base,device,onAuthenticated,onConfig,onReplayI
    <Screen onBack={back} title="Şəxsiyyət vəsiqən" subtitle="FİN kodunu və ŞV seriyasını vəsiqənin üzərindən yaz."
     footer={<Cta title="Davam et" disabled={fin.length!==7||!SERIES.test(series)} onPress={()=>go('name')}/>}>
     <View style={{marginTop:28}}>
-     <Field label="FİN kod" value={fin} onChange={t=>setFin(t.toUpperCase().replace(/\s/g,'').slice(0,7))} placeholder="7 simvol"/>
-     <Field label="ŞV seriyası" value={series} onChange={t=>setSeries(t.toUpperCase().replace(/\s/g,'').slice(0,11))} placeholder="AZE12345678"/>
+     <Field label="FİN kod" value={fin} onChange={t=>setFin(t.toUpperCase().replace(/\s/g,'').slice(0,7))} placeholder="7 simvol" error={finError(fin)} eager={/[^A-Z0-9]/.test(fin)}/>
+     <Field label="ŞV seriyası" value={series} onChange={t=>setSeries(t.toUpperCase().replace(/\s/g,'').slice(0,11))} placeholder="AZE12345678" error={seriesError(series)} eager={series.length>=9}/>
      <ErrorText text={error} onClose={()=>setError('')}/>
     </View>
    </Screen>
@@ -417,14 +429,32 @@ export default function AuthFlow({base,device,onAuthenticated,onConfig,onReplayI
  if(step==='name'){
   return (
    <Screen onBack={back} title="Ad və soyad" subtitle="Vəsiqədəki kimi yaz. Doğum tarixi yaş yoxlaması üçün lazımdır."
-    footer={<Cta title="Davam et" disabled={!first.trim()||!last.trim()||!isAdult(birth)} onPress={()=>go('face')}/>}>
+    footer={<Cta title="Davam et" disabled={!first.trim()||!last.trim()||!!nameError(first)||!!nameError(last)||!isAdult(birth)} onPress={()=>go('avatar')}/>}>
     <View style={{marginTop:28}}>
-     <Field label="Ad" value={first} onChange={setFirst} placeholder="Əli"/>
-     <Field label="Soyad" value={last} onChange={setLast} placeholder="Vəliyev"/>
+     <Field label="Ad" value={first} onChange={setFirst} placeholder="Əli" error={nameError(first)} eager={/[0-9]/.test(first)||BAD_NAME_CHARS.test(first.trim())}/>
+     <Field label="Soyad" value={last} onChange={setLast} placeholder="Vəliyev" error={nameError(last)} eager={/[0-9]/.test(last)||BAD_NAME_CHARS.test(last.trim())}/>
      <DatePickerField label="Doğum tarixi" value={birth} onChange={setBirth}/>
      {!!birth&&!isAdult(birth)&&<Text style={s.error}>Hesab yalnız 18 yaşdan yuxarı şəxslər üçündür.</Text>}
      <ErrorText text={error} onClose={()=>setError('')}/>
     </View>
+   </Screen>
+  );
+ }
+
+
+ if(step==='avatar'){
+  return (
+   <Screen onBack={back} title="Avatarını seç" subtitle="Bu şəkil tətbiqdə və dostlarının siyahısında görünəcək."
+    footer={<Cta title="Davam et" disabled={avatar===null} onPress={()=>go('face')}/>}>
+    <View style={{marginTop:28,flexDirection:'row',flexWrap:'wrap',justifyContent:'space-between',rowGap:18}}>
+     {ILLUSTRATIONS.avatars.map((_:unknown,i:number)=>(
+      <Pressable key={i} accessibilityRole="button" accessibilityLabel={'Avatar '+(i+1)} accessibilityState={{selected:avatar===i}} onPress={()=>setAvatar(i)}
+       style={{width:'22%',alignItems:'center',borderRadius:999,padding:3,borderWidth:3,borderColor:avatar===i?C.primary:'transparent',opacity:avatar===null||avatar===i?1:0.55}}>
+       <Avatar name={first||"K"} avatar={i} size={72}/>
+      </Pressable>
+     ))}
+    </View>
+    <ErrorText text={error} onClose={()=>setError('')}/>
    </Screen>
   );
  }

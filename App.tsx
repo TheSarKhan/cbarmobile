@@ -5,7 +5,7 @@ import {StatusBar} from 'expo-status-bar';
 import {useFonts} from 'expo-font';
 import {PlusJakartaSans_400Regular,PlusJakartaSans_500Medium,PlusJakartaSans_600SemiBold,PlusJakartaSans_700Bold,PlusJakartaSans_800ExtraBold} from '@expo-google-fonts/plus-jakarta-sans';
 import {FONT_FILES} from './src/text';
-import {SafeAreaProvider,SafeAreaView} from 'react-native-safe-area-context';
+import {SafeAreaProvider,SafeAreaView,useSafeAreaInsets} from 'react-native-safe-area-context';
 import {NavigationContainer,createNavigationContainerRef,useFocusEffect,useIsFocused,useNavigation} from '@react-navigation/native';
 import {createBottomTabNavigator} from '@react-navigation/bottom-tabs';
 import {LinearGradient} from 'expo-linear-gradient';
@@ -44,14 +44,14 @@ function Page({children,title,back,onBack}:{children:React.ReactNode;title?:stri
 }
 
 /** People the person sent money to most recently, then saved recipients, then the demo friends. */
-function recentPeople(d:Row):{name:string;phone:string}[]{
- const out:{name:string;phone:string}[]=[];
+function recentPeople(d:Row):{name:string;phone:string;avatar?:number|null}[]{
+ const out:{name:string;phone:string;avatar?:number|null}[]=[];
  const seen=new Set<string>();
- const add=(name:string,phone:string)=>{
+ const add=(name:string,phone:string,avatar?:number|null)=>{
   if(!name||!phone||phone===d.user?.phone||seen.has(phone))return;
-  seen.add(phone);out.push({name,phone});
+  seen.add(phone);out.push({name,phone,avatar});
  };
- (d.trustedBeneficiaries||[]).forEach((t:Row)=>add(t.nickname||t.maskedName,t.phone));
+ (d.trustedBeneficiaries||[]).forEach((t:Row)=>add(t.nickname||t.maskedName,t.phone,t.avatar));
  [['Murad','+994501000002'],['Leyla','+994501000003'],['Kamran','+994501000004']].forEach(([n,p])=>add(n,p));
  return out.slice(0,8);
 }
@@ -81,7 +81,7 @@ function Home({navigation}:any){
    >
     <View style={styles.homeHeader}>
      <View style={styles.homeTop}>
-      <Avatar name={d.user?.name||'K'} size={46} dark/>
+      <Avatar name={d.user?.name||'K'} avatar={d.user?.avatar} size={46} dark/>
       <Text style={styles.hello}>Salam,{'\n'}{firstName||'dost'}!</Text>
       <Pressable accessibilityRole="button" accessibilityLabel="Profil və ayarlar" onPress={()=>navigation.navigate('Profile')} style={styles.gear}>
        <Icon name="settings-outline" size={22} color="#fff"/>
@@ -126,7 +126,7 @@ function Home({navigation}:any){
       </Pressable>
       {people.map(p=>(
        <Pressable key={p.phone} accessibilityRole="button" accessibilityLabel={p.name+' adlı şəxsə köçür'} onPress={()=>a.open('send:'+p.phone)} style={styles.person}>
-        <Avatar name={p.name} size={60}/>
+        <Avatar name={p.name} avatar={p.avatar} size={60}/>
         <Text numberOfLines={1} style={styles.personName}>{p.name.split(' ')[0]}</Text>
        </Pressable>
       ))}
@@ -901,7 +901,7 @@ function ProfileTab(){
   <Page back>
    <Text style={styles.profileTitle}>Profil</Text>
    <View style={{alignItems:'center',marginVertical:22}}>
-    <Avatar name={d.user?.name||'K'} size={104}/>
+    <Avatar name={d.user?.name||'K'} avatar={d.user?.avatar} size={104}/>
     <Text style={[S.h2,{marginTop:14}]}>{d.user?.name}</Text>
     <Text style={[S.muted,{marginTop:4}]}>{d.user?.phone}</Text>
    </View>
@@ -941,10 +941,12 @@ const TAB_ICONS:Record<string,[string,string]>={
 const TAB_OWNER:Record<string,string>={Payments:'More',Profile:'Home',Analytics:'More'};
 
 function CustomTabBar({state,descriptors,navigation}:any){
+ // Android draws the app behind the system navigation buttons; the bar keeps clear of them.
+ const insets=useSafeAreaInsets();
  const current=state.routes[state.index]?.name;
  const active=TAB_OWNER[current]||current;
  return (
-  <View style={styles.tabBarWrap}>
+  <View style={[styles.tabBarWrap,Platform.OS!=='web'&&{paddingBottom:Math.max(insets.bottom,10)+8}]}>
    <View style={styles.tabBarInner}>
     {VISIBLE_TABS.map(name=>state.routes.find((r:any)=>r.name===name)).filter(Boolean).map((route:any)=>{
      const label=descriptors[route.key].options.title||route.name;
