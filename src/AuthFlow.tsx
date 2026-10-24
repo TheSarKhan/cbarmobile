@@ -1,5 +1,5 @@
 import React,{useEffect,useRef,useState} from 'react';
-import {Image,KeyboardAvoidingView,Platform,Pressable,ScrollView,StyleSheet,View} from 'react-native';
+import {Image,Keyboard,KeyboardAvoidingView,Platform,Pressable,ScrollView,StyleSheet,View} from 'react-native';
 import {Text,TextInput} from './text';
 import {SafeAreaView} from 'react-native-safe-area-context';
 import {ApiError,request,storage} from './api';
@@ -48,6 +48,18 @@ const formatPhone=(digits:string)=>{
 };
 const mmss=(seconds:number)=>`${String(Math.floor(seconds/60)).padStart(2,'0')}:${String(seconds%60).padStart(2,'0')}`;
 
+/** True while the on-screen keyboard is open; the artwork gives way so the field and the button stay in view. */
+function useKeyboardOpen(){
+ const [open,setOpen]=useState(false);
+ useEffect(()=>{
+  const ios=Platform.OS==='ios';
+  const show=Keyboard.addListener(ios?'keyboardWillShow':'keyboardDidShow',()=>setOpen(true));
+  const hide=Keyboard.addListener(ios?'keyboardWillHide':'keyboardDidHide',()=>setOpen(false));
+  return()=>{show.remove();hide.remove();};
+ },[]);
+ return open;
+}
+
 /** Counts down once per second; call `restart` to start over. */
 function useCountdown(from:number){
  const [left,setLeft]=useState(from);
@@ -60,9 +72,10 @@ function useCountdown(from:number){
 }
 
 function Screen({onBack,right,title,subtitle,children,footer,scroll=true,hero}:{onBack?:()=>void;right?:React.ReactNode;title?:string;subtitle?:string;children:React.ReactNode;footer?:React.ReactNode;scroll?:boolean;hero?:'phone'|'shield'}){
+ const keyboardOpen=useKeyboardOpen();
  return (
   <SafeAreaView style={[s.screen,!!hero&&{backgroundColor:HERO_BG}]}>
-   <KeyboardAvoidingView style={{flex:1}} behavior={Platform.OS==='ios'?'padding':undefined}>
+   <KeyboardAvoidingView style={{flex:1}} behavior="padding">
     <View style={s.header}>
      {onBack?(
       <Pressable accessibilityRole="button" accessibilityLabel="Geri" hitSlop={12} onPress={onBack} style={s.iconButton}>
@@ -75,7 +88,7 @@ function Screen({onBack,right,title,subtitle,children,footer,scroll=true,hero}:{
     {!!hero&&(
      <View style={{alignItems:'center',paddingBottom:22}}>
       <Text style={s.brand}>Kampus<Text style={{color:C.yellow}}>.</Text></Text>
-      <HeroArt kind={hero}/>
+      {!keyboardOpen&&<HeroArt kind={hero}/>}
      </View>
     )}
     <View style={[{flex:1},!!hero&&s.sheetTop]}>
