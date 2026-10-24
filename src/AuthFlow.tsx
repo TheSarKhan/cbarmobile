@@ -226,7 +226,7 @@ export default function AuthFlow({base,device,onAuthenticated,onConfig,onReplayI
   catch(e){
    setError((e as Error).message);
    const target=e instanceof ApiError?ERROR_STEP[e.code]:undefined;
-   if(redirectOnError&&target)setStep(target);
+   if(redirectOnError&&target){if(target==='sms'){setVerified(false);setCode('');}setStep(target);}
   }finally{setBusy(false);}
  }
 
@@ -370,7 +370,7 @@ export default function AuthFlow({base,device,onAuthenticated,onConfig,onReplayI
     footer={verified?<Cta title="Davam et" onPress={()=>go('identity')}/>:<Cta title={busy?'Yoxlanılır…':'Davam et'} disabled={busy||code.length!==CODE_LENGTH} onPress={verifyCode}/>}
    >
     {verified?(
-     <View style={s.okRow}><Icon name="checkmark-circle" size={22} color="#2f9e63"/><Text style={s.okText}>Nömrə təsdiqləndi</Text></View>
+     <><View style={s.okRow}><Icon name="checkmark-circle" size={22} color="#2f9e63"/><Text style={s.okText}>Nömrə təsdiqləndi</Text></View><ErrorText text={error} onClose={()=>setError('')}/></>
     ):(
      <View style={{marginTop:40}}>
       <CodeBoxes value={code} onChange={t=>{setCode(t);setError('');}}/>
