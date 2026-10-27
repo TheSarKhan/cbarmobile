@@ -18,3 +18,11 @@ export function transferAmountError(amount:number,available:number){
 }
 
 export const BAD_NAME_CHARS=/[^\p{Script=Latin} '-]/u;
+
+/** Keep the known name/avatar visible while recipient lookup is in flight. */
+export function initialRecipient(data:any,phone:string):{name:string;phone:string;avatar?:number|null}{
+ const recent=recentRecipients(data).find(person=>person.phone===phone);
+ if(recent)return recent;
+ const saved=(data.trustedBeneficiaries||[]).find((person:any)=>person.phone===phone);
+ return saved?{name:saved.nickname||saved.maskedName||'Alıcı',phone,avatar:saved.avatar}:{name:'Alıcı',phone};
+}
