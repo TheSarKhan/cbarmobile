@@ -1,7 +1,7 @@
 import React,{useRef,useState} from 'react';
 import {Image,Platform,Pressable,ScrollView,StyleSheet,View,useWindowDimensions} from 'react-native';
 import {Text} from './text';
-import {SafeAreaView} from 'react-native-safe-area-context';
+import {SafeAreaView,useSafeAreaInsets} from 'react-native-safe-area-context';
 import {C} from './ui';
 
 const SLIDES=[
@@ -34,6 +34,7 @@ const SLIDES=[
 /** Light, illustrated introduction: swipe between slides (or tap the dots / the button), skip at any time. */
 export default function Onboarding({onFinish}:{onFinish:()=>void}){
  const {width}=useWindowDimensions();
+ const insets=useSafeAreaInsets();
  const pager=useRef<React.ComponentRef<typeof ScrollView>>(null);
  const [index,setIndex]=useState(0);
  const [box,setBox]=useState({w:0,h:0});
@@ -82,7 +83,7 @@ export default function Onboarding({onFinish}:{onFinish:()=>void}){
     )}
    </View>
 
-   <View style={s.bottom}>
+   <View style={[s.bottom,{paddingBottom:Math.max(insets.bottom,16)+12}]}>
     <View style={s.dots}>
      {SLIDES.map((item,i)=>(
       <Pressable key={item.key} accessibilityRole="button" accessibilityLabel={`Slayd ${i+1}`} onPress={()=>go(i)} hitSlop={8} style={[s.dot,index===i&&s.dotActive]}/>
@@ -104,7 +105,7 @@ const s=StyleSheet.create({
  skipText:{fontSize:13,fontWeight:'700',color:C.primary},
  heroWrap:{flex:1,justifyContent:'center',alignItems:'center',paddingHorizontal:16},
  text:{paddingHorizontal:24},
- bottom:{paddingHorizontal:24,paddingBottom:Platform.OS==='web'?28:38},
+ bottom:{paddingHorizontal:24},
  title:{fontSize:28,fontWeight:'800',color:C.ink,letterSpacing:-0.6,lineHeight:35,marginBottom:10},
  desc:{fontSize:15,color:'#5d5a73',lineHeight:22,marginBottom:18,minHeight:44},
  dots:{flexDirection:'row',alignItems:'center',gap:8,marginBottom:22},

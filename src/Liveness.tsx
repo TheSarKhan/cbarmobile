@@ -31,6 +31,8 @@ export default function Liveness({actions,onDone,onCancel}:LivenessProps){
   }
  }
 
+ if(!actions.length||actions.some(a=>!['TURN_LEFT','TURN_RIGHT','BLINK','SMILE'].includes(a)))return <View><Text style={S.errorText}>Canlılıq tapşırığı düzgün deyil. Yoxlamanı yenidən başladın.</Text><Button title="Geri qayıt" onPress={onCancel}/></View>;
+
  if(!permission)return <View style={{paddingVertical:40}}><ActivityIndicator color={C.ink}/></View>;
 
  if(!permission.granted){
