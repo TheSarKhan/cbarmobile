@@ -16,3 +16,5 @@ export const seriesPrefix=(value:string)=>ID_PREFIXES.filter(p=>value.startsWith
 export function transferAmountError(amount:number,available:number){
  return amount>available?'Məbləğ mövcud balansdan artıqdır.':amount>100000?'Bir köçürmədə maksimum 1 000 ₼ göndərə bilərsən.':'';
 }
+
+export const BAD_NAME_CHARS=/[^\p{Script=Latin} '-]/u;

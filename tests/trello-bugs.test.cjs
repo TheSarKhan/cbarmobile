@@ -43,3 +43,9 @@ test('head turn must start neutral, be sustained, then return before capture',()
 test('the native serialized factory has no dependencies on a module closure',()=>{
  const make=require('node:vm').runInNewContext('('+createLivenessTracker.toString()+')');const t=make(['BLINK']);baseline(t);t.sample({...neutral,blink:.8},300);assert.equal(t.sample(neutral,350).index,1);
 });
+
+test('names accept Azerbaijani Latin letters and reject Cyrillic and other scripts',()=>{
+ const {BAD_NAME_CHARS}=require('../src/bugRules.ts');
+ for(const name of ['Əli','Çiçək','İlqar','Şəms','Ömər','O’Neil'.replace('’',"'"),'Anne-Marie','José'])assert.equal(BAD_NAME_CHARS.test(name),false);
+ for(const name of ['Иван','Aли','محمد','李'])assert.equal(BAD_NAME_CHARS.test(name),true);
+});

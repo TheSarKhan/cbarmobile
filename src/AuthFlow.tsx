@@ -8,7 +8,7 @@ import {Avatar,C,Check,ErrorPopupModal,Field,HeroArt,Icon,ILLUSTRATIONS} from '.
 import DatePickerField,{isAdult} from './DatePickerField';
 import Liveness from './Liveness';
 import PinPad from './PinPad';
-import {ID_PREFIXES,ID_SERIES,MAX_NAME_LENGTH,seriesPrefix} from './bugRules';
+import {ID_PREFIXES,ID_SERIES,MAX_NAME_LENGTH,BAD_NAME_CHARS,seriesPrefix} from './bugRules';
 import type {LivenessResult} from './livenessTypes';
 
 // The phone number decides the path: a known number asks for the PIN, a new one walks through registration step by step.
@@ -27,12 +27,11 @@ const ERROR_STEP:Record<string,Step>={
 const SERIES=ID_SERIES;
 const SERIES_FORMATS=ID_PREFIXES;
 // The same rules the server applies, shown next to the field while the person types instead of after the last step.
-const BAD_NAME_CHARS=/[^\p{L} '-]/u;
 const nameError=(v:string)=>{
- const t=v.trim();
+ const t=v.normalize('NFC').trim();
  if(!t)return '';
  if(/[0-9]/.test(t))return 'Adda rəqəm ola bilməz.';
- if(BAD_NAME_CHARS.test(t))return 'Yalnız hərf yazın (nöqtə və işarələr olmaz).';
+ if(BAD_NAME_CHARS.test(t))return 'Yalnız latın hərfləri yazın (Ə, Ö, Ü, Ğ, Ç, Ş, İ daxil).';
  if(t.length<2)return 'Ən azı 2 hərf yazın.';
  if(t.length>MAX_NAME_LENGTH)return `Maksimum ${MAX_NAME_LENGTH} simvol ola bilər.`;
  return '';
