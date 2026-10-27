@@ -306,7 +306,8 @@ export function Field({
  numeric=false,
  multiline=false,
  error='',
- eager=false
+ eager=false,
+ maxLength
 }:{
  label:string;
  value:string;
@@ -317,6 +318,7 @@ export function Field({
  multiline?:boolean;
  error?:string;
  eager?:boolean;
+ maxLength?:number;
 }){
  const [touched,setTouched]=useState(false);
  const shown=!!error&&(touched||eager);
@@ -335,6 +337,7 @@ export function Field({
     keyboardType={numeric?'decimal-pad':'default'}
     autoCapitalize="none"
     multiline={multiline}
+    maxLength={maxLength}
    />
    {shown&&<Text style={{color:C.red,fontSize:13,fontWeight:'600',marginTop:6}}>{error}</Text>}
   </View>

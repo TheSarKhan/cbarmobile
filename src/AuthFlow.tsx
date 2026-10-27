@@ -23,7 +23,9 @@ const ERROR_STEP:Record<string,Step>={
  REJECTED_FACE_MATCH:'face',MULTIPLE_FACES:'face',INVALID_SELFIE:'face',SELFIE_REQUIRED:'face',LIVENESS_REQUIRED:'face'
 };
 
-const SERIES=/^(AZE[0-9]{8}|AA[0-9]{7})$/;
+const SERIES=/^(AZE[0-9]{8}|(AA|AB|MY|DY|MYI|DYI)[0-9]{7})$/;
+const SERIES_FORMATS=['AA','AZE','AB','MY','DY'] as const;
+const MAX_NAME_LENGTH=50;
 // The same rules the server applies, shown next to the field while the person types instead of after the last step.
 const BAD_NAME_CHARS=/[^\p{L} '-]/u;
 const nameError=(v:string)=>{
@@ -31,10 +33,12 @@ const nameError=(v:string)=>{
  if(!t)return '';
  if(/[0-9]/.test(t))return 'Adda rəqəm ola bilməz.';
  if(BAD_NAME_CHARS.test(t))return 'Yalnız hərf yazın (nöqtə və işarələr olmaz).';
- return t.length<2?'Ən azı 2 hərf yazın.':'';
+ if(t.length<2)return 'Ən azı 2 hərf yazın.';
+ if(t.length>MAX_NAME_LENGTH)return `Maksimum ${MAX_NAME_LENGTH} simvol ola bilər.`;
+ return '';
 };
 const finError=(v:string)=>!v?'':/[^A-Z0-9]/.test(v)?'FİN yalnız latın hərfləri və rəqəmlərdən ibarətdir.':v.length<7?'FİN 7 simvol olmalıdır.':'';
-const seriesError=(v:string)=>!v||SERIES.test(v)?'':'Format: AZE12345678 və ya AA1234567.';
+const seriesError=(v:string)=>!v||SERIES.test(v)?'':'Format: AA1234567, AZE12345678, AB1234567, MY1234567 və s.';
 const NEW_PIN_LENGTH=4; // new accounts use four digits; older accounts keep the length they were created with
 const CODE_LENGTH=6;
 const RESEND_SECONDS=180;
@@ -369,7 +373,7 @@ export default function AuthFlow({base,device,onAuthenticated,onConfig,onReplayI
    >
     <View style={s.pinTop}>
      <View style={s.avatar}>
-      {known?<Avatar name={known.name} size={108}/>:<Icon name="person" size={44} color="#9a9a9e"/>}
+      {known?<Avatar name={known.name} size={88}/>:<Icon name="person" size={38} color="#9a9a9e"/>}
      </View>
      <Text style={s.pinName}>{known?known.name.toUpperCase():`+994 ${formatPhone(digits)}`}</Text>
      <Text style={s.pinHint}>Giriş üçün PIN kodu daxil et</Text>
@@ -419,7 +423,29 @@ export default function AuthFlow({base,device,onAuthenticated,onConfig,onReplayI
     footer={<Cta title="Davam et" disabled={fin.length!==7||!SERIES.test(series)} onPress={()=>go('name')}/>}>
     <View style={{marginTop:28}}>
      <Field label="FİN kod" value={fin} onChange={t=>setFin(t.toUpperCase().replace(/\s/g,'').slice(0,7))} placeholder="7 simvol" error={finError(fin)} eager={/[^A-Z0-9]/.test(fin)}/>
-     <Field label="ŞV seriyası" value={series} onChange={t=>setSeries(t.toUpperCase().replace(/\s/g,'').slice(0,11))} placeholder="AZE12345678" error={seriesError(series)} eager={series.length>=9}/>
+     <View style={{marginBottom:6}}>
+      <Text style={s.seriesChipsLabel}>Seriya formatları:</Text>
+      <View style={s.seriesChipsRow}>
+       {SERIES_FORMATS.map(prefix=>{
+        const selected=series.startsWith(prefix);
+        return (
+         <Pressable
+          key={prefix}
+          accessibilityRole="button"
+          accessibilityLabel={`Seriya ${prefix}`}
+          onPress={()=>{
+           const digitsOnly=series.replace(/^[A-Z]+/,'');
+           setSeries(prefix+digitsOnly);
+          }}
+          style={[s.seriesChip,selected&&s.seriesChipActive]}
+         >
+          <Text style={[s.seriesChipText,selected&&s.seriesChipTextActive]}>{prefix}</Text>
+         </Pressable>
+        );
+       })}
+      </View>
+     </View>
+     <Field label="ŞV seriyası" value={series} onChange={t=>setSeries(t.toUpperCase().replace(/\s/g,'').slice(0,11))} placeholder="AA1234567" error={seriesError(series)} eager={series.length>=9}/>
      <ErrorText text={error} onClose={()=>setError('')}/>
     </View>
    </Screen>
@@ -431,8 +457,8 @@ export default function AuthFlow({base,device,onAuthenticated,onConfig,onReplayI
    <Screen onBack={back} title="Ad və soyad" subtitle="Vəsiqədəki kimi yaz. Doğum tarixi yaş yoxlaması üçün lazımdır."
     footer={<Cta title="Davam et" disabled={!first.trim()||!last.trim()||!!nameError(first)||!!nameError(last)||!isAdult(birth)} onPress={()=>go('avatar')}/>}>
     <View style={{marginTop:28}}>
-     <Field label="Ad" value={first} onChange={setFirst} placeholder="Əli" error={nameError(first)} eager={/[0-9]/.test(first)||BAD_NAME_CHARS.test(first.trim())}/>
-     <Field label="Soyad" value={last} onChange={setLast} placeholder="Vəliyev" error={nameError(last)} eager={/[0-9]/.test(last)||BAD_NAME_CHARS.test(last.trim())}/>
+     <Field label="Ad" value={first} onChange={t=>setFirst(t.slice(0,MAX_NAME_LENGTH))} placeholder="Əli" maxLength={MAX_NAME_LENGTH} error={nameError(first)} eager={/[0-9]/.test(first)||BAD_NAME_CHARS.test(first.trim())||first.length>MAX_NAME_LENGTH}/>
+     <Field label="Soyad" value={last} onChange={t=>setLast(t.slice(0,MAX_NAME_LENGTH))} placeholder="Vəliyev" maxLength={MAX_NAME_LENGTH} error={nameError(last)} eager={/[0-9]/.test(last)||BAD_NAME_CHARS.test(last.trim())||last.length>MAX_NAME_LENGTH}/>
      <DatePickerField label="Doğum tarixi" value={birth} onChange={setBirth}/>
      {!!birth&&!isAdult(birth)&&<Text style={s.error}>Hesab yalnız 18 yaşdan yuxarı şəxslər üçündür.</Text>}
      <ErrorText text={error} onClose={()=>setError('')}/>
@@ -543,9 +569,15 @@ const s=StyleSheet.create({
  resendTime:{color:'#443081',fontWeight:'700'},
  okRow:{flexDirection:'row',alignItems:'center',gap:10,marginTop:36,backgroundColor:'#e4def7',borderRadius:16,padding:16},
  okText:{fontSize:15,fontWeight:'700',color:C.ink},
- pinTop:{alignItems:'center',marginTop:12,paddingHorizontal:24},
- avatar:{width:108,height:108,borderRadius:54,backgroundColor:BOX,alignItems:'center',justifyContent:'center'},
- avatarText:{fontSize:34,fontWeight:'500',color:'#707074'},
- pinName:{fontSize:21,fontWeight:'500',color:'#141414',marginTop:18,letterSpacing:0.3},
- pinHint:{fontSize:16,color:'#707074',marginTop:48},
+ pinTop:{alignItems:'center',marginTop:6,paddingHorizontal:24},
+ avatar:{width:88,height:88,borderRadius:44,backgroundColor:BOX,alignItems:'center',justifyContent:'center'},
+ avatarText:{fontSize:30,fontWeight:'500',color:'#707074'},
+ pinName:{fontSize:20,fontWeight:'600',color:'#141414',marginTop:10,letterSpacing:0.3},
+ pinHint:{fontSize:15,color:'#707074',marginTop:12},
+ seriesChipsLabel:{fontSize:13,color:'#707074',marginBottom:6,fontWeight:'600'},
+ seriesChipsRow:{flexDirection:'row',gap:8,marginBottom:10,flexWrap:'wrap'},
+ seriesChip:{paddingHorizontal:12,paddingVertical:6,borderRadius:16,backgroundColor:BOX,borderWidth:1,borderColor:'#dcd6f0'},
+ seriesChipActive:{backgroundColor:C.primary,borderColor:C.primary},
+ seriesChipText:{fontSize:13,fontWeight:'700',color:C.ink},
+ seriesChipTextActive:{color:'#ffffff'},
 });

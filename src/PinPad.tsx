@@ -36,13 +36,13 @@ export default function PinPad({value,length,onDigit,onDelete}:{value:string;len
 }
 
 const s=StyleSheet.create({
- dots:{flexDirection:'row',justifyContent:'center',gap:18,marginTop:26,marginBottom:34},
- dot:{width:22,height:22,borderRadius:11,borderWidth:1.5,borderColor:C.forest},
+ dots:{flexDirection:'row',justifyContent:'center',gap:16,marginTop:12,marginBottom:18},
+ dot:{width:20,height:20,borderRadius:10,borderWidth:1.5,borderColor:C.forest},
  dotFilled:{backgroundColor:C.forest},
- pad:{alignItems:'center',gap:14,paddingBottom:16},
- row:{flexDirection:'row',gap:22},
- key:{width:76,height:76,borderRadius:38,backgroundColor:'#ffffff',alignItems:'center',justifyContent:'center'},
+ pad:{alignItems:'center',gap:10,paddingBottom:10},
+ row:{flexDirection:'row',gap:20},
+ key:{width:68,height:68,borderRadius:34,backgroundColor:'#ffffff',alignItems:'center',justifyContent:'center'},
  keyPressed:{backgroundColor:'#e2deed'},
- spacer:{width:76,height:76,alignItems:'center',justifyContent:'center'},
- keyText:{fontSize:34,fontWeight:'400',color:'#141414'}
+ spacer:{width:68,height:68,alignItems:'center',justifyContent:'center'},
+ keyText:{fontSize:30,fontWeight:'400',color:'#141414'}
 });

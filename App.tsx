@@ -365,8 +365,19 @@ function QrTab(){
   if(!permission?.granted){
    askPermission().catch(()=>{});
   }
-  return ()=>enterAnim.stopAnimation();
+  return ()=>{
+   enterAnim.stopAnimation();
+   setCamera(false);
+   setTorch(false);
+  };
  },[enterAnim,permission?.granted,askPermission]));
+
+ useEffect(()=>{
+  return ()=>{
+   setCamera(false);
+   setTorch(false);
+  };
+ },[]);
 
  async function run(fn:()=>Promise<any>){
   a.setError('');
@@ -896,7 +907,9 @@ function ProfileTab(){
  const rows:[string,string,string,string][]=[
   ['person-outline','Ad və soyad',d.user?.name||'','#ece6ff'],
   ['call-outline','Mobil nömrə',d.user?.phone||'','#dcf3e4'],
-  ['shield-checkmark-outline','Şəxsiyyət','SİMA · KYC təsdiqlənib','#dde9ff']
+  ['card-outline','FİN kod',d.user?.finMasked||d.user?.fin||'—','#fef4e6'],
+  ['document-text-outline','ŞV seriyası',d.user?.idSeriesMasked||d.user?.idSeries||'—','#f3e8ff'],
+  ['shield-checkmark-outline','Şəxsiyyət statusu','SİMA · KYC təsdiqlənib','#dde9ff']
  ];
  return (
   <Page back>
@@ -1023,6 +1036,7 @@ export default function App(){
   setSheet('');
   setError('');
   storage.remove('token');
+  storage.remove('lastUser');
  },[base,token,device]);
 
  useEffect(()=>{
