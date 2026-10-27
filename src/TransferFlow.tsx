@@ -4,7 +4,7 @@ import {Text,TextInput} from './text';
 import {SafeAreaProvider,SafeAreaView} from 'react-native-safe-area-context';
 import {Avatar,BackBar,Button,C,ErrorPopup,Icon,ResultArt,S,cardLabel,linkedCards,useApp,useModalHost} from './ui';
 import {errorCode,minor,money,Row} from './api';
-import {recentRecipients,transferAmountError} from './bugRules';
+import {recentRecipients,initialRecipient,transferAmountError} from './bugRules';
 
 type Contact={name:string;phone:string;avatar?:number|null};
 const FRIENDS:Contact[]=[
@@ -41,7 +41,7 @@ export function TransferFlow({initialPhone,hidden,close}:{initialPhone:string;hi
  if(!hidden&&!opened)setOpened(true);
  const self=a.data.user?.phone;
  const [step,setStep]=useState<'pick'|'amount'|'confirm'|'result'>(initialPhone?'amount':'pick');
- const [target,setTarget]=useState<Contact|null>(initialPhone?{name:initialPhone,phone:initialPhone}:null);
+ const [target,setTarget]=useState<Contact|null>(initialPhone?initialRecipient(a.data,initialPhone):null);
  const [manual,setManual]=useState(false),
   [phone,setPhone]=useState('+994'),
   [byFin,setByFin]=useState(false),
@@ -174,7 +174,7 @@ export function TransferFlow({initialPhone,hidden,close}:{initialPhone:string;hi
         <Button
          title="Davam et"
          disabled={byFin?!FIN.test(fin):phone.replace(/\D/g,'').length<12}
-         onPress={()=>{const id=byFin?fin:phone.replace(/\s/g,'');setTarget({name:id,phone:id});setStep('amount');}}
+         onPress={()=>{const id=byFin?fin:phone.replace(/\s/g,'');setTarget(initialRecipient(a.data,id));setStep('amount');}}
         />
        </View>
       )}

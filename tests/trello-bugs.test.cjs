@@ -61,3 +61,10 @@ test('the native WebView contains valid standalone JS even without runtime funct
  assert.doesNotThrow(()=>new vm.Script(script));assert.ok(script.includes(LIVENESS_FACTORY_SOURCE));
  assert.throws(()=>exported.livenessHtml('https://example.test',[]));
 });
+
+test('recent recipient name and avatar remain visible while the server lookup is pending',()=>{
+ const {initialRecipient}=require('../src/bugRules.ts');
+ const data={user:{phone:'+994501000001'},transfers:[{phone:'+994501000002',recipientName:'Murad Əliyev',avatar:3,status:'COMPLETED'}]};
+ assert.deepEqual(initialRecipient(data,'+994501000002'),{name:'Murad Əliyev',phone:'+994501000002',avatar:3});
+ assert.deepEqual(initialRecipient(data,'+994501000003'),{name:'Alıcı',phone:'+994501000003'});
+});
