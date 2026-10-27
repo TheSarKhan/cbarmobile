@@ -40,12 +40,24 @@ test('head turn must start neutral, be sustained, then return before capture',()
  for(let n=600;n<=850;n+=50)t.sample(neutral,n);
  assert.equal(t.sample(neutral,900).index,1);assert.equal(t.sample(neutral,1450).ready,true);
 });
-test('the native serialized factory has no dependencies on a module closure',()=>{
- const make=require('node:vm').runInNewContext('('+createLivenessTracker.toString()+')');const t=make(['BLINK']);baseline(t);t.sample({...neutral,blink:.8},300);assert.equal(t.sample(neutral,350).index,1);
+test('the native factory is generated at build time, is current, and runs without Hermes function source',()=>{
+ const {LIVENESS_FACTORY_SOURCE}=require('../src/livenessTrackerSource.ts');
+ assert.equal(LIVENESS_FACTORY_SOURCE,require('../scripts/build-liveness.js').buildSource());
+ const make=require('node:vm').runInNewContext('('+LIVENESS_FACTORY_SOURCE+')');const t=make(['BLINK']);baseline(t);t.sample({...neutral,blink:.8},300);assert.equal(t.sample(neutral,350).index,1);
 });
 
 test('names accept Azerbaijani Latin letters and reject Cyrillic and other scripts',()=>{
  const {BAD_NAME_CHARS}=require('../src/bugRules.ts');
  for(const name of ['Əli','Çiçək','İlqar','Şəms','Ömər','O’Neil'.replace('’',"'"),'Anne-Marie','José'])assert.equal(BAD_NAME_CHARS.test(name),false);
  for(const name of ['Иван','Aли','محمد','李'])assert.equal(BAD_NAME_CHARS.test(name),true);
+});
+test('the native WebView contains valid standalone JS even without runtime function source',()=>{
+ const fs=require('node:fs'),vm=require('node:vm'),ts=require('typescript');
+ const {LIVENESS_FACTORY_SOURCE}=require('../src/livenessTrackerSource.ts');
+ const output=ts.transpileModule(fs.readFileSync(require.resolve('../src/livenessHtml.ts'),'utf8'),{compilerOptions:{target:ts.ScriptTarget.ES2020,module:ts.ModuleKind.CommonJS}}).outputText;
+ const exported={};vm.runInNewContext(output,{exports:exported,require:()=>({LIVENESS_FACTORY_SOURCE})});
+ const html=exported.livenessHtml('https://example.test',['TURN_LEFT','BLINK','SMILE']);
+ const script=html.match(/<script type="module">([\s\S]*?)<\/script>/)[1];
+ assert.doesNotThrow(()=>new vm.Script(script));assert.ok(script.includes(LIVENESS_FACTORY_SOURCE));
+ assert.throws(()=>exported.livenessHtml('https://example.test',[]));
 });

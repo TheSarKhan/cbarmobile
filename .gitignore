@@ -51,3 +51,5 @@ yarn-error.*
 # MediaPipe WASM runtime is copied from node_modules by scripts/copy-mediapipe.js
 /public/mediapipe/wasm/
 /public/mediapipe/vision_bundle.mjs
+
+/public/version.json

@@ -1,4 +1,4 @@
-import {createLivenessTracker} from './livenessTracker';
+import {LIVENESS_FACTORY_SOURCE} from './livenessTrackerSource';
 const KNOWN_ACTIONS=['TURN_LEFT','TURN_RIGHT','BLINK','SMILE'];
 
 /**
@@ -36,7 +36,7 @@ const BASE=${JSON.stringify(base)};
 const ACTIONS=${JSON.stringify(safeActions)};
 const TEXT={TURN_LEFT:'Başınızı yavaşca sola çevirin',TURN_RIGHT:'Başınızı yavaşca sağa çevirin',BLINK:'Gözünüzü qırpın',SMILE:'Gülümsəyin'};
 const STEP_SECONDS=10,MAX_WIDTH=640;
-const makeTracker=(${createLivenessTracker.toString()});let tracker=makeTracker(ACTIONS);
+const makeTracker=(${LIVENESS_FACTORY_SOURCE});let tracker=makeTracker(ACTIONS);
 const $=id=>document.getElementById(id);
 const video=$('v'),oval=$('oval');
 const send=m=>{const s=JSON.stringify(m);if(window.ReactNativeWebView)window.ReactNativeWebView.postMessage(s);else console.log(s);};

@@ -490,7 +490,9 @@ function QrTab(){
    {focused&&camera&&permission?.granted?(
     <CameraView
      style={StyleSheet.absoluteFill}
+     facing="back"
      enableTorch={torch}
+     onMountError={()=>a.setError('Kamera başladıla bilmədi. İcazəni yoxla və QR bölməsini yenidən aç.')}
      barcodeScannerSettings={{barcodeTypes:['qr']}}
      onBarcodeScanned={async({data})=>{
       if(scanLock.current)return;

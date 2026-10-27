@@ -8,11 +8,12 @@ import {BanksSection} from './BanksSection';
 import {TransferFlow} from './TransferFlow';
 import {LinkBankFlow} from './LinkBankFlow';
 import {minor,money,Row} from './api';
+import appConfig from '../app.json';
 
 
 export function Operations({sheet,close,hidden=false}:{sheet:string;close:()=>void;hidden?:boolean}){
  const a=useApp();
- const [amount,setAmount]=useState('50'),
+ const [amount,setAmount]=useState(''),
   [phone,setPhone]=useState(sheet.startsWith('send:')?sheet.split(':')[1]:'+994501000002'),
   [note,setNote]=useState(''),
   [source,setSource]=useState(sheet==='add:BITCOIN'?'BITCOIN':''),
@@ -142,6 +143,7 @@ export function Operations({sheet,close,hidden=false}:{sheet:string;close:()=>vo
    {kind==='about'&&(
     <Box>
      <Text style={S.h3}>Kampus.</Text>
+     <Text style={S.muted}>Versiya {appConfig.expo.version}</Text>
      <Text style={[S.muted,{marginTop:8}]}>Kampus tələbələr üçün rəqəmsal cüzdandır: pul köçürmələri, QR ödənişləri, hesabı bölmək və digər bankların kartlarını bir yerdə izləmək. Kampus bank deyil, kart buraxmır.</Text>
      <Text style={[S.muted,{marginTop:8}]}>Bu proqram nümayiş mühitində işləyir. Bank və ödəniş şəbəkəsi qoşulmaları simulyasiyadır.</Text>
     </Box>
