@@ -1,3 +1,4 @@
+require('./build-liveness').generate();
 // Face detection runs in the browser; its WASM runtime is copied from node_modules so nothing loads from a CDN.
 const fs = require('fs');
 const path = require('path');

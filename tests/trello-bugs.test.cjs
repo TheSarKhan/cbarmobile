@@ -40,8 +40,10 @@ test('head turn must start neutral, be sustained, then return before capture',()
  for(let n=600;n<=850;n+=50)t.sample(neutral,n);
  assert.equal(t.sample(neutral,900).index,1);assert.equal(t.sample(neutral,1450).ready,true);
 });
-test('the native serialized factory has no dependencies on a module closure',()=>{
- const make=require('node:vm').runInNewContext('('+createLivenessTracker.toString()+')');const t=make(['BLINK']);baseline(t);t.sample({...neutral,blink:.8},300);assert.equal(t.sample(neutral,350).index,1);
+test('the native factory is generated at build time, is current, and runs without Hermes function source',()=>{
+ const {LIVENESS_FACTORY_SOURCE}=require('../src/livenessTrackerSource.ts');
+ assert.equal(LIVENESS_FACTORY_SOURCE,require('../scripts/build-liveness.js').buildSource());
+ const make=require('node:vm').runInNewContext('('+LIVENESS_FACTORY_SOURCE+')');const t=make(['BLINK']);baseline(t);t.sample({...neutral,blink:.8},300);assert.equal(t.sample(neutral,350).index,1);
 });
 
 test('names accept Azerbaijani Latin letters and reject Cyrillic and other scripts',()=>{

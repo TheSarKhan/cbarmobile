@@ -35,13 +35,14 @@
   },
   "scripts": {
     "start": "node scripts/copy-mediapipe.js && expo start",
-    "android": "expo run:android",
-    "ios": "expo run:ios",
+    "android": "node scripts/build-liveness.js && expo run:android",
+    "ios": "node scripts/build-liveness.js && expo run:ios",
     "web": "node scripts/copy-mediapipe.js && expo start --web",
     "typecheck": "tsc --noEmit",
     "export:web": "node scripts/copy-mediapipe.js && expo export --platform web",
     "lint": "expo lint",
-    "test": "node --test tests/*.test.cjs"
+    "test": "node --test tests/*.test.cjs",
+    "prepare:liveness": "node scripts/build-liveness.js"
   },
   "private": true
 }
