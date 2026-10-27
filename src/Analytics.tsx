@@ -49,6 +49,7 @@ export function AnalyticsView(){
   );
  }
 
+ if(data.spendingCount===0)return <><Text style={s.title}>Analitika</Text><Empty text="Xərc tarixçən hələ boşdur. Tamamlanmış ödənişlərin olduqda xərc təhlili burada görünəcək. Demo üçün yaradılmış tarixçə hesablamaya daxil edilmir."/></>;
  const f:Row=data.forecast||{},b:Row=data.breakdown||{};
  const cards:Row[]=(data.cards||[]).filter((c:Row)=>c.kind!=='FORECAST'&&c.kind!=='ANOMALY');
  const categories:Row[]=b.categories||[];
@@ -62,6 +63,7 @@ export function AnalyticsView(){
  return (
   <>
    <Text style={s.title}>Analitika</Text>
+   <Text style={[S.muted,{marginBottom:12}]}>Kampus və bağladığın bank hesablarının tamamlanmış əməliyyatları əsasında.</Text>
 
    <View style={s.hero}>
     <Text style={s.heroLabel}>Ay sonuna proqnoz</Text>
