@@ -5,16 +5,10 @@ import type {FaceLandmarker} from '@mediapipe/tasks-vision';
 import {Button,C,S} from './ui';
 import {ACTION_TEXT} from './livenessTypes';
 import type {LivenessProps} from './livenessTypes';
+import {createLivenessTracker} from './livenessTracker';
 
 // Thresholds are tuned by eye; keep them together so they are easy to adjust after real-face testing.
 const STEP_SECONDS=10;       // time allowed per action
-const HOLD_FRAMES=3;         // consecutive frames an action must be seen
-const TURN_RATIO=0.64;       // nose position between the cheek edges: >0.64 = left, <0.36 = right
-const BLINK_CLOSED=0.55;
-const BLINK_OPEN=0.25;
-const SMILE_MIN=0.5;
-const FRONTAL=[0.42,0.58];   // nose ratio window for the final straight-on photo
-const FRONTAL_FRAMES=10;
 const MAX_WIDTH=640;
 
 // Metro rejects the library's own dynamic import(), so the browser loads it from /public (copied by scripts/copy-mediapipe.js).
@@ -32,18 +26,6 @@ function measure(res:any):{faces:number;pose?:Pose}{
  const ratio=hi-lo>0.05?(lm[1].x-lo)/(hi-lo):0.5;
  const score=(name:string)=>res.faceBlendshapes?.[0]?.categories?.find((c:any)=>c.categoryName===name)?.score??0;
  return {faces,pose:{ratio,blink:Math.min(score('eyeBlinkLeft'),score('eyeBlinkRight')),smile:(score('mouthSmileLeft')+score('mouthSmileRight'))/2}};
-}
-
-function seen(action:string,p:Pose,memory:{eyesWereOpen:boolean}):boolean{
- switch(action){
-  case 'TURN_LEFT':return p.ratio>TURN_RATIO;
-  case 'TURN_RIGHT':return p.ratio<1-TURN_RATIO;
-  case 'SMILE':return p.smile>SMILE_MIN;
-  case 'BLINK':
-   if(p.blink<BLINK_OPEN)memory.eyesWereOpen=true;
-   return memory.eyesWereOpen&&p.blink>BLINK_CLOSED;
-  default:return false;
- }
 }
 
 export default function Liveness({actions,onDone,onCancel}:LivenessProps){
@@ -72,6 +54,7 @@ export default function Liveness({actions,onDone,onCancel}:LivenessProps){
 
   (async()=>{
    try{
+    const tracker=createLivenessTracker(actions);
     if(!navigator.mediaDevices?.getUserMedia)throw new Error('Bu brauzer kameranı dəstəkləmir. Səhifə HTTPS və ya localhost üzərindən açılmalıdır.');
     try{stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:'user',width:{ideal:640},height:{ideal:480}},audio:false});}
     catch{throw new Error('Kameraya icazə verilmədi. Brauzerin ünvan çubuğundan kameranı icazələndirin.');}
@@ -94,41 +77,41 @@ export default function Liveness({actions,onDone,onCancel}:LivenessProps){
     if(stopped){landmarker.close();return;}
     setPhase('running');
 
-    const run={index:0,held:0,frontal:0,deadline:Date.now()+STEP_SECONDS*1000,last:Date.now(),shownSeconds:STEP_SECONDS,done:[] as string[],memory:{eyesWereOpen:false}};
+    const run={index:0,deadline:Date.now()+STEP_SECONDS*1000,last:Date.now(),shownSeconds:STEP_SECONDS,done:[] as string[]};
+    let lastVideoTime=-1;
     const tick=()=>{
      if(stopped||!landmarker)return;
      frame=requestAnimationFrame(tick);
-     if(el.readyState<2)return;
+     if(el.readyState<2||el.currentTime===lastVideoTime)return;
+     lastVideoTime=el.currentTime;
      const now=Date.now(),elapsed=now-run.last;
      run.last=now;
      const {faces,pose}=measure(landmarker.detectForVideo(el,performance.now()));
      if(!pose){
       // The clock only runs while exactly one face is in view.
-      run.deadline+=elapsed;run.held=0;run.frontal=0;
+      run.deadline+=elapsed;tracker.sample(null,now);
       setMessage(faces===0?'Üzünüzü kadra gətirin':'Kadrda yalnız bir nəfər olmalıdır');
       return;
      }
+     const tracked=tracker.sample(pose,now);
      if(run.index<actions.length){
       const action=actions[run.index];
       setMessage(ACTION_TEXT[action]||action);
       const left=Math.max(0,Math.ceil((run.deadline-now)/1000));
       if(left!==run.shownSeconds){run.shownSeconds=left;setSeconds(left);}
-      if(seen(action,pose,run.memory)){run.held+=1;}else run.held=0;
-      if(run.held>=HOLD_FRAMES){
-       run.done.push(action);run.index+=1;run.held=0;run.memory.eyesWereOpen=false;
+      if(tracked.index>run.index){
+       run.done=tracked.actions||[];run.index=tracked.index;
        run.deadline=now+STEP_SECONDS*1000;run.shownSeconds=STEP_SECONDS;
        setStep(run.index);setSeconds(STEP_SECONDS);setNotice('');
       }else if(now>run.deadline){
-       run.deadline=now+STEP_SECONDS*1000;run.memory.eyesWereOpen=false;
+       run.deadline=now+STEP_SECONDS*1000;tracker.resetCurrent();
        setNotice('Vaxt bitdi. Eyni hərəkəti yenidən edin.');
       }
       return;
      }
      // All actions done: take the photo only when the face is looking straight at the camera with open eyes.
      setMessage('Düz kameraya baxın');
-     const straight=pose.ratio>FRONTAL[0]&&pose.ratio<FRONTAL[1]&&pose.blink<BLINK_OPEN+0.1;
-     run.frontal=straight?run.frontal+1:0;
-     if(run.frontal<FRONTAL_FRAMES)return;
+     if(!tracked.ready)return;
      const scale=Math.min(1,MAX_WIDTH/el.videoWidth);
      const canvas=document.createElement('canvas');
      canvas.width=Math.round(el.videoWidth*scale);canvas.height=Math.round(el.videoHeight*scale);

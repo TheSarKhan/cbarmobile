@@ -22,6 +22,7 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npm run lint -- --max-warnings 0
+      - run: npm test
       - run: npm run typecheck
       - run: npm run export:web
         env:
@@ -91,6 +92,7 @@ jobs:
             gh release create "$tag" kampus.apk kampus.apk.sha256 --target "$GITHUB_SHA" --title "Kampus Android $GITHUB_RUN_NUMBER" --notes "Signed Android demo. API: https://apicbar.sarkhan.az/api/v1"
           fi
       - name: Send the verified APK to everyone subscribed in Telegram
+        if: ${{ !contains(github.event.head_commit.message, '[skip telegram]') }}
         continue-on-error: true # a Telegram outage must never fail an already deployed release
         env:
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}

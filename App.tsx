@@ -18,6 +18,7 @@ import {BankMark} from './src/BanksSection';
 import {AnalyticsView} from './src/Analytics';
 import PinPad from './src/PinPad';
 import Liveness from './src/Liveness';
+import {recentRecipients} from './src/bugRules';
 import type {LivenessResult} from './src/livenessTypes';
 import {DEFAULT_API,storage,request,ApiError,minor,money,Row,hashPhones,errorCode,CONNECTION_ERROR_MESSAGE} from './src/api';
 
@@ -43,22 +44,14 @@ function Page({children,title,back,onBack}:{children:React.ReactNode;title?:stri
  );
 }
 
-/** People the person sent money to most recently, then saved recipients, then the demo friends. */
-function recentPeople(d:Row):{name:string;phone:string;avatar?:number|null}[]{
- const out:{name:string;phone:string;avatar?:number|null}[]=[];
- const seen=new Set<string>();
- const add=(name:string,phone:string,avatar?:number|null)=>{
-  if(!name||!phone||phone===d.user?.phone||seen.has(phone))return;
-  seen.add(phone);out.push({name,phone,avatar});
- };
- (d.trustedBeneficiaries||[]).forEach((t:Row)=>add(t.nickname||t.maskedName,t.phone,t.avatar));
- [['Murad','+994501000002'],['Leyla','+994501000003'],['Kamran','+994501000004']].forEach(([n,p])=>add(n,p));
- return out.slice(0,8);
-}
+const recentPeople=recentRecipients;
 
 function Home({navigation}:any){
  const a=useApp(),d=a.data;
- const [hide,setHide]=useState(false);
+ const [hide,setHide]=useState(true);
+ const visibilityKey=d.user?.id?'balance-hidden-'+d.user.id:'';
+ useEffect(()=>{if(!visibilityKey)return;let alive=true;storage.get(visibilityKey).then(value=>{if(alive)setHide(value==='1');}).catch(()=>{});return()=>{alive=false;};},[visibilityKey]);
+ const toggleBalance=()=>setHide(previous=>{const next=!previous;if(visibilityKey)storage.set(visibilityKey,next?'1':'0').catch(()=>{});return next;});
  const focused=useIsFocused();
  const balMinor=d.wallet?.availableBalanceMinor||0;
  const whole=Math.floor(balMinor/100).toLocaleString('en-US').replace(/,/g,' ');
@@ -96,7 +89,7 @@ function Home({navigation}:any){
        ):(
         <Text style={styles.balanceWhole}>{whole}<Text style={styles.balanceFrac}>.{frac} ₼</Text></Text>
        )}
-       <Pressable accessibilityRole="button" accessibilityLabel={hide?'Balansı göstər':'Balansı gizlət'} onPress={()=>setHide(!hide)} hitSlop={12} style={{marginLeft:10}}>
+       <Pressable accessibilityRole="button" accessibilityLabel={hide?'Balansı göstər':'Balansı gizlət'} onPress={toggleBalance} hitSlop={12} style={{marginLeft:10}}>
         <Icon name={hide?'eye-outline':'eye-off-outline'} color="rgba(255,255,255,0.7)" size={20}/>
        </Pressable>
       </View>
@@ -331,6 +324,7 @@ function Payments(){
 }
 
 function QrTab(){
+ const focused=useIsFocused();
  const a=useApp();
  const nav=useNavigation<any>();
  const [payload,setPayload]=useState(''),
@@ -493,7 +487,7 @@ function QrTab(){
 
  return (
   <Animated.View style={[styles.fullScanner,{opacity:enterAnim}]}>
-   {camera&&permission?.granted?(
+   {focused&&camera&&permission?.granted?(
     <CameraView
      style={StyleSheet.absoluteFill}
      enableTorch={torch}
@@ -1014,6 +1008,7 @@ export default function App(){
   [data,setData]=useState<Row|null>(null),
   [busy,setBusy]=useState(false),
   [boot,setBoot]=useState(true),
+  [signingOut,setSigningOut]=useState(false),
   [error,setError]=useState(''),
   [message,setMessage]=useState(''),
   [sheet,setSheet]=useState(''),
@@ -1027,17 +1022,19 @@ export default function App(){
 
  const lastInteraction=useRef(0);
  const externalKey=useRef('');
- const logout=useCallback(()=>{
+ const sessionVersion=useRef(0);
+ const pendingSca=useRef(sca);
+ useEffect(()=>{pendingSca.current=sca;},[sca]);
+ const endSession=useCallback((forget:boolean)=>{
+  const version=++sessionVersion.current;
   if(token)request(base,token,device,'auth/logout',{}).catch(()=>{});
-  setToken('');
-  setData(null);
-  setExternal([]);
-  externalKey.current='';
-  setSheet('');
-  setError('');
-  storage.remove('token');
-  storage.remove('lastUser');
+  pendingSca.current?.reject(new Error('Ləğv edildi'));
+  setSigningOut(true);setToken('');setData(null);setExternal([]);externalKey.current='';
+  setSheet('');setSca(null);setScaPin('');setScaBusy(false);setKycStep(null);setError('');setMessage('');
+  Promise.all([storage.remove('token'),...(forget?[storage.remove('lastUser')]:[])]).catch(()=>{}).finally(()=>{if(version===sessionVersion.current)setSigningOut(false);});
  },[base,token,device]);
+ const logout=useCallback(()=>endSession(true),[endSession]);
+ const lock=useCallback(()=>endSession(false),[endSession]);
 
  useEffect(()=>{
   const sub=BackHandler.addEventListener('hardwareBackPress',()=>{
@@ -1071,19 +1068,22 @@ export default function App(){
     }
     setBase(candidate);
     const saved=await storage.get('token');
-    if(saved)setToken(saved);
+    // A stored token never unlocks a new app instance. The remembered person must enter their PIN.
+    if(saved)request(candidate,saved,d,'auth/logout',{}).catch(()=>{});
+    await storage.remove('token');
     if(saved||await storage.get('onboarding_done'))setShowOnboarding(false);
    }finally{setBoot(false);}
   })();
  },[]);
 
  const call=useCallback(async(p:string,b?:Row)=>{
-  try{return await request(base,token,device,p,b);}
+  const version=sessionVersion.current;
+  try{const result=await request(base,token,device,p,b);if(version!==sessionVersion.current)throw new Error('Ləğv edildi');return result;}
   catch(e){
-   if(e instanceof ApiError&&e.status===401&&['SESSION_EXPIRED','UNAUTHENTICATED','DEVICE_MISMATCH'].includes(e.code)){logout();}
+   if(version===sessionVersion.current&&e instanceof ApiError&&e.status===401&&['SESSION_EXPIRED','UNAUTHENTICATED','DEVICE_MISMATCH'].includes(e.code)){lock();}
    throw e;
   }
- },[base,token,device,logout]);
+ },[base,token,device,lock]);
 
  // Other banks' transactions are fetched on demand, not with every dashboard poll.
  const loadExternal=useCallback(async()=>{
@@ -1093,31 +1093,33 @@ export default function App(){
  const refresh=useCallback(async()=>{
   if(!token||!device)return;
   try{
+   const version=sessionVersion.current;
    const dashboard=await call('dashboard');
+   if(version!==sessionVersion.current)return;
    setData(dashboard);
    const banks=dashboard.openBanking||{};
    const key=(banks.syncedAt||'')+'|'+(banks.accounts?.length||0);
    if(key!==externalKey.current){externalKey.current=key;void loadExternal();}
    setError(current=>current===CONNECTION_ERROR_MESSAGE?'':current);
-  }catch(e){setError((e as Error).message);}
+  }catch(e){if((e as Error).message!=='Ləğv edildi')setError((e as Error).message);}
  },[token,device,call,loadExternal]);
 
  useEffect(()=>{
   const bootId=setTimeout(()=>{void refresh();},0);
   const id=setInterval(()=>{
-   if(lastInteraction.current>0&&Date.now()-lastInteraction.current>300_000){if(token)logout();return;}
+   if(lastInteraction.current>0&&Date.now()-lastInteraction.current>300_000){if(token)lock();return;}
    if(token)void refresh();
   },1800);
   return()=>{clearTimeout(bootId);clearInterval(id);};
- },[refresh,token,logout]);
+ },[refresh,token,lock]);
 
  useEffect(()=>{if(!message)return;const id=setTimeout(()=>setMessage(''),5000);return()=>clearTimeout(id);},[message]);
  useEffect(()=>{
   const sub=AppState.addEventListener('change',state=>{
-   if(state==='active'&&Date.now()-lastInteraction.current>300_000)logout();
+   if(token&&(state==='background'||state==='active'&&Date.now()-lastInteraction.current>300_000))lock();
   });
   return()=>sub.remove();
- },[logout]);
+ },[lock,token]);
 
  const act=useCallback(async(path:string,body:Row)=>{
   setBusy(true);setError('');
@@ -1149,7 +1151,9 @@ export default function App(){
  }
 
  const authenticated=async(accessToken:string)=>{
+  const version=sessionVersion.current;
   await storage.set('token',accessToken);
+  if(version!==sessionVersion.current){await storage.remove('token');return;}
   await storage.set('api',base);
   lastInteraction.current=Date.now();
   setToken(accessToken);
@@ -1213,7 +1217,7 @@ export default function App(){
    onTouchStart={()=>{lastInteraction.current=Date.now();}}
    onPointerDown={()=>{lastInteraction.current=Date.now();}}
   >
-   {boot||(!fontsReady&&!fontError)?(
+   {boot||signingOut||(!fontsReady&&!fontError)?(
     <View style={styles.loading}><ActivityIndicator color={C.ink}/></View>
    ):!token&&showOnboarding?(
     <Onboarding onFinish={finishOnboarding}/>

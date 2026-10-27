@@ -8,6 +8,7 @@ import {Avatar,C,Check,ErrorPopupModal,Field,HeroArt,Icon,ILLUSTRATIONS} from '.
 import DatePickerField,{isAdult} from './DatePickerField';
 import Liveness from './Liveness';
 import PinPad from './PinPad';
+import {ID_PREFIXES,ID_SERIES,MAX_NAME_LENGTH,seriesPrefix} from './bugRules';
 import type {LivenessResult} from './livenessTypes';
 
 // The phone number decides the path: a known number asks for the PIN, a new one walks through registration step by step.
@@ -23,9 +24,8 @@ const ERROR_STEP:Record<string,Step>={
  REJECTED_FACE_MATCH:'face',MULTIPLE_FACES:'face',INVALID_SELFIE:'face',SELFIE_REQUIRED:'face',LIVENESS_REQUIRED:'face'
 };
 
-const SERIES=/^(AZE[0-9]{8}|(AA|AB|MY|DY|MYI|DYI)[0-9]{7})$/;
-const SERIES_FORMATS=['AA','AZE','AB','MY','DY'] as const;
-const MAX_NAME_LENGTH=50;
+const SERIES=ID_SERIES;
+const SERIES_FORMATS=ID_PREFIXES;
 // The same rules the server applies, shown next to the field while the person types instead of after the last step.
 const BAD_NAME_CHARS=/[^\p{L} '-]/u;
 const nameError=(v:string)=>{
@@ -38,7 +38,7 @@ const nameError=(v:string)=>{
  return '';
 };
 const finError=(v:string)=>!v?'':/[^A-Z0-9]/.test(v)?'FİN yalnız latın hərfləri və rəqəmlərdən ibarətdir.':v.length<7?'FİN 7 simvol olmalıdır.':'';
-const seriesError=(v:string)=>!v||SERIES.test(v)?'':'Format: AA1234567, AZE12345678, AB1234567, MY1234567 və s.';
+const seriesError=(v:string)=>!v||SERIES.test(v)?'':'Format: AZE + 8 rəqəm; AA, AB, MY, DY, MYI və DYI + 7 rəqəm.';
 const NEW_PIN_LENGTH=4; // new accounts use four digits; older accounts keep the length they were created with
 const CODE_LENGTH=6;
 const RESEND_SECONDS=180;
@@ -114,13 +114,13 @@ function Screen({onBack,right,title,subtitle,children,footer,scroll=true,hero}:{
       {children}
      </ScrollView>
     ):(
-     <View style={[s.body,{justifyContent:'space-between'}]}>
+     <ScrollView keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false} contentContainerStyle={[s.body,{justifyContent:'space-between',minHeight:'100%'}]}>
       {title?<View>
        <Text style={s.title}>{title}</Text>
        {!!subtitle&&<Text style={s.subtitle}>{subtitle}</Text>}
       </View>:null}
       {children}
-     </View>
+     </ScrollView>
     )}
     {!!footer&&<View style={s.footer}>{footer}</View>}
     </View>
@@ -420,14 +420,14 @@ export default function AuthFlow({base,device,onAuthenticated,onConfig,onReplayI
  if(step==='identity'){
   return (
    <Screen onBack={back} title="Şəxsiyyət vəsiqən" subtitle="FİN kodunu və ŞV seriyasını vəsiqənin üzərindən yaz."
-    footer={<Cta title="Davam et" disabled={fin.length!==7||!SERIES.test(series)} onPress={()=>go('name')}/>}>
+    footer={<Cta title="Davam et" disabled={busy||fin.length!==7||!SERIES.test(series)} onPress={()=>run(async()=>{await call('auth/identity/validate',{otpId:otp?.otpId,otp:code,fin,idSeries:series});go('name');})}/>}>
     <View style={{marginTop:28}}>
      <Field label="FİN kod" value={fin} onChange={t=>setFin(t.toUpperCase().replace(/\s/g,'').slice(0,7))} placeholder="7 simvol" error={finError(fin)} eager={/[^A-Z0-9]/.test(fin)}/>
      <View style={{marginBottom:6}}>
       <Text style={s.seriesChipsLabel}>Seriya formatları:</Text>
       <View style={s.seriesChipsRow}>
        {SERIES_FORMATS.map(prefix=>{
-        const selected=series.startsWith(prefix);
+        const selected=seriesPrefix(series)===prefix;
         return (
          <Pressable
           key={prefix}
@@ -457,8 +457,8 @@ export default function AuthFlow({base,device,onAuthenticated,onConfig,onReplayI
    <Screen onBack={back} title="Ad və soyad" subtitle="Vəsiqədəki kimi yaz. Doğum tarixi yaş yoxlaması üçün lazımdır."
     footer={<Cta title="Davam et" disabled={!first.trim()||!last.trim()||!!nameError(first)||!!nameError(last)||!isAdult(birth)} onPress={()=>go('avatar')}/>}>
     <View style={{marginTop:28}}>
-     <Field label="Ad" value={first} onChange={t=>setFirst(t.slice(0,MAX_NAME_LENGTH))} placeholder="Əli" maxLength={MAX_NAME_LENGTH} error={nameError(first)} eager={/[0-9]/.test(first)||BAD_NAME_CHARS.test(first.trim())||first.length>MAX_NAME_LENGTH}/>
-     <Field label="Soyad" value={last} onChange={t=>setLast(t.slice(0,MAX_NAME_LENGTH))} placeholder="Vəliyev" maxLength={MAX_NAME_LENGTH} error={nameError(last)} eager={/[0-9]/.test(last)||BAD_NAME_CHARS.test(last.trim())||last.length>MAX_NAME_LENGTH}/>
+     <Field label="Ad" value={first} onChange={t=>setFirst(t.slice(0,MAX_NAME_LENGTH))} placeholder="Əli" maxLength={MAX_NAME_LENGTH} error={first.length===MAX_NAME_LENGTH?'50 simvol limitinə çatdın.':nameError(first)} eager={/[0-9]/.test(first)||BAD_NAME_CHARS.test(first.trim())||first.length>=MAX_NAME_LENGTH}/>
+     <Field label="Soyad" value={last} onChange={t=>setLast(t.slice(0,MAX_NAME_LENGTH))} placeholder="Vəliyev" maxLength={MAX_NAME_LENGTH} error={last.length===MAX_NAME_LENGTH?'50 simvol limitinə çatdın.':nameError(last)} eager={/[0-9]/.test(last)||BAD_NAME_CHARS.test(last.trim())||last.length>=MAX_NAME_LENGTH}/>
      <DatePickerField label="Doğum tarixi" value={birth} onChange={setBirth}/>
      {!!birth&&!isAdult(birth)&&<Text style={s.error}>Hesab yalnız 18 yaşdan yuxarı şəxslər üçündür.</Text>}
      <ErrorText text={error} onClose={()=>setError('')}/>

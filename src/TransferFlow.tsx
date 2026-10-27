@@ -4,6 +4,7 @@ import {Text,TextInput} from './text';
 import {SafeAreaProvider,SafeAreaView} from 'react-native-safe-area-context';
 import {Avatar,BackBar,Button,C,ErrorPopup,Icon,ResultArt,S,cardLabel,linkedCards,useApp,useModalHost} from './ui';
 import {errorCode,minor,money,Row} from './api';
+import {recentRecipients,transferAmountError} from './bugRules';
 
 type Contact={name:string;phone:string;avatar?:number|null};
 const FRIENDS:Contact[]=[
@@ -59,15 +60,26 @@ export function TransferFlow({initialPhone,hidden,close}:{initialPhone:string;hi
  const contacts=useMemo(()=>{
   const seen=new Set<string>();
   const out:Contact[]=[];
-  const add=(name:string,p:string)=>{if(!p||p===self||seen.has(p))return;seen.add(p);out.push({name,phone:p});};
-  (a.data.trustedBeneficiaries||[]).forEach((t:Row)=>add(t.nickname||t.maskedName||t.phone,t.phone));
+  const add=(name:string,p:string,avatar?:number|null)=>{if(!p||p===self||seen.has(p))return;seen.add(p);out.push({name,phone:p,avatar});};
+  (a.data.trustedBeneficiaries||[]).forEach((t:Row)=>add(t.nickname||t.maskedName||t.phone,t.phone,t.avatar));
   FRIENDS.forEach(f=>add(f.name,f.phone));
   return out;
  },[a.data.trustedBeneficiaries,self]);
  const cards=linkedCards(a.data);
- const frequent=contacts.slice(0,3);
+ const frequent=recentRecipients(a.data).slice(0,3);
  const needle=search.trim().toLowerCase();
  const shown=needle?contacts.filter(c=>c.name.toLowerCase().includes(needle)||c.phone.includes(needle)):contacts;
+
+ const recipientPhone=target?.phone;
+ const resolveRecipient=a.call;
+ useEffect(()=>{
+  if(!recipientPhone)return;
+  let cancelled=false;
+  resolveRecipient('transfers/resolve?phone='+encodeURIComponent(recipientPhone)).then(r=>{
+   if(!cancelled)setTarget(current=>current?.phone===recipientPhone?{...current,name:r.maskedName||current.name,avatar:r.avatar??current.avatar}:current);
+  }).catch(()=>{});
+  return()=>{cancelled=true;};
+ },[resolveRecipient,recipientPhone]);
 
  // the 5-second cancel window of a scheduled transfer
  useEffect(()=>{
@@ -80,9 +92,11 @@ export function TransferFlow({initialPhone,hidden,close}:{initialPhone:string;hi
 
  const parsed=(()=>{try{return amount?minor(amount):0;}catch{return 0;}})();
  const shownAmount=amount?amount:'0.00';
+ const available=Number(source==='WALLET'?a.data.wallet?.availableBalanceMinor||0:cards.find(x=>String(x.id)===source)?.balanceMinor||0);
+ const amountError=transferAmountError(parsed,available);
 
  async function resolveAndContinue(){
-  if(!target||parsed<=0)return;
+  if(!target||parsed<=0||amountError)return;
   setBusy(true);setLocal('');
   try{
    const r=await a.call('transfers/resolve?phone='+encodeURIComponent(target.phone));
@@ -180,7 +194,7 @@ export function TransferFlow({initialPhone,hidden,close}:{initialPhone:string;hi
     {step==='amount'&&target&&(
      <View style={{flex:1}}>
       <View style={t.bodyTight}><BackBar onBack={()=>initialPhone?close():setStep('pick')}/></View>
-      <View style={t.center}>
+      <ScrollView style={{flex:1}} contentContainerStyle={t.center}>
        <Text style={t.titleCenter}>Köçürmə məbləği</Text>
        <View style={t.person}>
         <Avatar name={target.name} avatar={target.avatar} size={64}/>
@@ -189,11 +203,16 @@ export function TransferFlow({initialPhone,hidden,close}:{initialPhone:string;hi
          <Text style={t.personPhone}>{identifier(target.phone)}</Text>
         </View>
        </View>
+       {cards.length>0&&<View style={{flexDirection:'row',flexWrap:'wrap',gap:6,marginTop:14}}>
+        {[{id:'WALLET',label:'Kampus balansı'},...cards.map(x=>({id:String(x.id),label:cardLabel(x)}))].map(o=><Pressable key={o.id} accessibilityRole="button" accessibilityState={{selected:source===o.id}} onPress={()=>setSource(o.id)} style={[t.sourceChip,source===o.id&&{backgroundColor:C.primary}]}><Text style={[t.sourceText,source===o.id&&{color:'#fff'}]}>{o.label}</Text></Pressable>)}
+       </View>}
+       <Text style={[S.muted,{marginTop:12}]}>Mövcud balans: {money(available)}</Text>
        <Text style={t.hint}>Məbləği daxil et</Text>
        <View style={t.amountWrap}>
         <Text style={[t.amountText,!amount&&{color:'#c9c6d6'}]}>{shownAmount} ₼</Text>
        </View>
-      </View>
+       {!!amountError&&<Text accessibilityRole="alert" style={t.error}>{amountError}</Text>}
+      </ScrollView>
       <View style={t.padWrap}>
        {KEYS.map(row=>(
         <View key={row.join('')} style={t.padRow}>
@@ -211,7 +230,7 @@ export function TransferFlow({initialPhone,hidden,close}:{initialPhone:string;hi
         </View>
        ))}
        <View style={{paddingHorizontal:20,paddingTop:6}}>
-        <Button title="Davam et" disabled={busy||parsed<=0} onPress={()=>{void resolveAndContinue();}}/>
+        <Button title="Davam et" disabled={busy||parsed<=0||!!amountError} onPress={()=>{void resolveAndContinue();}}/>
        </View>
       </View>
      </View>
@@ -244,6 +263,7 @@ export function TransferFlow({initialPhone,hidden,close}:{initialPhone:string;hi
           </View>
          </View>
         )}
+        {!!amountError&&<Text accessibilityRole="alert" style={t.error}>{amountError}</Text>}
         <TextInput
          accessibilityLabel="Qeyd"
          value={note}
@@ -265,7 +285,7 @@ export function TransferFlow({initialPhone,hidden,close}:{initialPhone:string;hi
        </View>
       </ScrollView>
       <View style={t.footer}>
-       <Button title="Təhlükəsiz ödə" icon="shield-checkmark-outline" yellow disabled={busy} onPress={()=>{void pay();}}/>
+       <Button title="Təhlükəsiz ödə" icon="shield-checkmark-outline" yellow disabled={busy||!!amountError} onPress={()=>{void pay();}}/>
       </View>
      </View>
     )}
