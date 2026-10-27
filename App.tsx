@@ -1229,6 +1229,13 @@ export default function App(){
       <Button title="Yadda saxla və bağla" onPress={()=>setShowConfig(false)}/>
      </Sheet>
     </>
+   ):!data?.user?(
+    <View style={[styles.loading,{padding:24,gap:16}]}>
+     <ActivityIndicator color={C.ink}/>
+     <Text style={S.muted}>Hesab məlumatların yüklənir…</Text>
+     {!!error&&<><Text style={S.errorText}>{error}</Text><Button title="Yenidən yoxla" onPress={()=>void refresh()}/></>}
+     <Button title="Hesabdan çıx" secondary onPress={logout}/>
+    </View>
    ):(
     <Context.Provider value={context}>
      <NavigationContainer ref={navRef}>
