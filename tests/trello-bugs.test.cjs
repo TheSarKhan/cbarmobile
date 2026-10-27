@@ -51,3 +51,13 @@ test('names accept Azerbaijani Latin letters and reject Cyrillic and other scrip
  for(const name of ['Əli','Çiçək','İlqar','Şəms','Ömər','O’Neil'.replace('’',"'"),'Anne-Marie','José'])assert.equal(BAD_NAME_CHARS.test(name),false);
  for(const name of ['Иван','Aли','محمد','李'])assert.equal(BAD_NAME_CHARS.test(name),true);
 });
+test('the native WebView contains valid standalone JS even without runtime function source',()=>{
+ const fs=require('node:fs'),vm=require('node:vm'),ts=require('typescript');
+ const {LIVENESS_FACTORY_SOURCE}=require('../src/livenessTrackerSource.ts');
+ const output=ts.transpileModule(fs.readFileSync(require.resolve('../src/livenessHtml.ts'),'utf8'),{compilerOptions:{target:ts.ScriptTarget.ES2020,module:ts.ModuleKind.CommonJS}}).outputText;
+ const exported={};vm.runInNewContext(output,{exports:exported,require:()=>({LIVENESS_FACTORY_SOURCE})});
+ const html=exported.livenessHtml('https://example.test',['TURN_LEFT','BLINK','SMILE']);
+ const script=html.match(/<script type="module">([\s\S]*?)<\/script>/)[1];
+ assert.doesNotThrow(()=>new vm.Script(script));assert.ok(script.includes(LIVENESS_FACTORY_SOURCE));
+ assert.throws(()=>exported.livenessHtml('https://example.test',[]));
+});
