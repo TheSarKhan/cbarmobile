@@ -1,9 +1,9 @@
 import React,{useState} from 'react';
-import {View,Pressable,StyleSheet,Share} from 'react-native';
+import {View,Pressable,StyleSheet,Share,TextInput} from 'react-native';
 import {LinearGradient} from 'expo-linear-gradient';
 import {toQR} from 'toqr';
 import {Text} from './text';
-import {C,S,useApp,linkedCards,Icon,Button,Field,Badge,Box,Empty} from './ui';
+import {C,S,useApp,linkedCards,Icon,Button,Field,Badge,Box} from './ui';
 import {minor,money,Row} from './api';
 
 const luhn=(n:string)=>{
@@ -13,6 +13,22 @@ const luhn=(n:string)=>{
 };
 const groupCard=(raw:string)=>raw.replace(/\D/g,'').slice(0,16).replace(/(\d{4})(?=\d)/g,'$1 ');
 const formatExpiry=(raw:string)=>{const d=raw.replace(/\D/g,'').slice(0,4);return d.length>2?d.slice(0,2)+'/'+d.slice(2):d;};
+
+const cleanAmount=(raw:string)=>{
+ const v=raw.replace(',','.').replace(/[^\d.]/g,'');
+ const [whole,...rest]=v.split('.');
+ return rest.length?whole.slice(0,5)+'.'+rest.join('').slice(0,2):whole.slice(0,5);
+};
+
+/** Small card mark for the lists: brand colour with the network name. */
+function MiniCard({brand}:{brand?:string}){
+ const mc=brand==='Mastercard';
+ return (
+  <View style={[st.mini,{backgroundColor:mc?'#e03a3e':'#2a0a8a'}]}>
+   <Text style={{color:'white',fontSize:10,fontWeight:'800',fontStyle:'italic'}}>{mc?'MC':'VISA'}</Text>
+  </View>
+ );
+}
 
 const QR_INK='#2a0a8a';
 
@@ -59,7 +75,7 @@ function QrCode({value,size=208}:{value:string;size?:number}){
 /** Balance top-up: one screen with a QR request on top and the cards below; a typed card is a separate form. */
 export function TopUpFlow({close}:{close:()=>void}){
  const a=useApp();
- const [view,setView]=useState<'home'|'new'|'qr'>('home'),
+ const [view,setView]=useState<'home'|'new'|'qr'|'amount'>('home'),
   [amount,setAmount]=useState(''),
   [picked,setPicked]=useState(''),
   [number,setNumber]=useState(''),
@@ -74,8 +90,8 @@ export function TopUpFlow({close}:{close:()=>void}){
  }
 
  const cards=[
-  ...(a.data.savedCards||[]).map((c:Row)=>({key:'S:'+c.id,id:c.id,saved:true,title:c.label,sub:'Yadda saxlanılıb · '+c.expiry})),
-  ...linkedCards(a.data).map((c:Row)=>({key:'B:'+c.id,id:c.id,saved:false,title:c.bankName,sub:c.name+' · '+c.masked+' · '+money(c.balanceMinor)}))
+  ...(a.data.savedCards||[]).map((c:Row)=>({key:'S:'+c.id,id:c.id,saved:true,brand:c.brand,title:c.brand+' kartı',sub:'•••• '+c.last4+' · '+c.expiry})),
+  ...linkedCards(a.data).map((c:Row)=>({key:'B:'+c.id,id:c.id,saved:false,brand:/master/i.test(c.name)?'Mastercard':'Visa',title:c.bankName,sub:c.masked+' · '+money(c.balanceMinor)}))
  ];
  const current=cards.find((c:Row)=>c.key===picked)||cards[0];
 
@@ -90,22 +106,6 @@ export function TopUpFlow({close}:{close:()=>void}){
    <Icon name="arrow-back" size={18} color={C.ink}/>
    <Text style={st.backText}>Geri</Text>
   </Pressable>
- );
-
- const amountBox=(label:string)=>(
-  <>
-   <Field label="Məbləğ · AZN" value={amount} onChange={setAmount} numeric/>
-   <Box style={{backgroundColor:'#ede9f8',borderColor:'#c1b6e2'}}>
-    <View style={[S.between,{marginBottom:4}]}>
-     <Text style={S.muted}>Komissiya (0%)</Text>
-     <Text style={S.h3}>0.00 ₼</Text>
-    </View>
-    <View style={S.between}>
-     <Text style={S.muted}>{label}</Text>
-     <Text style={S.h3}>{parsed.toFixed(2)} ₼</Text>
-    </View>
-   </Box>
-  </>
  );
 
  if(view==='qr'){
@@ -178,7 +178,50 @@ export function TopUpFlow({close}:{close:()=>void}){
      disabled={a.busy||!cardReady}
      onPress={()=>run(async()=>{
       const added=await a.act('saved-cards',{card:{number:digits,expiry,cvv}});
-      setNumber('');setExpiry('');setCvv('');setPicked('S:'+added.id);setView('home');
+      setNumber('');setExpiry('');setCvv('');setPicked('S:'+added.id);setAmount('');setView('amount');
+     })}
+    />
+   </>
+  );
+ }
+
+ if(view==='amount'&&current){
+  return (
+   <>
+    {back}
+    <View style={st.amountWrap}>
+     <View style={st.amountLine}>
+      <TextInput
+       accessibilityLabel="Məbləğ"
+       value={amount}
+       onChangeText={t=>setAmount(cleanAmount(t))}
+       placeholder="0"
+       placeholderTextColor="#c9c4dc"
+       keyboardType="decimal-pad"
+       autoFocus
+       style={[st.amountInput,{width:Math.max(1,amount.length||1)*34+8}]}
+      />
+      <Text style={st.amountUnit}>₼</Text>
+     </View>
+     <Text style={st.amountHint}>Komissiyasız</Text>
+    </View>
+    <Pressable accessibilityRole="button" accessibilityLabel="Kartı dəyiş" onPress={()=>setView('home')} style={st.pickedRow}>
+     <MiniCard brand={current.brand}/>
+     <View style={{flex:1}}>
+      <Text style={{fontSize:15,fontWeight:'700',color:C.ink}}>{current.title}</Text>
+      <Text style={{fontSize:12,color:C.muted,marginTop:2}}>{current.sub}</Text>
+     </View>
+     <Icon name="chevron-forward" size={18} color={C.muted}/>
+    </Pressable>
+    <Button
+     title="Balansı artır"
+     icon="arrow-forward"
+     disabled={a.busy||parsed<=0}
+     onPress={()=>run(async()=>{
+      await a.act('topups',current.saved
+       ?{amountMinor:minor(amount),source:'SAVED_CARD',cardId:current.id}
+       :{amountMinor:minor(amount),source:'BANK_CARD',accountId:current.id});
+      close();
      })}
     />
    </>
@@ -196,53 +239,29 @@ export function TopUpFlow({close}:{close:()=>void}){
     <Icon name="chevron-forward" size={20} color={C.muted}/>
    </Pressable>
 
-   <Text style={S.label}>Kartlar</Text>
-   {cards.length?(
-    <View style={{gap:10,marginBottom:12}}>
-     {cards.map((c:Row)=>{
-      const on=current?.key===c.key;
-      return (
-       <Pressable key={c.key} accessibilityRole="button" accessibilityLabel={c.title+' '+c.sub} onPress={()=>setPicked(c.key)} style={[st.row,on&&st.rowOn]}>
-        <View style={st.rowIcon}><Icon name="card-outline" size={20} color={C.ink}/></View>
-        <View style={{flex:1}}>
-         <Text style={{fontSize:13,fontWeight:'700',color:C.ink}}>{c.title}</Text>
-         <Text style={{fontSize:11,color:C.muted,marginTop:2}}>{c.sub}</Text>
-        </View>
-        {c.saved&&(
-         <Pressable accessibilityRole="button" accessibilityLabel="Saxlanmış kartı sil" hitSlop={10} onPress={()=>run(async()=>{await a.act('saved-cards/'+c.id+'/delete',{});})}>
-          <Icon name="trash-outline" size={18} color={C.muted}/>
-         </Pressable>
-        )}
-        <Icon name={on?'checkmark-circle':'ellipse-outline'} size={20} color={on?C.ink:C.muted}/>
+   <Text style={st.section}>Kart vasitəsilə</Text>
+   <View style={{gap:10}}>
+    <Pressable accessibilityRole="button" onPress={()=>setView('new')} style={st.cardRow}>
+     <View style={st.newCardIcon}><Icon name="card-outline" size={24} color={C.muted}/></View>
+     <Text style={{flex:1,fontSize:15,fontWeight:'600',color:C.ink}}>Yeni kartdan</Text>
+     <Icon name="add" size={20} color={C.muted}/>
+    </Pressable>
+    {cards.map((c:Row)=>(
+     <Pressable key={c.key} accessibilityRole="button" accessibilityLabel={c.title+' '+c.sub} onPress={()=>{setPicked(c.key);setAmount('');setView('amount');}} style={st.cardRow}>
+      <MiniCard brand={c.brand}/>
+      <View style={{flex:1}}>
+       <Text style={{fontSize:15,fontWeight:'700',color:C.ink}}>{c.title}</Text>
+       <Text style={{fontSize:12,color:C.muted,marginTop:2}}>{c.sub}</Text>
+      </View>
+      {c.saved?(
+       <Pressable accessibilityRole="button" accessibilityLabel="Saxlanmış kartı sil" hitSlop={8} onPress={()=>run(async()=>{await a.act('saved-cards/'+c.id+'/delete',{});})} style={st.dots}>
+        <Icon name="trash-outline" size={16} color={C.muted}/>
        </Pressable>
-      );
-     })}
-    </View>
-   ):(
-    <Empty text="Hələ kartın yoxdur. Yeni kart əlavə et və ya açıq bankçılıqla bank kartını bağla." icon="card-outline"/>
-   )}
-
-   <Pressable accessibilityRole="button" onPress={()=>setView('new')} style={st.addRow}>
-    <Icon name="add-circle-outline" size={20} color={C.primary}/>
-    <Text style={{fontSize:13,fontWeight:'700',color:C.primary}}>Yeni kart əlavə et</Text>
-   </Pressable>
-
-   {!!current&&(
-    <View style={{marginTop:18}}>
-     {amountBox('Balansa əlavə olunacaq məbləğ')}
-     <Button
-      title={`Balansa +${parsed.toFixed(2)} ₼ artır`}
-      icon="arrow-forward"
-      disabled={a.busy||parsed<=0}
-      onPress={()=>run(async()=>{
-       await a.act('topups',current.saved
-        ?{amountMinor:minor(amount),source:'SAVED_CARD',cardId:current.id}
-        :{amountMinor:minor(amount),source:'BANK_CARD',accountId:current.id});
-       close();
-      })}
-     />
-    </View>
-   )}
+      ):<Icon name="chevron-forward" size={18} color={C.muted}/>}
+     </Pressable>
+    ))}
+   </View>
+   {!cards.length&&<Text style={[S.muted,{marginTop:14,fontSize:12}]}>Hələ kartın yoxdur. Yeni kart əlavə et və ya açıq bankçılıqla bank kartını bağla.</Text>}
   </>
  );
 }
@@ -254,12 +273,20 @@ const st=StyleSheet.create({
  qrIcon:{width:52,height:52,borderRadius:16,backgroundColor:C.primary,alignItems:'center',justifyContent:'center'},
  qrTitle:{fontSize:16,fontWeight:'800',color:C.ink,letterSpacing:-0.3},
  qrSub:{fontSize:11,color:C.muted,lineHeight:17,marginTop:3},
- row:{flexDirection:'row',alignItems:'center',gap:12,backgroundColor:'#FFFFFF',borderRadius:18,padding:14,minHeight:64,borderWidth:1.5,borderColor:C.line},
- rowOn:{borderColor:C.ink,backgroundColor:'#ede9f8'},
- rowIcon:{width:40,height:40,borderRadius:13,backgroundColor:'#ebe8f5',alignItems:'center',justifyContent:'center'},
  qrOuter:{alignItems:'center',padding:14,paddingBottom:12,borderRadius:28,overflow:'hidden'},
  qrPanel:{backgroundColor:'white',borderRadius:20,padding:14},
  qrCaption:{color:'white',fontSize:12,fontWeight:'700',letterSpacing:0.4,marginTop:12},
  payRow:{backgroundColor:'#FFFFFF',borderRadius:14,padding:12,borderWidth:1,borderColor:C.line},
- addRow:{flexDirection:'row',alignItems:'center',gap:10,minHeight:48,paddingHorizontal:4}
+
+ section:{fontSize:13,fontWeight:'700',color:C.muted,marginBottom:10},
+ cardRow:{flexDirection:'row',alignItems:'center',gap:14,backgroundColor:'#f4f3f7',borderRadius:20,padding:14,minHeight:72},
+ mini:{width:64,height:44,borderRadius:9,alignItems:'center',justifyContent:'center'},
+ newCardIcon:{width:64,height:44,borderRadius:9,backgroundColor:'#e6e4ec',alignItems:'center',justifyContent:'center'},
+ dots:{width:34,height:34,borderRadius:17,backgroundColor:'#e6e4ec',alignItems:'center',justifyContent:'center'},
+ amountWrap:{alignItems:'center',paddingTop:36,paddingBottom:44},
+ amountLine:{flexDirection:'row',alignItems:'center',justifyContent:'center',gap:6},
+ amountInput:{fontSize:56,fontWeight:'800',color:C.ink,textAlign:'center',padding:0,minWidth:40,outlineStyle:'none' as any},
+ amountUnit:{fontSize:40,fontWeight:'800',color:C.muted},
+ amountHint:{fontSize:13,color:C.muted,marginTop:8},
+ pickedRow:{flexDirection:'row',alignItems:'center',gap:14,backgroundColor:'#f4f3f7',borderRadius:20,padding:14,minHeight:72,marginBottom:12}
 });
