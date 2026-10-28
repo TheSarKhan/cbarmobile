@@ -1,8 +1,8 @@
 import React,{useEffect,useMemo,useState} from 'react';
-import {Modal,Pressable,ScrollView,StyleSheet,View} from 'react-native';
+import {Pressable,ScrollView,StyleSheet,View} from 'react-native';
 import {Text,TextInput} from './text';
 import {SafeAreaProvider,SafeAreaView} from 'react-native-safe-area-context';
-import {Avatar,BackBar,Button,C,ErrorPopup,Icon,ResultArt,S,cardLabel,linkedCards,useApp,useModalHost} from './ui';
+import {Avatar,BackBar,Button,C,ErrorPopup,FullScreen,Icon,ResultArt,S,cardLabel,linkedCards,useApp,useModalHost} from './ui';
 import {errorCode,minor,money,Row} from './api';
 import {recentRecipients,initialRecipient,transferAmountError} from './bugRules';
 
@@ -69,7 +69,7 @@ export function TransferFlow({mode='AUTO',initialPhone,hidden,close}:{mode?:'AUT
  const cards=linkedCards(a.data);
  const frequent=recentRecipients(a.data).filter(c=>mode==='ANIPAY'?external(c.phone):mode==='KAMPUS'?!external(c.phone):true).slice(0,3);
  const needle=search.trim().toLowerCase();
- const shown=needle?contacts.filter(c=>c.name.toLowerCase().includes(needle)||c.phone.includes(needle)):contacts;
+ const shown=needle?contacts.filter(c=>c.name.toLowerCase().includes(needle)||c.phone.includes(needle)):contacts.filter(c=>!frequent.some(x=>x.phone===c.phone));
 
  const recipientPhone=target?.phone;
  const resolveRecipient=a.call;
@@ -137,7 +137,7 @@ export function TransferFlow({mode='AUTO',initialPhone,hidden,close}:{mode?:'AUT
  const tone:'success'|'failed'|'review'=failure?'failed':result?.status==='UNDER_REVIEW'?'review':'success';
 
  return (
-  <Modal visible={!hidden} animationType={opened?'none':'slide'} onRequestClose={close}>
+  <FullScreen visible={!hidden} animationType={opened?'none':'slide'} onRequestClose={close}>
    {/* a Modal is its own native window: without its own provider the top inset is 0 on the first screen and the back button sits under the status bar */}
    <SafeAreaProvider style={{flex:1}}>
    <SafeAreaView style={t.screen}>
@@ -333,7 +333,7 @@ export function TransferFlow({mode='AUTO',initialPhone,hidden,close}:{mode?:'AUT
    </SafeAreaView>
    {!!(local||a.error)&&<ErrorPopup message={local||a.error} onClose={()=>{setLocal('');a.setError('');}}/>}
    </SafeAreaProvider>
-  </Modal>
+  </FullScreen>
  );
 }
 

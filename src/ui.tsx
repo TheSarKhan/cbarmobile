@@ -391,6 +391,16 @@ export function Empty({text,icon='leaf-outline'}:{text:string;icon?:React.Compon
  );
 }
 
+/**
+ * A full-screen flow. On the phone it is a Modal; in the browser it is a layer inside the app, so it stays inside the
+ * phone frame of the simulator instead of covering the whole window.
+ */
+export function FullScreen({visible,onRequestClose,animationType='slide',children}:{visible:boolean;onRequestClose:()=>void;animationType?:'none'|'slide';children:React.ReactNode}){
+ if(Platform.OS!=='web')return <Modal visible={visible} animationType={animationType} onRequestClose={onRequestClose}>{children}</Modal>;
+ if(!visible)return null;
+ return <View style={[StyleSheet.absoluteFill,{zIndex:100,backgroundColor:'#fff'}]}>{children}</View>;
+}
+
 export function Sheet({title,visible,onClose,children}:{title:string;visible:boolean;onClose:()=>void;children:React.ReactNode}){
  const inset=useSafeAreaInsets();
  const app=useContext(Context);

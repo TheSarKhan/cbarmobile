@@ -1,5 +1,5 @@
 import React,{useEffect,useState} from 'react';
-import {ActivityIndicator,Animated,Easing,Modal,Platform,Pressable,ScrollView,StyleSheet,View} from 'react-native';
+import {ActivityIndicator,Animated,Easing,Platform,Pressable,ScrollView,StyleSheet,View} from 'react-native';
 import {Text} from './text';
 import {SafeAreaProvider,SafeAreaView} from 'react-native-safe-area-context';
 import {LinearGradient} from 'expo-linear-gradient';
@@ -10,7 +10,7 @@ import type {Row} from './api';
 import {BankMark} from './BanksSection';
 import Liveness from './Liveness';
 import type {LivenessResult} from './livenessTypes';
-import {BackBar,C,ErrorPopup,Icon,ResultArt,S,fmtDate,useApp,useModalHost} from './ui';
+import {BackBar,C,ErrorPopup,FullScreen,Icon,ResultArt,S,fmtDate,useApp,useModalHost} from './ui';
 
 type Phase='pick'|'notify'|'bank-request'|'cards'|'terms'|'document'|'sign'|'signed'|'bank-section';
 const MONTHS=[1,2,3,6,12];
@@ -113,7 +113,7 @@ export function LinkBankFlow({hidden,close}:{hidden:boolean;close:()=>void}){
  }
 
  return (
-  <Modal visible={!hidden} animationType="slide" onRequestClose={abandon}>
+  <FullScreen visible={!hidden} onRequestClose={abandon}>
    <SafeAreaProvider style={{flex:1}}>
     {phase==='pick'&&(
      <SafeAreaView style={f.white}>
@@ -254,7 +254,7 @@ export function LinkBankFlow({hidden,close}:{hidden:boolean;close:()=>void}){
 
     {!!a.error&&<ErrorPopup message={a.error} onClose={()=>a.setError('')}/>}
    </SafeAreaProvider>
-  </Modal>
+  </FullScreen>
  );
 }
 
