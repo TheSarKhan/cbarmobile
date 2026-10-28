@@ -1,9 +1,9 @@
-import React,{useState,useEffect} from 'react';
-import {View,Platform,Pressable,Image,StyleSheet} from 'react-native';
+import React,{useState} from 'react';
+import {View,Pressable,StyleSheet,TextInput} from 'react-native';
 import {Text} from './text';
-import * as Linking from 'expo-linking';
-import {Row,minor,money,storage} from './api';
-import {S,C,CARD_IMAGES,Button,Field,Box,Badge,Icon,statusTone} from './ui';
+import {Row,minor,money} from './api';
+import {S,C,Button,Check,Box,Badge,Icon,statusTone} from './ui';
+import {BigAmount,MiniCard,groupCard,luhn} from './CardUi';
 
 type Props={
  base:string;
@@ -14,55 +14,50 @@ type Props={
  setError:(s:string)=>void;
 };
 
-export function CardTransferForm(a:Props){
- const [session,setSession]=useState<Row|null>(null),
+/**
+ * Card transfer: a card number or a saved card on the first screen, then the big amount screen with the fee quote.
+ * The number is tokenised by the card network simulator; the wallet keeps only the token, the bank and the last four digits.
+ */
+export function useCardTransferState(){
+ const [view,setView]=useState<'list'|'amount'>('list'),
+  [number,setNumber]=useState(''),
   [card,setCard]=useState<Row|null>(null),
-  [savedCard,setSavedCard]=useState<Row|null>(null),
-  [purpose,setPurpose]=useState<'SEND'|'WITHDRAW_OWN'>('SEND'),
-  [saveAs,setSaveAs]=useState(''),
+  [save,setSave]=useState(true),
   [quote,setQuote]=useState<Row|null>(null),
   [transfer,setTransfer]=useState<Row|null>(null),
-  [amount,setAmount]=useState('20'),
-  [opening,setOpening]=useState(false);
+  [amount,setAmount]=useState(''),
+  [checking,setChecking]=useState(false);
+ return {view,setView,number,setNumber,card,setCard,save,setSave,quote,setQuote,transfer,setTransfer,amount,setAmount,checking,setChecking};
+}
 
- useEffect(()=>{
-  storage.get('card-session-'+a.data.user.id).then(raw=>{
-   if(raw)setSession(JSON.parse(raw));
-  }).catch(()=>{});
- },[a.data.user.id]);
+/** The state lives in the caller: the PIN sheet hides this one for a moment and the form must come back as it was. */
+export function CardTransferForm({state,...a}:Props&{state:ReturnType<typeof useCardTransferState>}){
+ const {view,setView,number,setNumber,card,setCard,save,setSave,quote,setQuote,transfer,setTransfer,amount,setAmount,checking,setChecking}=state;
 
  async function run(fn:()=>Promise<void>){
   a.setError('');
   try{await fn();}catch(e){a.setError((e as Error).message);}
  }
 
- function formUrl(s:Row){
-  const api=new URL(a.base);
-  const publicSim=process.env.EXPO_PUBLIC_SIM_URL||(api.protocol==='https:'||!['localhost','127.0.0.1','10.0.2.2'].includes(api.hostname)&&api.port!=='8080'?api.origin:api.protocol+'//'+api.hostname+':8081');
-  return publicSim+s.formPath;
- }
-
- async function openForm(){
-  setOpening(true);
-  try{
-   let s=session;
-   if(!s){
-    s=await a.act('card-transfers/card-session',{});
-    setSession(s);
-    await storage.set('card-session-'+a.data.user.id,JSON.stringify(s));
-    if(Platform.OS==='web')return;
-   }
-   if(Platform.OS==='web')window.open(formUrl(s!),'_blank','noopener,noreferrer');
-   else await Linking.openURL(formUrl(s!));
-  }finally{
-   setOpening(false);
-  }
+ const digits=number.replace(/\D/g,'');
+ const numberError=digits.length===16&&!luhn(digits)?'Kart nömrəsi yanlışdır.':'';
+ // a complete, valid number moves on by itself, as the design does
+ function typeNumber(raw:string){
+  const grouped=groupCard(raw),d=grouped.replace(/\D/g,'');
+  setNumber(grouped);
+  if(d.length!==16||!luhn(d)||checking)return;
+  setChecking(true);
+  a.act('card-transfers/card',{number:d})
+   .then(c=>{setCard({...c,saved:false});setQuote(null);setAmount('');setView('amount');})
+   .catch(()=>{})
+   .finally(()=>{setNumber('');setChecking(false);});
  }
 
  const current=transfer?(a.data.cardTransfers?.find((x:Row)=>x.id===transfer.id)||transfer):null;
  const savedList:Row[]=a.data.recipientCards||[];
- const activeCard=savedCard||card;
- const disabled=a.busy||opening;
+ const parsed=Math.max(0,Number(amount.replace(',','.'))||0);
+ const disabled=a.busy||checking;
+ const balance=a.data.wallet?.availableBalanceMinor||0;
 
  if(current){
   const done=current.status==='COMPLETED',
@@ -102,14 +97,73 @@ export function CardTransferForm(a:Props){
      secondary
      disabled={!done&&!failed}
      onPress={()=>{
-      storage.remove('card-session-'+a.data.user.id);
-      setSession(null);
       setCard(null);
-      setSavedCard(null);
       setQuote(null);
       setTransfer(null);
-      setSaveAs('');
+      setAmount('');
+      setView('list');
      }}
+    />
+   </>
+  );
+ }
+
+
+ if(view==='amount'&&card){
+  return (
+   <>
+    <Pressable accessibilityRole="button" onPress={()=>{setView('list');setQuote(null);}} style={cs.back}>
+     <Icon name="arrow-back" size={18} color={C.ink}/>
+     <Text style={{fontSize:13,fontWeight:'700',color:C.ink}}>Geri</Text>
+    </Pressable>
+    <View style={[S.between,{marginBottom:4}]}>
+     <View>
+      <Text style={{fontSize:17,fontWeight:'800',color:C.ink}}>Karta köçürmə</Text>
+      <Text style={{fontSize:13,color:C.muted,marginTop:2}}>{card.bankName} · •••• {card.last4}</Text>
+     </View>
+     <MiniCard brand={card.brand}/>
+    </View>
+
+    <BigAmount value={amount} onChange={v=>{setAmount(v);setQuote(null);}} hint="Bank tərəfindən komissiya tutula bilər"/>
+
+    <View style={cs.balanceChip}>
+     <Icon name="wallet-outline" size={16} color={C.ink}/>
+     <Text style={{fontSize:14,fontWeight:'700',color:C.ink}}>Balans {money(balance)}</Text>
+    </View>
+
+    {!card.saved&&<Check value={save} onChange={setSave} text="Bu kartı yadda saxla, növbəti dəfə nömrə yazmadan seçim."/>}
+
+    {quote&&(
+     <Box style={{backgroundColor:'#eeebf8',borderColor:'#c7bce6'}}>
+      <View style={[S.between,{marginBottom:8}]}>
+       <Text style={S.muted}>Karta çatacaq</Text>
+       <Text style={S.h3}>{money(quote.amountMinor)}</Text>
+      </View>
+      <View style={[S.between,{marginBottom:8}]}>
+       <Text style={S.muted}>{quote.purpose==='WITHDRAW_OWN'?'Komissiya (ayda 500 ₼-dək 0%)':'Komissiya (0.5%, min. 0.30 ₼)'}</Text>
+       <Text style={{color:C.ink,fontWeight:'600'}}>{money(quote.feeMinor)}</Text>
+      </View>
+      <View style={S.line}/>
+      <View style={S.between}>
+       <Text style={S.h3}>Balansdan çıxılacaq</Text>
+       <Text style={S.h2}>{money(quote.totalMinor)}</Text>
+      </View>
+     </Box>
+    )}
+
+    <Button
+     title={quote?'PIN ilə təsdiqlə və köçür':'Köçürmək'}
+     icon={quote?'shield-checkmark-outline':'arrow-forward'}
+     disabled={disabled||parsed<=0}
+     onPress={()=>run(async()=>{
+      if(!quote){
+       setQuote(await a.act('card-transfers/fee-quote',card.saved?{cardId:card.id,amountMinor:minor(amount),purpose:'SEND'}:{sessionId:card.sessionId,amountMinor:minor(amount),purpose:'SEND'}));
+       return;
+      }
+      const body:Row={quoteId:quote.id,amountMinor:quote.amountMinor,totalMinor:quote.totalMinor,recipientName:quote.bankName+' · •••• '+quote.last4};
+      if(!card.saved&&save)body.saveAs=card.bankName+' •••• '+card.last4;
+      setTransfer(await a.act('card-transfers',body));
+     })}
     />
    </>
   );
@@ -117,179 +171,43 @@ export function CardTransferForm(a:Props){
 
  return (
   <>
-   <View style={cs.heroCard}>
-    <View style={{flex:1,paddingRight:12}}>
-     <Text style={S.h3}>Karta köçürmə və çıxarış</Text>
-     <Text style={[S.muted,{marginTop:4,fontSize:11}]}>
-      Visa Direct / Mastercard Send. Tam kart nömrəsi Kampus bazasında saxlanılmır, yalnız tokenləşdirilir.
-     </Text>
-    </View>
-    <Image source={CARD_IMAGES.topupCard} style={cs.heroImg} resizeMode="cover"/>
+   <View style={[cs.numberRow,!!numberError&&{borderColor:C.red,borderWidth:1.5}]}>
+    <Icon name="card-outline" size={22} color={C.muted}/>
+    <TextInput
+     accessibilityLabel="Kartın nömrəsi"
+     value={number}
+     onChangeText={typeNumber}
+     placeholder="Kartın nömrəsi"
+     placeholderTextColor="#9a95a7"
+     keyboardType="number-pad"
+     maxLength={19}
+     style={cs.numberInput}
+    />
    </View>
+   {!!numberError&&<Text style={{color:C.red,fontSize:13,fontWeight:'600',marginTop:8}}>{numberError}</Text>}
 
-   <Text style={S.label}>Əməliyyat növü</Text>
-   <View style={{flexDirection:'row',gap:10,marginBottom:16}}>
-    <Pressable
-     accessibilityRole="button"
-     onPress={()=>{setPurpose('SEND');setQuote(null);}}
-     style={[cs.modeCard,purpose==='SEND'&&cs.modeCardActive]}
-    >
-     <Icon name="paper-plane-outline" size={18} color={C.ink}/>
-     <Text style={S.h3}>Başqa karta</Text>
-     <Text style={[S.muted,{fontSize:11}]}>Komissiya 0.5% (min 0.30 ₼)</Text>
-    </Pressable>
-
-    <Pressable
-     accessibilityRole="button"
-     onPress={()=>{setPurpose('WITHDRAW_OWN');setQuote(null);}}
-     style={[cs.modeCard,purpose==='WITHDRAW_OWN'&&cs.modeCardActive]}
-    >
-     <Icon name="wallet-outline" size={18} color={C.ink}/>
-     <Text style={S.h3}>Öz kartıma çıxarış</Text>
-     <Text style={[S.muted,{fontSize:11}]}>Ayda 500 ₼-dək 0%</Text>
-    </Pressable>
-   </View>
-
-   {!activeCard?(
+   {savedList.length>0&&(
     <>
-     {savedList.length>0&&(
-      <View style={{marginBottom:14}}>
-       <Text style={S.label}>Yadda saxlanmış kartlar</Text>
-       {savedList.map((rc:Row)=>(
-        <Box key={rc.id} style={{paddingVertical:12}}>
-         <View style={S.between}>
-          <Pressable
-           accessibilityRole="button"
-           style={[S.row,{flex:1,minHeight:48}]}
-           onPress={()=>{setSavedCard(rc);setQuote(null);}}
-          >
-           <View style={S.tile}><Icon name="card-outline"/></View>
-           <View style={{flex:1}}>
-            <Text numberOfLines={1} style={S.h3}>{rc.nickname||rc.bankName}</Text>
-            <Text style={S.muted}>{rc.bankName} · {rc.brand} •••• {rc.last4}</Text>
-           </View>
-          </Pressable>
-          <Pressable
-           accessibilityRole="button"
-           accessibilityLabel="Kartı sil"
-           onPress={()=>run(async()=>{await a.act('recipient-cards/'+rc.id+'/delete',{});})}
-           style={cs.delBtn}
-          >
-           <Icon name="trash-outline" size={18} color={C.red}/>
-          </Pressable>
-         </View>
-        </Box>
-       ))}
-      </View>
-     )}
-
-     <Button
-      title={opening?'Forma açılır…':session?'Kart formasını aç':Platform.OS==='web'?'Yeni kart formasını hazırla':'Yeni kart əlavə et'}
-      icon="open-outline"
-      disabled={disabled}
-      onPress={()=>run(openForm)}
-     />
-
-     {session&&(
-      <Box style={{backgroundColor:'#ede9f8'}}>
-       <Badge text="HOSTED PCI FORMASI"/>
-       <Text style={[S.muted,{marginTop:8,marginBottom:12}]}>
-        Mock PCI formasında 16 rəqəmli kart nömrəsini daxil edib bu ekrana qayıdın, sonra aşağıdakı düyməni sıxın.
-       </Text>
-       <Button
-        title="Kartı yoxla"
-        secondary
-        disabled={disabled}
-        onPress={()=>run(async()=>{
-         const c=await a.call('card-sessions/'+session.id);
-         if(c.status!=='COMPLETED')throw new Error('Kart forması hələ tamamlanmayıb.');
-         setCard(c);
-        })}
-       />
-      </Box>
-     )}
-    </>
-   ):(
-    <>
-     <Box>
-      <View style={S.between}>
-       <View style={[S.row,{flex:1}]}>
-        <View style={S.tile}><Icon name="card-outline"/></View>
+     <Text style={cs.section}>YADDA SAXLANILAN KARTLAR</Text>
+     <View style={{gap:10}}>
+      {savedList.map((rc:Row)=>(
+       <Pressable key={rc.id} accessibilityRole="button" accessibilityLabel={(rc.nickname||rc.bankName)+' •••• '+rc.last4} onPress={()=>{setCard({...rc,saved:true});setQuote(null);setAmount('');setView('amount');}} style={cs.cardRow}>
+        <MiniCard brand={rc.brand}/>
         <View style={{flex:1}}>
-         <Text numberOfLines={1} style={S.h3}>{activeCard.nickname||activeCard.bankName}</Text>
-         <Text style={S.muted}>{activeCard.bankName} · {activeCard.brand} •••• {activeCard.last4}</Text>
+         <Text numberOfLines={1} style={{fontSize:15,fontWeight:'700',color:C.ink}}>{rc.bankName}</Text>
+         <Text style={{fontSize:12,color:C.muted,marginTop:2}}>•••• {rc.last4}</Text>
         </View>
-       </View>
-       <Badge text={purpose==='WITHDRAW_OWN'?'ÖZ KARTIM':'KÖÇÜRMƏ'}/>
-      </View>
-     </Box>
-
-     <Field label="Göndərilən məbləğ · AZN" value={amount} numeric onChange={v=>{setAmount(v);setQuote(null);}}/>
-     {!savedCard&&<Field label="Kartı yadda saxla (istəyə bağlı ad, məs: Kapital Maaş)" value={saveAs} onChange={setSaveAs}/>}
-
-     {quote&&(
-      <Box style={{backgroundColor:'#eeebf8',borderColor:'#c7bce6'}}>
-       <Text style={[S.label,{marginBottom:10}]}>ÖDƏNİŞ XÜLASƏSİ</Text>
-       <View style={[S.between,{marginBottom:8}]}>
-        <Text style={S.muted}>Alıcı karta çatacaq</Text>
-        <Text style={S.h3}>{money(quote.amountMinor)}</Text>
-       </View>
-       <View style={[S.between,{marginBottom:8}]}>
-        <Text style={S.muted}>{purpose==='WITHDRAW_OWN'?'Komissiya (ayda 500 ₼-dək 0%)':'Komissiya (0.5%, min. 0.30 ₼)'}</Text>
-        <Text style={{color:C.ink,fontWeight:'600'}}>{money(quote.feeMinor)}</Text>
-       </View>
-       {purpose==='WITHDRAW_OWN'&&quote.freeRemainingMinor!==undefined&&(
-        <View style={[S.between,{marginBottom:8}]}>
-         <Text style={S.muted}>Qalan pulsuz aylıq limit</Text>
-         <Text style={S.muted}>{money(quote.freeRemainingMinor)}</Text>
-        </View>
-       )}
-       <View style={S.line}/>
-       <View style={S.between}>
-        <Text style={S.h3}>Balansdan cəmi çıxılacaq</Text>
-        <Text style={S.h2}>{money(quote.totalMinor)}</Text>
-       </View>
-      </Box>
-     )}
-
-     <Button
-      title={quote?'PIN ilə təsdiqlə və göndər':'Komissiyanı hesabla'}
-      icon={quote?'shield-checkmark-outline':'calculator-outline'}
-      disabled={disabled}
-      onPress={()=>run(async()=>{
-       if(!quote){
-        setQuote(await a.act('card-transfers/fee-quote',savedCard?{cardId:savedCard.id,amountMinor:minor(amount),purpose}:{sessionId:session!.id,amountMinor:minor(amount),purpose}));
-        return;
-       }
-       const body:Row={
-        quoteId:quote.id,
-        amountMinor:quote.amountMinor,
-        totalMinor:quote.totalMinor,
-        recipientName:quote.bankName+' · •••• '+quote.last4
-       };
-       if(saveAs.trim())body.saveAs=saveAs.trim();
-       setTransfer(await a.act('card-transfers',body));
-      })}
-     />
-
-     <Button
-      title="Başqa kart seç"
-      secondary
-      disabled={disabled}
-      onPress={()=>{
-       storage.remove('card-session-'+a.data.user.id);
-       setSession(null);
-       setCard(null);
-       setSavedCard(null);
-       setQuote(null);
-       setSaveAs('');
-      }}
-     />
+        <Pressable accessibilityRole="button" accessibilityLabel="Kartı sil" hitSlop={8} onPress={()=>run(async()=>{await a.act('recipient-cards/'+rc.id+'/delete',{});})} style={cs.dots}>
+         <Icon name="trash-outline" size={16} color={C.muted}/>
+        </Pressable>
+       </Pressable>
+      ))}
+     </View>
     </>
    )}
 
-   <Box style={{marginTop:8,backgroundColor:'#eeecf5'}}>
-    <Text style={[S.label,{marginBottom:6}]}>DEMO TEST KART NÖMRƏLƏRİ (BIN)</Text>
+   <Box style={{marginTop:20,backgroundColor:'#eeecf5'}}>
+    <Text style={[S.label,{marginBottom:6}]}>DEMO TEST KART NÖMRƏLƏRİ</Text>
     <Text style={[S.muted,{fontSize:11,lineHeight:17}]}>
      • Kapital: 4169738855551234{'\n'}
      • ABB: 4098584412345678 · PAŞA: 5222081122334452{'\n'}
@@ -301,9 +219,11 @@ export function CardTransferForm(a:Props){
 }
 
 const cs=StyleSheet.create({
- heroCard:{flexDirection:'row',alignItems:'center',backgroundColor:'white',borderRadius:20,padding:15,marginBottom:16,borderWidth:1,borderColor:C.line},
- heroImg:{width:68,height:68,borderRadius:14},
- modeCard:{flex:1,minHeight:76,backgroundColor:'white',borderRadius:16,padding:13,borderWidth:1.5,borderColor:C.line,justifyContent:'space-between',gap:4},
- modeCardActive:{borderColor:C.ink,backgroundColor:'#ebe6f8'},
- delBtn:{width:48,height:48,alignItems:'center',justifyContent:'center',borderRadius:12}
+ back:{flexDirection:'row',alignItems:'center',gap:8,marginBottom:14,minHeight:44,alignSelf:'flex-start'},
+ numberRow:{flexDirection:'row',alignItems:'center',gap:12,backgroundColor:'#f4f3f7',borderRadius:20,paddingHorizontal:16,minHeight:64},
+ numberInput:{flex:1,fontSize:17,fontWeight:'600',color:C.ink,minHeight:60,outlineStyle:'none' as any},
+ section:{fontSize:12,fontWeight:'700',color:C.muted,letterSpacing:0.4,marginTop:24,marginBottom:10},
+ cardRow:{flexDirection:'row',alignItems:'center',gap:14,backgroundColor:'#f4f3f7',borderRadius:20,padding:14,minHeight:72},
+ dots:{width:34,height:34,borderRadius:17,backgroundColor:'#e6e4ec',alignItems:'center',justifyContent:'center'},
+ balanceChip:{flexDirection:'row',alignItems:'center',gap:8,alignSelf:'center',borderWidth:1.5,borderColor:C.ink,borderRadius:22,paddingHorizontal:16,minHeight:44,marginBottom:20}
 });

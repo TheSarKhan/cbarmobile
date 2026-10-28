@@ -2,7 +2,7 @@ import React,{useState,useEffect} from 'react';
 import {View,Pressable,StyleSheet,ActivityIndicator} from 'react-native';
 import {Text} from './text';
 import {C,S,useApp,fmtDate,fmtDateTime,statusLabel,statusTone,Icon,Button,Field,Check,Badge,Box,Empty,Sheet,Tx} from './ui';
-import {CardTransferForm} from './CardTransferSheet';
+import {CardTransferForm,useCardTransferState} from './CardTransferSheet';
 import {CreditSection} from './HubSections';
 import {TopUpFlow} from './TopUpFlow';
 import {BanksSection} from './BanksSection';
@@ -16,6 +16,7 @@ const TX_TYPES:Record<string,string>={TOPUP:'Balans artırma',P2P:'Köçürmə',
 
 export function Operations({sheet,close,hidden=false}:{sheet:string;close:()=>void;hidden?:boolean}){
  const a=useApp();
+ const cardState=useCardTransferState();
  const [amount,setAmount]=useState(''),
   [phone,setPhone]=useState(sheet.startsWith('send:')?sheet.split(':')[1]:'+994501000002'),
   [note,setNote]=useState(''),
@@ -32,6 +33,7 @@ export function Operations({sheet,close,hidden=false}:{sheet:string;close:()=>vo
  const title:Record<string,string>={
   add:'Balans artımı',
   send:'Pul göndər',
+  'send-menu':'Köçür',
   request:'Pul istə',
   'my-qr':'Mənim QR kodum',
   notifications:'Bildirişlər',
@@ -72,11 +74,29 @@ export function Operations({sheet,close,hidden=false}:{sheet:string;close:()=>vo
  const txItem=kind==='tx-detail'?[...(a.data.transactions||[]),...(a.external||[])].find((x:Row)=>String(x.id)===paramId):null;
 
  if(kind==='link-bank')return <LinkBankFlow hidden={hidden} close={close}/>;
- if(kind==='send')return <TransferFlow initialPhone={sheet.startsWith('send:')?sheet.split(':')[1]:''} hidden={hidden} close={close}/>;
+ if(kind==='send'||kind==='send-kampus'||kind==='send-anipay')return <TransferFlow mode={kind==='send-kampus'?'KAMPUS':kind==='send-anipay'?'ANIPAY':'AUTO'} initialPhone={sheet.startsWith('send:')?sheet.split(':')[1]:''} hidden={hidden} close={close}/>;
 
  return (
-  <Sheet title={title[kind]||'Kampus'} visible={!!sheet&&(!hidden||kind==='card-transfer')} onClose={close}>
-   {kind==='card-transfer'&&<CardTransferForm {...a}/>}
+  <Sheet title={title[kind]||'Kampus'} visible={!!sheet&&!hidden} onClose={close}>
+   {kind==='send-menu'&&(
+    <View style={{gap:6,paddingBottom:8}}>
+     {[
+      ['Kampus hesabına','Telefon nömrəsi ilə, komissiyasız','person-outline','send-kampus'],
+      ['Bank kartına','Visa və Mastercard, istənilən bank','card-outline','card-transfer'],
+      ['AniPay ilə','Telefon və ya FİN kodla başqa banka','flash-outline','send-anipay']
+     ].map(([label,sub,icon,target])=>(
+      <Pressable key={target} accessibilityRole="button" accessibilityLabel={label} onPress={()=>a.open(target)} style={os.menuRow}>
+       <View style={os.menuIcon}><Icon name={icon as any} size={22} color="white"/></View>
+       <View style={{flex:1}}>
+        <Text style={{fontSize:16,fontWeight:'700',color:C.ink}}>{label}</Text>
+        <Text style={{fontSize:12,color:C.muted,marginTop:2}}>{sub}</Text>
+       </View>
+       <Icon name="chevron-forward" size={18} color={C.muted}/>
+      </Pressable>
+     ))}
+    </View>
+   )}
+   {kind==='card-transfer'&&<CardTransferForm state={cardState} {...a}/>}
    {kind==='credit-hub'&&<CreditSection/>}
    {kind==='banks-hub'&&<BanksSection/>}
 
@@ -433,6 +453,8 @@ export function Operations({sheet,close,hidden=false}:{sheet:string;close:()=>vo
 }
 
 const os=StyleSheet.create({
+ menuRow:{flexDirection:'row',alignItems:'center',gap:14,minHeight:72,paddingVertical:8},
+ menuIcon:{width:52,height:52,borderRadius:18,backgroundColor:C.primary,alignItems:'center',justifyContent:'center'},
  myQrFrame:{width:154,height:154,borderRadius:24,backgroundColor:'#ebe8f5',alignItems:'center',justifyContent:'center',marginBottom:16,borderWidth:1,borderColor:C.line},
  dotInline:{width:8,height:8,borderRadius:4,backgroundColor:'#6147ad',marginTop:4},
 });

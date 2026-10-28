@@ -105,7 +105,7 @@ function Home({navigation}:any){
        <Text style={styles.heldText}>{money(d.wallet.heldAmountMinor)} əməliyyat üçün rezerv edilib</Text>
       )}
       <View style={styles.actionRow}>
-       {[['Artır','arrow-up','add'],['Çıxar','arrow-down','card-transfer'],['Köçür','swap-horizontal','send']].map(([label,icon,sheet],i)=>(
+       {[['Artır','arrow-up','add'],['Köçür','swap-horizontal','send-menu']].map(([label,icon,sheet],i)=>(
         <React.Fragment key={sheet}>
          {i>0&&<View style={styles.actionDivider}/>}
          <Pressable accessibilityRole="button" accessibilityLabel={label} onPress={()=>a.open(sheet)} style={styles.action}>
@@ -121,7 +121,7 @@ function Home({navigation}:any){
     <View style={styles.homeBody}>
      <Text style={styles.sectionTitle}>Son köçürmələr</Text>
      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{gap:16,paddingRight:12}} style={{marginTop:14}}>
-      <Pressable accessibilityRole="button" accessibilityLabel="Yeni köçürmə" onPress={()=>a.open('send')} style={styles.person}>
+      <Pressable accessibilityRole="button" accessibilityLabel="Yeni köçürmə" onPress={()=>a.open('send-menu')} style={styles.person}>
        <View style={styles.addCircle}><Icon name="add" size={28} color={C.primary}/></View>
        <Text style={styles.personName}>Əlavə et</Text>
       </Pressable>
@@ -170,7 +170,7 @@ function Payments(){
    </Text>
 
    <View style={{flexDirection:'row',gap:10}}>
-    <View style={{flex:1}}><Button title="Pul göndər" icon="arrow-up" onPress={()=>a.open('send')}/></View>
+    <View style={{flex:1}}><Button title="Pul göndər" icon="arrow-up" onPress={()=>a.open('send-menu')}/></View>
     <View style={{flex:1}}><Button title="Pul istə" secondary icon="arrow-down" onPress={()=>a.open('request')}/></View>
    </View>
    <View style={{flexDirection:'row',gap:10}}>
@@ -788,7 +788,7 @@ function MoreTab({navigation}:any){
  return (
   <Page title="Daha çox">
    <View style={styles.moreGroup}>
-    <MoreRow {...P} icon="swap-horizontal" label="Pul köçür" onPress={()=>a.open('send')}/>
+    <MoreRow {...P} icon="swap-horizontal" label="Pul köçür" onPress={()=>a.open('send-menu')}/>
     <MoreRow {...B} icon="arrow-down" label="Pul istə" onPress={()=>a.open('request')}/>
     <MoreRow {...G} icon="arrow-up" label="Balansı artır" onPress={()=>a.open('add')}/>
     <MoreRow {...R} icon="card-outline" label="Karta çıxar" onPress={()=>a.open('card-transfer')}/>

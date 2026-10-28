@@ -104,6 +104,7 @@ export function errorLook(message:string):ErrorLook{
  if(has(/OVERDUE|BNPL|LOAN|DEBT/))return {icon:'receipt-outline',title:'Borc məhdudiyyəti',tone:'warn'};
  if(has(/FEATURE_DISABLED|UNAVAILABLE|NOT_IMPLEMENTED|SIMULATOR/))return {icon:'construct-outline',title:'Xidmət əlçatmazdır',tone:'warn'};
  if(has(/INVALID|REQUIRED|MISMATCH|CATEGORY|AMOUNT/))return {icon:'create-outline',title:'Məlumat düzgün deyil',tone:'info'};
+ if(/seçimini istifadə et/.test(message))return {icon:'swap-horizontal-outline',title:'Başqa üsul seç',tone:'info'};
  if(/Məbləğ|nömrə|daxil edin/i.test(message))return {icon:'create-outline',title:'Məlumat düzgün deyil',tone:'info'};
  return {icon:'alert-circle-outline',title:'Xəta baş verdi',tone:'danger'};
 }

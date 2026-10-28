@@ -1,34 +1,13 @@
 import React,{useState} from 'react';
-import {View,Pressable,StyleSheet,Share,TextInput} from 'react-native';
+import {View,Pressable,StyleSheet,Share} from 'react-native';
 import {LinearGradient} from 'expo-linear-gradient';
 import {toQR} from 'toqr';
 import {Text} from './text';
 import {C,S,useApp,linkedCards,Icon,Button,Field,Badge,Box} from './ui';
 import {minor,money,Row} from './api';
+import {luhn,groupCard,MiniCard,BigAmount} from './CardUi';
 
-const luhn=(n:string)=>{
- let sum=0,dbl=false;
- for(let i=n.length-1;i>=0;i--){let d=Number(n[i]);if(dbl){d*=2;if(d>9)d-=9;}sum+=d;dbl=!dbl;}
- return sum%10===0;
-};
-const groupCard=(raw:string)=>raw.replace(/\D/g,'').slice(0,16).replace(/(\d{4})(?=\d)/g,'$1 ');
 const formatExpiry=(raw:string)=>{const d=raw.replace(/\D/g,'').slice(0,4);return d.length>2?d.slice(0,2)+'/'+d.slice(2):d;};
-
-const cleanAmount=(raw:string)=>{
- const v=raw.replace(',','.').replace(/[^\d.]/g,'');
- const [whole,...rest]=v.split('.');
- return rest.length?whole.slice(0,5)+'.'+rest.join('').slice(0,2):whole.slice(0,5);
-};
-
-/** Small card mark for the lists: brand colour with the network name. */
-function MiniCard({brand}:{brand?:string}){
- const mc=brand==='Mastercard';
- return (
-  <View style={[st.mini,{backgroundColor:mc?'#e03a3e':'#2a0a8a'}]}>
-   <Text style={{color:'white',fontSize:10,fontWeight:'800',fontStyle:'italic'}}>{mc?'MC':'VISA'}</Text>
-  </View>
- );
-}
 
 const QR_INK='#2a0a8a';
 
@@ -189,22 +168,7 @@ export function TopUpFlow({close}:{close:()=>void}){
   return (
    <>
     {back}
-    <View style={st.amountWrap}>
-     <View style={st.amountLine}>
-      <TextInput
-       accessibilityLabel="Məbləğ"
-       value={amount}
-       onChangeText={t=>setAmount(cleanAmount(t))}
-       placeholder="0"
-       placeholderTextColor="#c9c4dc"
-       keyboardType="decimal-pad"
-       autoFocus
-       style={[st.amountInput,{width:Math.max(1,amount.length||1)*34+8}]}
-      />
-      <Text style={st.amountUnit}>₼</Text>
-     </View>
-     <Text style={st.amountHint}>Komissiyasız</Text>
-    </View>
+    <BigAmount value={amount} onChange={setAmount} hint="Komissiyasız"/>
     <Pressable accessibilityRole="button" accessibilityLabel="Kartı dəyiş" onPress={()=>setView('home')} style={st.pickedRow}>
      <MiniCard brand={current.brand}/>
      <View style={{flex:1}}>
@@ -280,13 +244,7 @@ const st=StyleSheet.create({
 
  section:{fontSize:13,fontWeight:'700',color:C.muted,marginBottom:10},
  cardRow:{flexDirection:'row',alignItems:'center',gap:14,backgroundColor:'#f4f3f7',borderRadius:20,padding:14,minHeight:72},
- mini:{width:64,height:44,borderRadius:9,alignItems:'center',justifyContent:'center'},
  newCardIcon:{width:64,height:44,borderRadius:9,backgroundColor:'#e6e4ec',alignItems:'center',justifyContent:'center'},
  dots:{width:34,height:34,borderRadius:17,backgroundColor:'#e6e4ec',alignItems:'center',justifyContent:'center'},
- amountWrap:{alignItems:'center',paddingTop:36,paddingBottom:44},
- amountLine:{flexDirection:'row',alignItems:'center',justifyContent:'center',gap:6},
- amountInput:{fontSize:56,fontWeight:'800',color:C.ink,textAlign:'center',padding:0,minWidth:40,outlineStyle:'none' as any},
- amountUnit:{fontSize:40,fontWeight:'800',color:C.muted},
- amountHint:{fontSize:13,color:C.muted,marginTop:8},
  pickedRow:{flexDirection:'row',alignItems:'center',gap:14,backgroundColor:'#f4f3f7',borderRadius:20,padding:14,minHeight:72,marginBottom:12}
 });
