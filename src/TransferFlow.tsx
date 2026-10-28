@@ -54,6 +54,7 @@ export function TransferFlow({mode='AUTO',initialPhone,hidden,close}:{mode?:'AUT
   [failure,setFailure]=useState(''),
   [source,setSource]=useState('WALLET'),
   [recipientToken,setRecipientToken]=useState(''),
+  [simPort,setSimPort]=useState(''),
   [count,setCount]=useState(5);
 
  const external=(p:string)=>FIN.test(p)||/^\+99455/.test(p);
@@ -94,6 +95,14 @@ export function TransferFlow({mode='AUTO',initialPhone,hidden,close}:{mode?:'AUT
   return()=>{cancelled=true;};
  // eslint-disable-next-line react-hooks/exhaustive-deps
  },[resolveRecipient,recipientPhone]);
+
+ // where the partner simulator's pages are served, known before the button is pressed so the browser does not block the new tab
+ const aniPay=result?.channel==='ANIPAY';
+ const askSim=a.call;
+ useEffect(()=>{
+  if(!aniPay)return;
+  askSim('anipay/bank-app').then(r=>setSimPort(r.simPort||'')).catch(()=>{});
+ },[aniPay,askSim]);
 
  // the 5-second cancel window of a scheduled transfer
  useEffect(()=>{
@@ -345,7 +354,7 @@ export function TransferFlow({mode='AUTO',initialPhone,hidden,close}:{mode?:'AUT
        )}
        {live?.channel==='ANIPAY'&&live.status!=='REFUNDED'&&live.status!=='COMPLETED'&&(
         <View style={{alignSelf:'stretch',marginBottom:10}}>
-         <Button title="Bank proqramını aç (simulyasiya)" secondary icon="open-outline" onPress={()=>{void Linking.openURL(simAppUrl(a.base));}}/>
+         <Button title="Bank proqramını aç (simulyasiya)" secondary icon="open-outline" onPress={()=>{void Linking.openURL(simAppUrl(a.base,simPort));}}/>
         </View>
        )}
        {result?.status==='SCHEDULED'&&count>0&&(
