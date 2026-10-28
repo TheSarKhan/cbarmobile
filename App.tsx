@@ -10,6 +10,7 @@ import {NavigationContainer,createNavigationContainerRef,useFocusEffect,useIsFoc
 import {createBottomTabNavigator} from '@react-navigation/bottom-tabs';
 import {LinearGradient} from 'expo-linear-gradient';
 import {CameraView,useCameraPermissions} from 'expo-camera';
+import './src/qrWasm';
 import {C,S,ILLUSTRATIONS,Avatar,BackBar,ErrorPopup,fmtDate,fmtDateTime,cardLabel,linkedCards,AppContextType,Context,useApp,statusLabel,statusTone,Icon,Button,Field,Check,Badge,Box,Empty,Sheet,Tx,EXPENSE_CATEGORIES} from './src/ui';
 import {Operations} from './src/OperationsSheet';
 import AuthFlow from './src/AuthFlow';
