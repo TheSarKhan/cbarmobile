@@ -343,8 +343,7 @@ function QrTab(){
   [manualOpen,setManualOpen]=useState(false),
   [permission,askPermission]=useCameraPermissions(),
   [funding,setFunding]=useState('WALLET'),
-  [amount,setAmount]=useState('15'),
-  [risk,setRisk]=useState(false);
+  [amount,setAmount]=useState('15');
 
  const [enterAnim]=useState(()=>new Animated.Value(0));
  const scanLock=useRef(false),scanFailed=useRef(false);
@@ -426,7 +425,7 @@ function QrTab(){
 
      <Text style={S.label}>Ödəniş mənbəyi</Text>
      <View style={{flexDirection:'row',gap:8,marginBottom:16,flexWrap:'wrap'}}>
-      {[['WALLET','Balans'],['BNPL','Sonra ödə'],...(a.data.cryptoEnabled?[['CRYPTO','USDT · Pilot']]:[]),...linkedCards(a.data).map((x:Row)=>['CARD:'+x.id,cardLabel(x)])].map(([id,label])=>(
+      {[['WALLET','Balans'],['BNPL','Sonra ödə'],...linkedCards(a.data).map((x:Row)=>['CARD:'+x.id,cardLabel(x)])].map(([id,label])=>(
        <Pressable
         key={id}
         accessibilityRole="button"
@@ -458,17 +457,9 @@ function QrTab(){
        30 günə qaytar · faiz və komissiya 0% · mövcud limit {money(a.data.bnplAvailableMinor)}
       </Text>
      )}
-     {funding==='CRYPTO'&&(
-      <Check
-       value={risk}
-       onChange={setRisk}
-       text="Demo kripto risk xəbərdarlığını qəbul edirəm. USDT satılır, satıcı AZN alır."
-      />
-     )}
-
      <Button
       title="Ödənişi təsdiqlə"
-      disabled={a.busy||(funding==='CRYPTO'&&!risk)}
+      disabled={a.busy}
       onPress={()=>run(async()=>{
        try{
         const paid=await a.act('payments/qr',{
@@ -476,8 +467,7 @@ function QrTab(){
          paymentToken:qr.paymentToken,
          amountMinor:effectiveMinor,
          fundingSource:funding.startsWith('CARD:')?'BANK_CARD':funding,
-         ...(funding.startsWith('CARD:')?{accountId:funding.slice(5)}:{}),
-         ...(funding==='CRYPTO'?{riskAccepted:risk}:{})
+         ...(funding.startsWith('CARD:')?{accountId:funding.slice(5)}:{})
         });
         setQrPaid(paid);
        }catch(e){
@@ -762,7 +752,6 @@ function MoreTab({navigation}:any){
     <MoreRow {...P} icon="pie-chart-outline" label="Analitika və büdcə" sub="Proqnoz, abunəliklər, qeyri-adi ödənişlər" onPress={()=>navigation.navigate('Analytics')}/>
     <MoreRow {...B} icon="business-outline" label="Digər banklar" sub={banks>0?`${banks} bank bağlı · ${money(d.openBanking?.totalBalanceMinor||0)}`:'Kartlarını və xərclərini bir yerdə izlə'} onPress={()=>a.open('banks-hub')}/>
     <MoreRow {...G} icon="school-outline" label="Sonra ödə və kredit" sub={`0% BNPL · ${money(d.bnplAvailableMinor)}`} onPress={()=>a.open('credit-hub')}/>
-    <MoreRow {...Y} icon="diamond-outline" label="Kripto cüzdanı (Pilot)" onPress={()=>a.open('crypto-hub')}/>
     <MoreRow {...B} icon="qr-code-outline" label="Mənim QR kodum" onPress={()=>a.open('my-qr')} last/>
    </View>
    <View style={styles.moreGroup}>
@@ -1167,7 +1156,7 @@ export default function App(){
    if(path==='account/delete'){storage.remove('lastUser').catch(()=>{});logout();return result;}
    await refresh();
    if(path.startsWith('open-banking/')||path.endsWith('/category'))await loadExternal();
-   if(!path.endsWith('/parse')&&!path.endsWith('/read')&&path!=='crypto/quotes')
+   if(!path.endsWith('/parse')&&!path.endsWith('/read')&&true)
     setMessage(path==='transfers'?'Köçürmə yaradıldı. Statusu ödənişlərdə izlə.':'Əməliyyat uğurla tamamlandı.');
    return result;
   }catch(e){
@@ -1311,7 +1300,7 @@ export default function App(){
        {sca?.body.phone&&<Text style={[S.muted,{marginTop:8}]}>Alan: {sca.body.phone}</Text>}
        {sca?.body.fundingSource&&(
         <Text style={[S.muted,{marginTop:8}]}>
-         Ödəniş: {({BNPL:'Sonra ödə',WALLET:'Kampus balansı',CRYPTO:'USDT · Pilot',BANK_CARD:'Bank kartı'} as any)[sca.body.fundingSource]}
+         Ödəniş: {({BNPL:'Sonra ödə',WALLET:'Kampus balansı',BANK_CARD:'Bank kartı'} as any)[sca.body.fundingSource]}
         </Text>
        )}
        {sca?.path.includes('loan-offers/')&&(

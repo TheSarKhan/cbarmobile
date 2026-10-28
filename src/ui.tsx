@@ -175,10 +175,6 @@ export function BackBar({onBack,title,right}:{onBack:()=>void;title?:string;righ
 
 export const CARD_IMAGES={
  credit:require('../assets/cards/credit-cash.jpg'),
- btc:require('../assets/cards/btc-topup.jpg'),
- btcHero:require('../assets/cards/btc-hero-banner.jpg'),
- btcLightning:require('../assets/cards/btc-lightning.jpg'),
- btcOnchain:require('../assets/cards/btc-onchain.jpg'),
  topupCard:require('../assets/cards/topup-card.jpg'),
  topupBank:require('../assets/cards/topup-bank.jpg'),
  topupTerminal:require('../assets/cards/topup-terminal.jpg'),
@@ -436,7 +432,7 @@ export function Tx({t,onPress}:{t:Row;onPress?:()=>void}){
    ):(
     <View style={[S.tile,isIn&&{backgroundColor:'#dcf3e4'}]}>
      <Icon
-      name={t.type==='QR'?'cafe-outline':t.type==='CRYPTO'?'logo-bitcoin':isIn?'arrow-down-outline':'arrow-up-outline'}
+      name={t.type==='QR'?'cafe-outline':isIn?'arrow-down-outline':'arrow-up-outline'}
       color={isIn?C.green:C.primary}
       size={19}
      />

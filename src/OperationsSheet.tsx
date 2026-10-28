@@ -3,7 +3,7 @@ import {View,Pressable,StyleSheet,ActivityIndicator,Animated,Easing,Image} from 
 import {Text} from './text';
 import {C,S,CARD_IMAGES,useApp,fmtDate,fmtDateTime,statusLabel,statusTone,Icon,Button,Field,Check,Badge,Box,Empty,Sheet,Tx,EXPENSE_CATEGORIES} from './ui';
 import {CardTransferForm} from './CardTransferSheet';
-import {CreditSection,CryptoSection} from './HubSections';
+import {CreditSection} from './HubSections';
 import {BanksSection} from './BanksSection';
 import {TransferFlow} from './TransferFlow';
 import {LinkBankFlow} from './LinkBankFlow';
@@ -16,9 +16,7 @@ export function Operations({sheet,close,hidden=false}:{sheet:string;close:()=>vo
  const [amount,setAmount]=useState(''),
   [phone,setPhone]=useState(sheet.startsWith('send:')?sheet.split(':')[1]:'+994501000002'),
   [note,setNote]=useState(''),
-  [source,setSource]=useState(sheet==='add:BITCOIN'?'BITCOIN':''),
-  [btcNet,setBtcNet]=useState<'LIGHTNING'|'ONCHAIN'>('LIGHTNING'),
-  [copied,setCopied]=useState(false),
+  [source,setSource]=useState(''),
   [selCard,setSelCard]=useState('KAPITAL'),
   [selAcc,setSelAcc]=useState(''),
   [termCode,setTermCode]=useState<Row|null>(null),
@@ -49,7 +47,6 @@ export function Operations({sheet,close,hidden=false}:{sheet:string;close:()=>vo
  const addTitles:Record<string,string>={
   '':'Balans artımı',
   CARD:'Bank kartı ilə artım',
-  BITCOIN:'Bitcoin ilə artım',
   OPEN_BANKING:'Bank kartından artım',
   TERMINAL:'Ödəniş terminalı'
  };
@@ -67,7 +64,6 @@ export function Operations({sheet,close,hidden=false}:{sheet:string;close:()=>vo
   'split-view':'Hesabın irəliləyişi',
   schedule:'Ödəniş qrafiki',
   'credit-hub':'Sonra ödə və Kredit',
-  'crypto-hub':'Kripto cüzdanı (Pilot)',
   help:'Kömək',
   contact:'Bizimlə əlaqə',
   about:'Kampus haqqında'
@@ -95,11 +91,6 @@ export function Operations({sheet,close,hidden=false}:{sheet:string;close:()=>vo
  },[a,kind,paramId,a.data.transactions?.length]);
 
  const parsedAzn=Math.max(0,Number(amount.replace(',','.'))||0);
- const btcVal=parsedAzn/115000;
- const satsVal=Math.round(btcVal*100_000_000);
- const btcAddress=btcNet==='LIGHTNING'
-  ?'lnbc1kampus'+String(a.data.user?.id||'u1').toLowerCase()+'p994azn'
-  :'bc1qkampus'+String(a.data.user?.id||'u1').toLowerCase()+'segwit994';
 
  const txItem=kind==='tx-detail'?[...(a.data.transactions||[]),...(a.external||[])].find((x:Row)=>String(x.id)===paramId):null;
 
@@ -110,7 +101,6 @@ export function Operations({sheet,close,hidden=false}:{sheet:string;close:()=>vo
   <Sheet title={title[kind]||'Kampus'} visible={!!sheet&&(!hidden||kind==='card-transfer')} onClose={close}>
    {kind==='card-transfer'&&<CardTransferForm {...a}/>}
    {kind==='credit-hub'&&<CreditSection/>}
-   {kind==='crypto-hub'&&<CryptoSection/>}
    {kind==='banks-hub'&&<BanksSection/>}
 
    {kind==='help'&&(
@@ -171,7 +161,7 @@ export function Operations({sheet,close,hidden=false}:{sheet:string;close:()=>vo
       <Box style={{alignItems:'center',paddingVertical:22}}>
        <View style={[S.tile,{width:56,height:56,borderRadius:20,backgroundColor:txItem.direction==='IN'?'#ded6f5':'#e9e5f3',marginBottom:12}]}>
         <Icon
-         name={txItem.source==='OPEN_BANKING'?'business-outline':txItem.type==='QR'?'cafe-outline':txItem.type==='CRYPTO'?'logo-bitcoin':txItem.direction==='IN'?'arrow-down-outline':'arrow-up-outline'}
+         name={txItem.source==='OPEN_BANKING'?'business-outline':txItem.type==='QR'?'cafe-outline':txItem.direction==='IN'?'arrow-down-outline':'arrow-up-outline'}
          color={txItem.direction==='IN'?C.green:C.ink}
          size={26}
         />
@@ -253,16 +243,6 @@ export function Operations({sheet,close,hidden=false}:{sheet:string;close:()=>vo
           <Image source={CARD_IMAGES.topupCard} style={os.topupMethodImg} resizeMode="cover"/>
          </Pressable>
 
-         <Pressable accessibilityRole="button" onPress={()=>switchSource('BITCOIN')} style={os.topupMethodCard}>
-          <View style={{zIndex:2}}>
-           <Text style={os.topupMethodTitle}>Bitcoin</Text>
-           <Text style={os.topupMethodSub}>BTC → AZN · Prototip</Text>
-          </View>
-          <Image source={CARD_IMAGES.btc} style={os.topupMethodImg} resizeMode="cover"/>
-         </Pressable>
-        </View>
-
-        <View style={os.bentoRow}>
          <Pressable accessibilityRole="button" onPress={()=>switchSource('OPEN_BANKING')} style={os.topupMethodCard}>
           <View style={{zIndex:2}}>
            <Text style={os.topupMethodTitle}>Bağlı kart</Text>
@@ -270,7 +250,9 @@ export function Operations({sheet,close,hidden=false}:{sheet:string;close:()=>vo
           </View>
           <Image source={CARD_IMAGES.topupBank} style={os.topupMethodImg} resizeMode="cover"/>
          </Pressable>
+        </View>
 
+        <View style={os.bentoRow}>
          <Pressable accessibilityRole="button" onPress={()=>switchSource('TERMINAL')} style={os.topupMethodCard}>
           <View style={{zIndex:2}}>
            <Text style={os.topupMethodTitle}>Terminal</Text>
@@ -346,99 +328,6 @@ export function Operations({sheet,close,hidden=false}:{sheet:string;close:()=>vo
           disabled={a.busy||parsedAzn<=0}
           icon="arrow-forward"
           onPress={()=>run(async()=>{await a.act('topups',{amountMinor:minor(amount),source:'CARD'});close();})}
-         />
-        </>
-       )}
-
-       {source==='BITCOIN'&&(
-        <>
-         <Box>
-          <Badge text="BTC EKRANI · PROTOTİP"/>
-          <Text style={[S.muted,{marginTop:10}]}>Bitcoin ünvanı və invoice bu ekranda nümunədir. Balans artırmaq üçün işlək USDT pilotuna keç.</Text>
-         </Box>
-         <View style={os.btcHeroCard}>
-          <Image source={CARD_IMAGES.btcHero} style={os.btcHeroImg} resizeMode="cover"/>
-          <View style={os.btcHeroBody}>
-           <Text style={os.btcHeroTitle}>Bitcoin göndər, AZN olaraq xərclə</Text>
-           <Text style={os.btcHeroSub}>
-            1 BTC = 115 000 ₼ · Köçürdüyün BTC avtomatik AZN-ə çevrilir və dərhal balansına əlavə olunur.
-           </Text>
-          </View>
-         </View>
-
-         <Text style={S.label}>Şəbəkə</Text>
-         <View style={{flexDirection:'row',gap:10,marginBottom:18}}>
-          <Pressable
-           accessibilityRole="button"
-           onPress={()=>{setBtcNet('LIGHTNING');setCopied(false);}}
-           style={[os.btcNetCard,btcNet==='LIGHTNING'&&os.btcNetCardActive]}
-          >
-           <Image source={CARD_IMAGES.btcLightning} style={os.btcNetIcon} resizeMode="cover"/>
-           <View style={{flex:1}}>
-            <Text style={{fontSize:13,fontWeight:'700',color:C.ink}}>Lightning</Text>
-            <Text style={{fontSize:10,color:C.muted,marginTop:2}}>Ani · Rüsumsuz</Text>
-           </View>
-           <Icon name={btcNet==='LIGHTNING'?'checkmark-circle':'ellipse-outline'} size={18} color={btcNet==='LIGHTNING'?C.ink:C.muted}/>
-          </Pressable>
-
-          <Pressable
-           accessibilityRole="button"
-           onPress={()=>{setBtcNet('ONCHAIN');setCopied(false);}}
-           style={[os.btcNetCard,btcNet==='ONCHAIN'&&os.btcNetCardActive]}
-          >
-           <Image source={CARD_IMAGES.btcOnchain} style={os.btcNetIcon} resizeMode="cover"/>
-           <View style={{flex:1}}>
-            <Text style={{fontSize:13,fontWeight:'700',color:C.ink}}>SegWit</Text>
-            <Text style={{fontSize:10,color:C.muted,marginTop:2}}>bc1q · On-Chain</Text>
-           </View>
-           <Icon name={btcNet==='ONCHAIN'?'checkmark-circle':'ellipse-outline'} size={18} color={btcNet==='ONCHAIN'?C.ink:C.muted}/>
-          </Pressable>
-         </View>
-
-         <Field label="Məbləğ · AZN" value={amount} onChange={setAmount} numeric/>
-
-         <View style={os.btcConvertCard}>
-          <View style={{flex:1}}>
-           <Text style={{fontSize:11,color:C.muted,fontWeight:'500'}}>Balansa oturacaq</Text>
-           <Text style={{fontSize:22,fontWeight:'800',color:C.ink,marginTop:4}}>{parsedAzn.toFixed(2)} ₼</Text>
-          </View>
-          <View style={os.btcSwapCircle}>
-           <Icon name="swap-horizontal" size={18} color={C.ink}/>
-          </View>
-          <View style={{flex:1,alignItems:'flex-end'}}>
-           <Text style={{fontSize:11,color:C.muted,fontWeight:'500'}}>Ödəniləcək BTC</Text>
-           <Text style={{fontSize:18,fontWeight:'800',color:C.ink,marginTop:4}}>{btcVal.toFixed(6)} ₿</Text>
-           <Text style={{fontSize:10,color:C.muted,marginTop:2}}>≈ {satsVal.toLocaleString('az-AZ')} satoshi</Text>
-          </View>
-         </View>
-
-         <View style={os.btcAddrCard}>
-          <View style={os.btcMiniQr}>
-           <Icon name="qr-code-outline" size={34} color={C.ink}/>
-          </View>
-          <View style={{flex:1}}>
-           <Text style={{fontSize:11,fontWeight:'600',color:C.muted}}>
-            {btcNet==='LIGHTNING'?'Lightning invoys ünvanı':'SegWit depozit ünvanı'}
-           </Text>
-           <Text numberOfLines={1} style={{fontSize:12,fontWeight:'700',color:C.ink,marginTop:3}}>
-            {btcAddress}
-           </Text>
-          </View>
-          <Pressable
-           accessibilityRole="button"
-           accessibilityLabel="Ünvanı kopyala"
-           onPress={()=>{setCopied(true);setTimeout(()=>setCopied(false),2500);}}
-           style={os.btcCopyIconBtn}
-          >
-           <Icon name={copied?'checkmark':'copy-outline'} size={18} color={C.ink}/>
-          </Pressable>
-         </View>
-
-         <Button
-          title="USDT pilotuna keç"
-          disabled={a.busy||parsedAzn<=0}
-          icon="logo-bitcoin"
-          onPress={()=>a.open('crypto-hub')}
          />
         </>
        )}
@@ -819,19 +708,6 @@ const os=StyleSheet.create({
  selectRowCard:{flexDirection:'row',alignItems:'center',gap:12,backgroundColor:'#FFFFFF',borderRadius:18,padding:14,minHeight:64,borderWidth:1.5,borderColor:C.line},
  selectRowCardActive:{borderColor:C.ink,backgroundColor:'#ede9f8'},
  selectRowIcon:{width:40,height:40,borderRadius:13,backgroundColor:'#ebe8f5',alignItems:'center',justifyContent:'center'},
- btcHeroCard:{backgroundColor:'#2a0a8a',borderRadius:22,overflow:'hidden',marginBottom:18,borderWidth:1,borderColor:'#2e234e'},
- btcHeroImg:{width:'100%',height:122},
- btcHeroBody:{padding:16,paddingTop:14},
- btcHeroTitle:{fontSize:16,fontWeight:'800',color:'#FFFFFF',letterSpacing:-0.3},
- btcHeroSub:{fontSize:11,color:'#bcb5d2',lineHeight:16,marginTop:4},
- btcNetCard:{flex:1,flexDirection:'row',alignItems:'center',gap:10,backgroundColor:'#FFFFFF',borderRadius:18,padding:11,minHeight:60,borderWidth:1.5,borderColor:C.line},
- btcNetCardActive:{borderColor:C.ink,backgroundColor:'#ede9f8'},
- btcNetIcon:{width:42,height:42,borderRadius:12},
- btcConvertCard:{flexDirection:'row',alignItems:'center',justifyContent:'space-between',backgroundColor:'#FFFFFF',borderRadius:18,padding:16,marginBottom:14,borderWidth:1,borderColor:C.line},
- btcSwapCircle:{width:36,height:36,borderRadius:18,backgroundColor:C.lime,alignItems:'center',justifyContent:'center',marginHorizontal:8},
- btcAddrCard:{flexDirection:'row',alignItems:'center',gap:12,backgroundColor:'#ebe8f5',borderRadius:18,padding:14,marginBottom:18,borderWidth:1,borderColor:C.line},
- btcMiniQr:{width:50,height:50,borderRadius:14,backgroundColor:'#FFFFFF',alignItems:'center',justifyContent:'center',borderWidth:1,borderColor:C.line},
- btcCopyIconBtn:{width:48,height:48,borderRadius:14,backgroundColor:'#FFFFFF',alignItems:'center',justifyContent:'center',borderWidth:1,borderColor:C.line},
  terminalStepsBox:{backgroundColor:'#FFFFFF',borderRadius:18,padding:16,gap:12,marginBottom:18,borderWidth:1,borderColor:C.line},
  terminalStepRow:{flexDirection:'row',alignItems:'center',gap:12},
  terminalStepNum:{width:26,height:26,borderRadius:9,backgroundColor:C.lime,alignItems:'center',justifyContent:'center'},

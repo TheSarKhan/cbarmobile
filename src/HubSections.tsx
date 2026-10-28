@@ -1,9 +1,9 @@
-import React,{useState,useEffect} from 'react';
-import {View,Pressable,StyleSheet,Image} from 'react-native';
+import React,{useState} from 'react';
+import {View,StyleSheet,Image} from 'react-native';
 import {Text} from './text';
 import {LinearGradient} from 'expo-linear-gradient';
 import {Row,minor,money} from './api';
-import {C,S,CARD_IMAGES,useApp,Icon,Button,Field,Check,Badge,Box,Empty,statusLabel,statusTone} from './ui';
+import {C,S,CARD_IMAGES,useApp,Icon,Button,Field,Check,Badge,Box,statusLabel,statusTone} from './ui';
 
 export function CreditSection(){
  const a=useApp(),d=a.data;
@@ -151,168 +151,6 @@ export function CreditSection(){
  );
 }
 
-export function CryptoSection(){
- const a=useApp(),d=a.data;
- const [portfolio,setPortfolio]=useState<Row|null>(null),
-  [side,setSide]=useState<'BUY'|'SELL'>('BUY'),
-  [amount,setAmount]=useState('20'),
-  [quote,setQuote]=useState<Row|null>(null),
-  [consent,setConsent]=useState(false),
-  [seconds,setSeconds]=useState(0),
-  [depFrom,setDepFrom]=useState('T9yD14Nj9j7xAB4dbGeiX9h8unkKHxuWwb'),
-  [depUsdt,setDepUsdt]=useState('10'),
-  [wdTo,setWdTo]=useState('TN3W4H6rK2ce4vX9YnFQHwKENnHjoxb3m9'),
-  [wdName,setWdName]=useState('Murad Əliyev'),
-  [wdUsdt,setWdUsdt]=useState('5');
-
- useEffect(()=>{
-  if(d.cryptoEnabled)a.call('crypto/portfolio').then(setPortfolio).catch(()=>{});
- },[a,d.cryptoEnabled,d.transactions?.length]);
-
- useEffect(()=>{
-  if(!quote)return;
-  const tick=()=>setSeconds(Math.max(0,Math.ceil((quote.expiresAt-Date.now())/1000)));
-  tick();
-  const id=setInterval(tick,250);
-  return()=>clearInterval(id);
- },[quote]);
-
- if(!d.cryptoEnabled){
-  return (
-   <Box>
-    <Empty
-     text="Kripto pilot (USDT) hazırda söndürülüb. Admin paneldə Sistem ayarları → Kripto pilotu açarı ilə aktivləşdirin."
-     icon="flask-outline"
-    />
-   </Box>
-  );
- }
-
- const usdtBal=portfolio?portfolio.balanceMicro/1e6:0;
-
- return (
-  <>
-   <LinearGradient colors={['#2a0a8a','#32284f']} style={hs.cryptoCard}>
-    <View style={S.between}>
-     <Text style={{color:'white',fontWeight:'700',fontSize:14}}>Tether · USDT (TRC-20)</Text>
-     <Badge text="VASP PİLOT" dark/>
-    </View>
-    <Text style={hs.cryptoBal}>
-     {portfolio?new Intl.NumberFormat('az-AZ',{maximumFractionDigits:6}).format(usdtBal):'…'} USDT
-    </Text>
-    <Text style={{color:'#b6afcd',fontSize:11,marginTop:6}}>
-     Təxmini dəyər: ≈ {money(Math.round(usdtBal*170))} · Ünvan: TKampus{String(d.user?.id||'U1').toUpperCase()}Demo994
-    </Text>
-   </LinearGradient>
-
-   <Box>
-    <Text style={[S.h3,{marginBottom:12}]}>USDT Al və ya Sat</Text>
-    <View style={hs.segmentWrap}>
-     {([['BUY','USDT Al (AZN → USDT)'],['SELL','USDT Sat (USDT → AZN)']] as const).map(([id,label])=>(
-      <Pressable
-       key={id}
-       accessibilityRole="button"
-       onPress={()=>{setSide(id);setQuote(null);}}
-       style={[hs.segment,side===id&&hs.segmentActive]}
-      >
-       <Text style={{fontSize:12,fontWeight:'700',color:C.ink}}>{label}</Text>
-      </Pressable>
-     ))}
-    </View>
-
-    <Field label="Məbləğ · AZN" value={amount} onChange={v=>{setAmount(v);setQuote(null);}} numeric/>
-    <Check value={consent} onChange={setConsent} text="Demo kripto risk xəbərdarlığını qəbul edirəm."/>
-
-    {quote&&(
-     <Box style={{backgroundColor:'#ede9f8',borderColor:'#c1b6e2'}}>
-      <View style={[S.between,{marginBottom:8}]}>
-       <Text style={S.label}>MƏZƏNNƏ TƏKLİFİ (QUOTE)</Text>
-       <Badge text={seconds>0?`${seconds} san aktivdir`:'Müddəti bitdi'} tone={seconds>0?'success':'danger'}/>
-      </View>
-      <View style={[S.between,{marginBottom:6}]}>
-       <Text style={S.muted}>{side==='BUY'?'Alınacaq USDT':'Satılacaq USDT'}</Text>
-       <Text style={S.h3}>
-        {new Intl.NumberFormat('az-AZ',{maximumFractionDigits:6}).format((quote.cryptoAmountMicro||quote.usdtMicro||0)/1e6)} USDT
-       </Text>
-      </View>
-      <View style={[S.between,{marginBottom:6}]}>
-       <Text style={S.muted}>Məbləğ (AZN)</Text>
-       <Text style={S.h3}>{money(quote.aznAmountMinor)}</Text>
-      </View>
-      {quote.feeMinor!==undefined&&(
-       <View style={S.between}>
-        <Text style={S.muted}>Xidmət haqqı</Text>
-        <Text style={S.muted}>{money(quote.feeMinor)}</Text>
-       </View>
-      )}
-     </Box>
-    )}
-
-    {!quote?(
-     <Button
-      title="30 saniyəlik məzənnə al"
-      icon="analytics-outline"
-      disabled={a.busy||!consent}
-      onPress={()=>a.act('crypto/quotes',{amountMinor:minor(amount),asset:'USDT',side}).then(setQuote).catch(()=>{})}
-     />
-    ):(
-     <Button
-      title={seconds>0?(side==='BUY'?'Alışı təsdiqlə':'Satışı təsdiqlə'):'Məzənnəni yenilə'}
-      icon={seconds>0?'checkmark-circle-outline':'refresh-outline'}
-      disabled={a.busy||!consent}
-      onPress={()=>{
-       if(seconds===0){setQuote(null);return;}
-       a.act('crypto/orders',{quoteId:quote.id,riskAccepted:consent,amountMinor:quote.aznAmountMinor}).then(async()=>{
-        setQuote(null);
-        setPortfolio(await a.call('crypto/portfolio'));
-       }).catch(()=>{});
-      }}
-     />
-    )}
-   </Box>
-
-   <Box>
-    <Text style={[S.h3,{marginBottom:4}]}>TRC-20 Depozit və Çıxarış</Text>
-    <Text style={[S.muted,{marginBottom:12}]}>
-     Xarici TRC-20 ünvanından mock depozit qəbul edin və ya Travel Rule məlumatları ilə çıxarış edin.
-    </Text>
-    <Field label="Göndərən TRC-20 ünvanı" value={depFrom} onChange={setDepFrom}/>
-    <Field label="Depozit · USDT" value={depUsdt} onChange={setDepUsdt} numeric/>
-    <View style={{flexDirection:'row',gap:8}}>
-     <View style={{flex:1}}>
-      <Button
-       title="Depozit et"
-       disabled={a.busy}
-       onPress={()=>a.act('crypto/deposits',{amountMicro:Math.round(Number(depUsdt)*1e6),fromAddress:depFrom}).then(async()=>{setPortfolio(await a.call('crypto/portfolio'));}).catch(()=>{})}
-      />
-     </View>
-     <View style={{flex:1}}>
-      <Button
-       title="AML Sanksiya Testi"
-       secondary
-       disabled={a.busy}
-       onPress={()=>a.act('crypto/deposits',{amountMicro:Math.round(Number(depUsdt)*1e6),fromAddress:'TBLACKLIST999SANCTION'}).catch(()=>{})}
-      />
-     </View>
-    </View>
-
-    <View style={S.line}/>
-
-    <Field label="Alıcı TRC-20 ünvanı" value={wdTo} onChange={setWdTo}/>
-    <Field label="Alıcının tam adı (Travel Rule)" value={wdName} onChange={setWdName}/>
-    <Field label="Çıxarış · USDT" value={wdUsdt} onChange={setWdUsdt} numeric/>
-    <Button
-     title="PIN ilə USDT çıxar"
-     secondary
-     icon="arrow-up-outline"
-     disabled={a.busy}
-     onPress={()=>a.act('crypto/withdrawals',{amountMicro:Math.round(Number(wdUsdt)*1e6),toAddress:wdTo,beneficiaryName:wdName}).then(async()=>{setPortfolio(await a.call('crypto/portfolio'));}).catch(()=>{})}
-    />
-   </Box>
-  </>
- );
-}
-
 const hs=StyleSheet.create({
  heroRow:{flexDirection:'row',alignItems:'center',backgroundColor:'white',borderRadius:20,padding:15,marginBottom:16,borderWidth:1,borderColor:C.line},
  heroThumb:{width:68,height:68,borderRadius:14},
@@ -327,8 +165,6 @@ const hs=StyleSheet.create({
  offerCell:{width:'48%',backgroundColor:'#eeebf7',borderRadius:12,padding:10},
  offerCellLabel:{fontSize:10,color:C.muted,fontWeight:'600'},
  offerCellVal:{fontSize:13,color:C.ink,fontWeight:'700',marginTop:3},
- cryptoCard:{borderRadius:22,padding:20,marginBottom:16},
- cryptoBal:{fontSize:30,fontWeight:'800',color:'white',letterSpacing:-1,marginTop:12},
  segmentWrap:{flexDirection:'row',backgroundColor:'#e7e3f3',padding:4,borderRadius:13,marginBottom:16},
  segment:{flex:1,minHeight:44,alignItems:'center',justifyContent:'center',paddingHorizontal:8,borderRadius:10},
  segmentActive:{backgroundColor:'white'}
