@@ -460,8 +460,14 @@ export default function AuthFlow({base,device,onAuthenticated,onConfig,onReplayI
    <Screen onBack={back} title="Ad və soyad" subtitle="Vəsiqədəki kimi yaz. Doğum tarixi yaş yoxlaması üçün lazımdır."
     footer={<Cta title="Davam et" disabled={!first.trim()||!last.trim()||!!nameError(first)||!!nameError(last)||!isAdult(birth)} onPress={()=>go('avatar')}/>}>
     <View style={{marginTop:28}}>
-     <Field label="Ad" value={first} onChange={t=>setFirst(t.slice(0,MAX_NAME_LENGTH))} placeholder="Əli" maxLength={MAX_NAME_LENGTH} error={first.length===MAX_NAME_LENGTH?'50 simvol limitinə çatdın.':nameError(first)} eager={/[0-9]/.test(first)||BAD_NAME_CHARS.test(first.trim())||first.length>=MAX_NAME_LENGTH}/>
-     <Field label="Soyad" value={last} onChange={t=>setLast(t.slice(0,MAX_NAME_LENGTH))} placeholder="Vəliyev" maxLength={MAX_NAME_LENGTH} error={last.length===MAX_NAME_LENGTH?'50 simvol limitinə çatdın.':nameError(last)} eager={/[0-9]/.test(last)||BAD_NAME_CHARS.test(last.trim())||last.length>=MAX_NAME_LENGTH}/>
+     <View style={{flexDirection:'row',gap:12,alignItems:'flex-start'}}>
+      <View style={{flex:1}}>
+       <Field label="Ad" value={first} onChange={t=>setFirst(t.slice(0,MAX_NAME_LENGTH))} placeholder="Əli" maxLength={MAX_NAME_LENGTH} error={first.length===MAX_NAME_LENGTH?'50 simvol limitinə çatdın.':nameError(first)} eager={/[0-9]/.test(first)||BAD_NAME_CHARS.test(first.trim())||first.length>=MAX_NAME_LENGTH}/>
+      </View>
+      <View style={{flex:1}}>
+       <Field label="Soyad" value={last} onChange={t=>setLast(t.slice(0,MAX_NAME_LENGTH))} placeholder="Vəliyev" maxLength={MAX_NAME_LENGTH} error={last.length===MAX_NAME_LENGTH?'50 simvol limitinə çatdın.':nameError(last)} eager={/[0-9]/.test(last)||BAD_NAME_CHARS.test(last.trim())||last.length>=MAX_NAME_LENGTH}/>
+      </View>
+     </View>
      <DatePickerField label="Doğum tarixi" value={birth} onChange={setBirth}/>
      {!!birth&&!isAdult(birth)&&<Text style={s.error}>Hesab yalnız 18 yaşdan yuxarı şəxslər üçündür.</Text>}
      <ErrorText text={error} onClose={()=>setError('')}/>
