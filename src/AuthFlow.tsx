@@ -4,11 +4,11 @@ import {Text,TextInput} from './text';
 import {SafeAreaView} from 'react-native-safe-area-context';
 import {ApiError,request,storage} from './api';
 import type {Row} from './api';
-import {Avatar,C,Check,ErrorPopupModal,Field,HeroArt,Icon,ILLUSTRATIONS} from './ui';
+import {Avatar,C,Check,ErrorPopupModal,Field,HeroArt,Icon,ILLUSTRATIONS,S,Sheet} from './ui';
 import DatePickerField,{isAdult} from './DatePickerField';
 import Liveness from './Liveness';
 import PinPad from './PinPad';
-import {ID_PREFIXES,ID_SERIES,MAX_NAME_LENGTH,BAD_NAME_CHARS,seriesPrefix} from './bugRules';
+import {ID_PREFIXES,ID_SERIES,MAX_NAME_LENGTH,BAD_NAME_CHARS} from './bugRules';
 import type {LivenessResult} from './livenessTypes';
 
 // The phone number decides the path: a known number asks for the PIN, a new one walks through registration step by step.
@@ -25,7 +25,6 @@ const ERROR_STEP:Record<string,Step>={
 };
 
 const SERIES=ID_SERIES;
-const SERIES_FORMATS=ID_PREFIXES;
 // The same rules the server applies, shown next to the field while the person types instead of after the last step.
 const nameError=(v:string)=>{
  const t=v.normalize('NFC').trim();
@@ -213,6 +212,11 @@ export default function AuthFlow({base,device,onAuthenticated,onConfig,onReplayI
  const [verified,setVerified]=useState(false);
  const [fin,setFin]=useState('');
  const [series,setSeries]=useState('');
+ const [seriesLetters,setSeriesLetters]=useState<string>('AA');
+ const [prefixOpen,setPrefixOpen]=useState(false);
+ const [seriesTouched,setSeriesTouched]=useState(false);
+ const seriesDigits=series.startsWith(seriesLetters)?series.slice(seriesLetters.length):'';
+ const seriesShown=!!seriesError(series)&&(seriesTouched||seriesDigits.length>=(seriesLetters==='AZE'?8:7));
  const [first,setFirst]=useState('');
  const [last,setLast]=useState('');
  const [birth,setBirth]=useState('');
@@ -422,29 +426,29 @@ export default function AuthFlow({base,device,onAuthenticated,onConfig,onReplayI
     footer={<Cta title="Davam et" disabled={busy||fin.length!==7||!SERIES.test(series)} onPress={()=>run(async()=>{await call('auth/identity/validate',{otpId:otp?.otpId,otp:code,fin,idSeries:series});go('name');})}/>}>
     <View style={{marginTop:28}}>
      <Field label="FİN kod" value={fin} onChange={t=>setFin(t.toUpperCase().replace(/\s/g,'').slice(0,7))} placeholder="7 simvol" error={finError(fin)} eager={/[^A-Z0-9]/.test(fin)}/>
-     <View style={{marginBottom:6}}>
-      <Text style={s.seriesChipsLabel}>Seriya formatları:</Text>
-      <View style={s.seriesChipsRow}>
-       {SERIES_FORMATS.map(prefix=>{
-        const selected=seriesPrefix(series)===prefix;
-        return (
-         <Pressable
-          key={prefix}
-          accessibilityRole="button"
-          accessibilityLabel={`Seriya ${prefix}`}
-          onPress={()=>{
-           const digitsOnly=series.replace(/^[A-Z]+/,'');
-           setSeries(prefix+digitsOnly);
-          }}
-          style={[s.seriesChip,selected&&s.seriesChipActive]}
-         >
-          <Text style={[s.seriesChipText,selected&&s.seriesChipTextActive]}>{prefix}</Text>
-         </Pressable>
-        );
-       })}
+     <Text style={S.label}>ŞV seriyası</Text>
+     <View style={{flexDirection:'row',gap:10,alignItems:'flex-start'}}>
+      <Pressable accessibilityRole="button" accessibilityLabel={`Seriya prefiksi: ${seriesLetters}`} onPress={()=>setPrefixOpen(true)}
+       style={[S.input,{width:112,flexDirection:'row',alignItems:'center',justifyContent:'space-between',paddingRight:12}]}>
+       <Text style={{fontSize:16,fontWeight:'700',color:C.ink}}>{seriesLetters}</Text>
+       <Icon name="chevron-down" size={18} color={C.muted}/>
+      </Pressable>
+      <View style={{flex:1}}>
+       <TextInput accessibilityLabel="ŞV seriyasının rəqəmləri" style={[S.input,seriesShown&&{borderColor:C.red}]} value={seriesDigits} placeholder={seriesLetters==='AZE'?'12345678':'1234567'}
+        placeholderTextColor="#9a95a7" keyboardType="number-pad" onBlur={()=>setSeriesTouched(true)}
+        onChangeText={t=>{const d=t.replace(/\D/g,'').slice(0,seriesLetters==='AZE'?8:7);setSeries(d?seriesLetters+d:'');}}/>
+       {seriesShown&&<Text style={{color:C.red,fontSize:13,fontWeight:'600',marginTop:6}}>{seriesError(series)}</Text>}
       </View>
      </View>
-     <Field label="ŞV seriyası" value={series} onChange={t=>setSeries(t.toUpperCase().replace(/\s/g,'').slice(0,11))} placeholder="AA1234567" error={seriesError(series)} eager={series.length>=9}/>
+     <Sheet title="Seriya prefiksi" visible={prefixOpen} onClose={()=>setPrefixOpen(false)}>
+      {ID_PREFIXES.map(prefix=>(
+       <Pressable key={prefix} accessibilityRole="button" accessibilityLabel={`Seriya ${prefix}`} onPress={()=>{setSeriesLetters(prefix);setSeries(seriesDigits?prefix+seriesDigits.slice(0,prefix==='AZE'?8:7):'');setPrefixOpen(false);}}
+        style={{paddingVertical:16,paddingHorizontal:6,flexDirection:'row',justifyContent:'space-between',alignItems:'center',borderBottomWidth:1,borderBottomColor:'#eeeaf7'}}>
+        <Text style={{fontSize:17,fontWeight:seriesLetters===prefix?'800':'600',color:C.ink}}>{prefix}</Text>
+        {seriesLetters===prefix&&<Icon name="checkmark" size={20} color={C.primary}/>}
+       </Pressable>
+      ))}
+     </Sheet>
      <ErrorText text={error} onClose={()=>setError('')}/>
     </View>
    </Screen>
