@@ -12,6 +12,8 @@ import {minor,money,Row} from './api';
 import appConfig from '../app.json';
 
 
+const TX_TYPES:Record<string,string>={TOPUP:'Balans artırma',P2P:'Köçürmə',QR:'QR ödəniş',CARD_TRANSFER:'Karta köçürmə'};
+
 export function Operations({sheet,close,hidden=false}:{sheet:string;close:()=>void;hidden?:boolean}){
  const a=useApp();
  const [amount,setAmount]=useState(''),
@@ -153,7 +155,7 @@ export function Operations({sheet,close,hidden=false}:{sheet:string;close:()=>vo
        <Text style={[S.label,{marginBottom:10}]}>ƏMƏLİYYAT MƏLUMATLARI</Text>
        <View style={[S.between,{marginBottom:8}]}>
         <Text style={S.muted}>Növ</Text>
-        <Text style={S.h3}>{txItem.source==='OPEN_BANKING'?'DİGƏR BANK':(txItem.type||'ÖDƏNİŞ')}</Text>
+        <Text style={S.h3}>{txItem.source==='OPEN_BANKING'?'DİGƏR BANK':TX_TYPES[txItem.type]||txItem.type||'ÖDƏNİŞ'}</Text>
        </View>
        {txItem.source==='OPEN_BANKING'&&(
         <View style={[S.between,{marginBottom:8}]}>
@@ -161,10 +163,12 @@ export function Operations({sheet,close,hidden=false}:{sheet:string;close:()=>vo
          <Text style={S.h3}>{txItem.bankName}</Text>
         </View>
        )}
-       <View style={[S.between,{marginBottom:8}]}>
-        <Text style={S.muted}>Kateqoriya</Text>
-        <Text style={S.h3}>{txItem.category||'Digər'}</Text>
-       </View>
+       {txItem.direction==='OUT'&&(
+        <View style={[S.between,{marginBottom:8}]}>
+         <Text style={S.muted}>Kateqoriya</Text>
+         <Text style={S.h3}>{txItem.category||'Digər'}</Text>
+        </View>
+       )}
        {txItem.source!=='OPEN_BANKING'&&(
         <View style={[S.between,{marginBottom:8}]}>
          <Text style={S.muted}>Komissiya</Text>
@@ -177,6 +181,7 @@ export function Operations({sheet,close,hidden=false}:{sheet:string;close:()=>vo
        </View>
       </Box>
 
+      {txItem.direction==='OUT'&&(
       <Box>
        <Text style={[S.label,{marginBottom:10}]}>KATEQORİYANI DƏYİŞ</Text>
        <View style={{flexDirection:'row',flexWrap:'wrap',gap:8}}>
@@ -192,6 +197,7 @@ export function Operations({sheet,close,hidden=false}:{sheet:string;close:()=>vo
         ))}
        </View>
       </Box>
+      )}
 
       {txItem.direction==='OUT'&&(
        <Button title="Bu xərci dostlarla böl" secondary icon="people-outline" onPress={()=>a.open('split')}/>
@@ -433,7 +439,7 @@ export function Operations({sheet,close,hidden=false}:{sheet:string;close:()=>vo
 
    {kind==='history'&&(
     <>
-     <Text style={[S.muted,{marginBottom:12}]}>Detallara baxmaq və ya kateqoriyanı dəyişmək üçün əməliyyata toxun.</Text>
+     <Text style={[S.muted,{marginBottom:12}]}>Detallara baxmaq üçün əməliyyata toxun.</Text>
      {a.data.transactions?.map((t:Row)=>(
       <Tx key={t.id} t={t} onPress={()=>a.open('tx-detail:'+t.id)}/>
      ))}
