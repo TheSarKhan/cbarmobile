@@ -81,6 +81,9 @@ export function errorLook(message:string):ErrorLook{
  const code=errorCode(message);
  const has=(re:RegExp)=>re.test(code);
  if(code==='CONNECTION_ERROR')return {icon:'cloud-offline-outline',title:'Bağlantı yoxdur',tone:'danger'};
+ if(has(/CARD_DECLINED|CARD_NO_FUNDS/))return {icon:'card-outline',title:'Kart rədd edildi',tone:'danger'};
+ if(has(/CARD_EXPIRED/))return {icon:'card-outline',title:'Kartın müddəti bitib',tone:'warn'};
+ if(has(/QR_CLOSED/))return {icon:'qr-code-outline',title:'QR artıq aktiv deyil',tone:'warn'};
  if(has(/INSUFFICIENT_FUNDS|BNPL_FUND/))return {icon:'wallet-outline',title:'Balans çatmır',tone:'danger'};
  if(has(/PIN_LOCKOUT|ACCOUNT_LOCKED/))return {icon:'lock-closed-outline',title:'Hesab müvəqqəti bloklanıb',tone:'danger'};
  if(has(/INVALID_CREDENTIALS/))return {icon:'keypad-outline',title:'PIN düzgün deyil',tone:'danger'};
@@ -176,8 +179,6 @@ export function BackBar({onBack,title,right}:{onBack:()=>void;title?:string;righ
 export const CARD_IMAGES={
  credit:require('../assets/cards/credit-cash.jpg'),
  topupCard:require('../assets/cards/topup-card.jpg'),
- topupBank:require('../assets/cards/topup-bank.jpg'),
- topupTerminal:require('../assets/cards/topup-terminal.jpg'),
 };
 
 export type AppContextType={
@@ -302,6 +303,7 @@ export function Field({
  placeholder,
  secure=false,
  numeric=false,
+ digits=false,
  multiline=false,
  error='',
  eager=false,
@@ -313,6 +315,7 @@ export function Field({
  placeholder?:string;
  secure?:boolean;
  numeric?:boolean;
+ digits?:boolean;
  multiline?:boolean;
  error?:string;
  eager?:boolean;
@@ -332,7 +335,7 @@ export function Field({
     placeholder={placeholder}
     placeholderTextColor="#9a95a7"
     secureTextEntry={secure}
-    keyboardType={numeric?'decimal-pad':'default'}
+    keyboardType={digits?'number-pad':numeric?'decimal-pad':'default'}
     autoCapitalize="none"
     multiline={multiline}
     maxLength={maxLength}

@@ -338,6 +338,7 @@ function QrTab(){
  const [payload,setPayload]=useState(''),
   [qr,setQr]=useState<Row|null>(null),
   [qrPaid,setQrPaid]=useState<Row|null>(null),
+  [topupReq,setTopupReq]=useState<Row|null>(null),
   [camera,setCamera]=useState(true),
   [torch,setTorch]=useState(false),
   [manualOpen,setManualOpen]=useState(false),
@@ -383,6 +384,53 @@ function QrTab(){
  async function run(fn:()=>Promise<any>){
   a.setError('');
   try{await fn();}catch(e){a.setError((e as Error).message);}
+ }
+
+ /** A scanned code is either a merchant EMV QR or a Kampus top-up request from another customer. */
+ async function openCode(data:string){
+  const topup=data.match(/kampus-topup:([0-9a-f-]{36})/i);
+  if(topup){
+   setTopupReq(await a.call('topups/qr/'+topup[1]));
+   setAmount('');
+   return;
+  }
+  setQr(await a.act('payments/qr/parse',{qrPayload:data}));
+ }
+
+ if(topupReq){
+  const paid=topupReq.status==='PAID',typed=Math.max(0,Number(amount.replace(',','.'))||0);
+  return (
+   <Page>
+    <Box style={{alignItems:'center',paddingVertical:26}}>
+     <View style={[S.tile,{width:68,height:68,borderRadius:24,backgroundColor:C.lime,marginBottom:16}]}>
+      <Icon name={paid?'checkmark':'arrow-up-outline'} size={32}/>
+     </View>
+     <Badge text={paid?'ÖDƏNİLDİ':'BALANS ARTIMI QR'} tone={paid?'success':'neutral'}/>
+     <Text style={[S.h2,{marginTop:12}]}>{topupReq.requesterName}</Text>
+     {paid?(
+      <>
+       <Text style={[S.amount,{marginVertical:14}]}>{money(topupReq.amountMinor)}</Text>
+       <Text style={[S.muted,{marginBottom:22,textAlign:'center'}]}>Ödəniş tamamlandı. Pul {topupReq.requesterName} adlı istifadəçinin balansına keçdi.</Text>
+      </>
+     ):(
+      <Text style={[S.muted,{marginVertical:14,textAlign:'center'}]}>Ödəmək istədiyin məbləği yaz. Pul sənin balansından çıxıb bu istifadəçinin balansına keçəcək.</Text>
+     )}
+     <View style={{width:'100%'}}>
+      {!paid&&(
+       <>
+        <Field label="Məbləğ · AZN" value={amount} onChange={setAmount} numeric/>
+        <Button
+         title={`${typed>0?typed.toFixed(2)+' ₼ ':''}ödə`}
+         disabled={a.busy||typed<=0}
+         onPress={()=>run(async()=>{setTopupReq(await a.act('topups/qr/'+topupReq.id+'/pay',{amountMinor:minor(amount)}));})}
+        />
+       </>
+      )}
+      <Button title="Yeni QR skan et" secondary onPress={()=>{setTopupReq(null);setPayload('');setCamera(true);}}/>
+     </View>
+    </Box>
+   </Page>
+  );
  }
 
  if(qrPaid){
@@ -497,7 +545,7 @@ function QrTab(){
       scanLock.current=true;
       setPayload(data);
       try{
-       setQr(await a.act('payments/qr/parse',{qrPayload:data}));
+       await openCode(data);
        setCamera(false);
       }catch{
        // the popup explains what is wrong; the camera keeps running and scans again once it is closed
@@ -557,9 +605,8 @@ function QrTab(){
      title="QR kodu yoxla"
      disabled={a.busy||!payload}
      onPress={()=>run(async()=>{
-      const parsed=await a.act('payments/qr/parse',{qrPayload:payload});
+      await openCode(payload.trim());
       setManualOpen(false);
-      setQr(parsed);
      })}
     />
    </Sheet>
@@ -971,6 +1018,7 @@ function ProfileTab(){
 }
 
 const AWAY_LOCK_MS=300_000;
+const CANCELLED='Ləğv edildi';
 const VISIBLE_TABS=['Home','History','QR','Cards','More'];
 const TAB_ICONS:Record<string,[string,string]>={
  Home:['home','home-outline'],
@@ -1097,14 +1145,18 @@ export default function App(){
   })();
  },[]);
 
+ /** A failure from a session that is already gone, or that ended the session, is not shown: the PIN screen is the message. */
+ const settleFailure=useCallback((e:unknown,version:number)=>{
+  if(version!==sessionVersion.current)return new Error(CANCELLED);
+  if(e instanceof ApiError&&e.status===401&&['SESSION_EXPIRED','UNAUTHENTICATED','DEVICE_MISMATCH'].includes(e.code)){lock();return new Error(CANCELLED);}
+  return e;
+ },[lock]);
+
  const call=useCallback(async(p:string,b?:Row)=>{
   const version=sessionVersion.current;
-  try{const result=await request(base,token,device,p,b);if(version!==sessionVersion.current)throw new Error('Ləğv edildi');return result;}
-  catch(e){
-   if(version===sessionVersion.current&&e instanceof ApiError&&e.status===401&&['SESSION_EXPIRED','UNAUTHENTICATED','DEVICE_MISMATCH'].includes(e.code)){lock();}
-   throw e;
-  }
- },[base,token,device,lock]);
+  try{const result=await request(base,token,device,p,b);if(version!==sessionVersion.current)throw new Error(CANCELLED);return result;}
+  catch(e){throw settleFailure(e,version);}
+ },[base,token,device,lock,settleFailure]);
 
  // Other banks' transactions are fetched on demand, not with every dashboard poll.
  const loadExternal=useCallback(async()=>{
@@ -1122,7 +1174,7 @@ export default function App(){
    const key=(banks.syncedAt||'')+'|'+(banks.accounts?.length||0);
    if(key!==externalKey.current){externalKey.current=key;void loadExternal();}
    setError(current=>current===CONNECTION_ERROR_MESSAGE?'':current);
-  }catch(e){if((e as Error).message!=='Ləğv edildi')setError((e as Error).message);}
+  }catch(e){if((e as Error).message!==CANCELLED)setError((e as Error).message);}
  },[token,device,call,loadExternal]);
 
  useEffect(()=>{
@@ -1148,6 +1200,7 @@ export default function App(){
  },[lock,token]);
 
  const act=useCallback(async(path:string,body:Row)=>{
+  const version=sessionVersion.current;
   setBusy(true);setError('');
   const key=Date.now()+'-'+Math.random().toString(36).slice(2);
   try{
@@ -1166,10 +1219,11 @@ export default function App(){
     setMessage(path==='transfers'?'Köçürmə yaradıldı. Statusu ödənişlərdə izlə.':'Əməliyyat uğurla tamamlandı.');
    return result;
   }catch(e){
-   if((e as Error).message!=='Ləğv edildi')setError((e as Error).message);
-   throw e;
+   const failure=settleFailure(e,version);
+   if((failure as Error).message!==CANCELLED)setError((failure as Error).message);
+   throw failure;
   }finally{setBusy(false);}
- },[base,token,device,refresh,loadExternal,logout]);
+ },[base,token,device,refresh,loadExternal,logout,settleFailure]);
 
  function finishOnboarding(){
   storage.set('onboarding_done','1').catch(()=>{});
@@ -1231,7 +1285,7 @@ export default function App(){
   error,
   message,
   external,
-  setError,
+  setError:(m:string)=>{if(m!==CANCELLED)setError(m);},
   setMessage,
   goTo:(route:string)=>{if(navRef.isReady())navRef.navigate(route as never);}
  };

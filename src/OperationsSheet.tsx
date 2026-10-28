@@ -1,9 +1,10 @@
 import React,{useState,useEffect} from 'react';
-import {View,Pressable,StyleSheet,ActivityIndicator,Animated,Easing,Image} from 'react-native';
+import {View,Pressable,StyleSheet,ActivityIndicator} from 'react-native';
 import {Text} from './text';
-import {C,S,CARD_IMAGES,useApp,fmtDate,fmtDateTime,statusLabel,statusTone,Icon,Button,Field,Check,Badge,Box,Empty,Sheet,Tx,EXPENSE_CATEGORIES} from './ui';
+import {C,S,useApp,fmtDate,fmtDateTime,statusLabel,statusTone,Icon,Button,Field,Check,Badge,Box,Empty,Sheet,Tx,EXPENSE_CATEGORIES} from './ui';
 import {CardTransferForm} from './CardTransferSheet';
 import {CreditSection} from './HubSections';
+import {TopUpFlow} from './TopUpFlow';
 import {BanksSection} from './BanksSection';
 import {TransferFlow} from './TransferFlow';
 import {LinkBankFlow} from './LinkBankFlow';
@@ -16,10 +17,6 @@ export function Operations({sheet,close,hidden=false}:{sheet:string;close:()=>vo
  const [amount,setAmount]=useState(''),
   [phone,setPhone]=useState(sheet.startsWith('send:')?sheet.split(':')[1]:'+994501000002'),
   [note,setNote]=useState(''),
-  [source,setSource]=useState(''),
-  [selCard,setSelCard]=useState('KAPITAL'),
-  [selAcc,setSelAcc]=useState(''),
-  [termCode,setTermCode]=useState<Row|null>(null),
   [recipient,setRecipient]=useState<Row|null>(null),
   [transfer,setTransfer]=useState<Row|null>(null),
   [count,setCount]=useState(5);
@@ -27,31 +24,11 @@ export function Operations({sheet,close,hidden=false}:{sheet:string;close:()=>vo
   [selected,setSelected]=useState<string[]>(['+994501000002','+994501000003','+994501000004'].filter(p=>p!==a.data.user?.phone)),
   [splitMode,setSplitMode]=useState<'EQUAL'|'CUSTOM'>('EQUAL'),
   [customShares,setCustomShares]=useState<Record<string,string>>({'+994501000002':'5','+994501000003':'5','+994501000004':'5'});
- const [flowAnim]=useState(()=>new Animated.Value(1));
-
- const switchSource=(next:string)=>{
-  setTermCode(null);
-  flowAnim.setValue(0);
-  setSource(next);
-  Animated.timing(flowAnim,{
-   toValue:1,
-   duration:220,
-   easing:Easing.out(Easing.cubic),
-   useNativeDriver:true
-  }).start();
- };
-
  const kind=sheet.split(':')[0];
  const paramId=sheet.split(':')[1]||'';
 
- const addTitles:Record<string,string>={
-  '':'Balans artımı',
-  CARD:'Bank kartı ilə artım',
-  OPEN_BANKING:'Bank kartından artım',
-  TERMINAL:'Ödəniş terminalı'
- };
  const title:Record<string,string>={
-  add:addTitles[source]||'Balans artımı',
+  add:'Balans artımı',
   send:'Pul göndər',
   request:'Pul istə',
   'my-qr':'Mənim QR kodum',
@@ -89,8 +66,6 @@ export function Operations({sheet,close,hidden=false}:{sheet:string;close:()=>vo
     .catch(e=>a.setError(e.message));
   }
  },[a,kind,paramId,a.data.transactions?.length]);
-
- const parsedAzn=Math.max(0,Number(amount.replace(',','.'))||0);
 
  const txItem=kind==='tx-detail'?[...(a.data.transactions||[]),...(a.external||[])].find((x:Row)=>String(x.id)===paramId):null;
 
@@ -228,228 +203,7 @@ export function Operations({sheet,close,hidden=false}:{sheet:string;close:()=>vo
     )
    )}
 
-   {kind==='add'&&(
-    <Animated.View style={{opacity:flowAnim,transform:[{translateY:flowAnim.interpolate({inputRange:[0,1],outputRange:[10,0]})}]}}>
-     {!source?(
-      <>
-       <Text style={[S.muted,{marginBottom:16}]}>Balansınızı artırmaq üçün uyğun üsulu seçin:</Text>
-       <View style={os.bentoGrid}>
-        <View style={os.bentoRow}>
-         <Pressable accessibilityRole="button" onPress={()=>switchSource('CARD')} style={os.topupMethodCard}>
-          <View style={{zIndex:2}}>
-           <Text style={os.topupMethodTitle}>Yeni kart</Text>
-           <Text style={os.topupMethodSub}>Visa · Mastercard</Text>
-          </View>
-          <Image source={CARD_IMAGES.topupCard} style={os.topupMethodImg} resizeMode="cover"/>
-         </Pressable>
-
-         <Pressable accessibilityRole="button" onPress={()=>switchSource('OPEN_BANKING')} style={os.topupMethodCard}>
-          <View style={{zIndex:2}}>
-           <Text style={os.topupMethodTitle}>Bağlı kart</Text>
-           <Text style={os.topupMethodSub}>Açıq bankçılıq kartı</Text>
-          </View>
-          <Image source={CARD_IMAGES.topupBank} style={os.topupMethodImg} resizeMode="cover"/>
-         </Pressable>
-        </View>
-
-        <View style={os.bentoRow}>
-         <Pressable accessibilityRole="button" onPress={()=>switchSource('TERMINAL')} style={os.topupMethodCard}>
-          <View style={{zIndex:2}}>
-           <Text style={os.topupMethodTitle}>Terminal</Text>
-           <Text style={os.topupMethodSub}>MilliÖN · eManat</Text>
-          </View>
-          <Image source={CARD_IMAGES.topupTerminal} style={os.topupMethodImg} resizeMode="cover"/>
-         </Pressable>
-        </View>
-       </View>
-      </>
-     ):(
-      <>
-       <Pressable accessibilityRole="button" onPress={()=>switchSource('')} style={os.flowBackRow}>
-        <Icon name="arrow-back" size={18} color={C.ink}/>
-        <Text style={os.flowBackText}>Digər artım üsulları</Text>
-       </Pressable>
-
-       {source==='CARD'&&(
-        <>
-         <View style={os.flowHeroWhite}>
-          <View style={{flex:1,paddingRight:12}}>
-           <Text style={os.flowHeroTitleDark}>Bank kartı ilə mədaxil</Text>
-           <Text style={os.flowHeroSubDark}>İstənilən yerli bank kartından komissiyasız və anında balans artımı.</Text>
-          </View>
-          <Image source={CARD_IMAGES.topupCard} style={os.flowHeroSideImg} resizeMode="cover"/>
-         </View>
-
-         <Text style={S.label}>Kart seçin</Text>
-         <View style={{gap:10,marginBottom:18}}>
-          {[
-           ['KAPITAL','Kapital Bank · Birbank','•••• 4821 · Visa'],
-           ['ABB','ABB · TamKart','•••• 9014 · Mastercard'],
-           ['NEW','Yeni kart · demo','Kart məlumatı daxil etmədən simulyasiya']
-          ].map(([id,name,sub])=>(
-           <Pressable
-            key={id}
-            accessibilityRole="button"
-            onPress={()=>setSelCard(id)}
-            style={[os.selectRowCard,selCard===id&&os.selectRowCardActive]}
-           >
-            <View style={os.selectRowIcon}>
-             <Icon name={id==='NEW'?'add-outline':'card-outline'} size={20} color={C.ink}/>
-            </View>
-            <View style={{flex:1}}>
-             <Text style={{fontSize:13,fontWeight:'700',color:C.ink}}>{name}</Text>
-             <Text style={{fontSize:11,color:C.muted,marginTop:2}}>{sub}</Text>
-            </View>
-            <Icon name={selCard===id?'checkmark-circle':'ellipse-outline'} size={20} color={selCard===id?C.ink:C.muted}/>
-           </Pressable>
-          ))}
-         </View>
-
-         {selCard==='NEW'&&(
-          <Box>
-           <Badge text="KART BAĞLANTISI · DEMO"/>
-           <Text style={[S.muted,{marginTop:10}]}>Bu balans artımı simulyasiya olunur. Real kart nömrəsi, müddət və CVV daxil edilmir.</Text>
-          </Box>
-         )}
-
-         <Field label="Məbləğ · AZN" value={amount} onChange={setAmount} numeric/>
-         <Box style={{backgroundColor:'#ede9f8',borderColor:'#c1b6e2'}}>
-          <View style={[S.between,{marginBottom:4}]}>
-           <Text style={S.muted}>Komissiya (0%)</Text>
-           <Text style={S.h3}>0.00 ₼</Text>
-          </View>
-          <View style={S.between}>
-           <Text style={S.muted}>Balansa oturacaq məbləğ</Text>
-           <Text style={S.h3}>{parsedAzn.toFixed(2)} ₼</Text>
-          </View>
-         </Box>
-         <Button
-          title={`Kartdan +${parsedAzn.toFixed(2)} ₼ artır`}
-          disabled={a.busy||parsedAzn<=0}
-          icon="arrow-forward"
-          onPress={()=>run(async()=>{await a.act('topups',{amountMinor:minor(amount),source:'CARD'});close();})}
-         />
-        </>
-       )}
-
-       {source==='OPEN_BANKING'&&(()=>{
-        const live=new Set<string>((a.data.openBanking?.consents||[]).filter((c:Row)=>c.status==='AUTHORIZED').map((c:Row)=>c.id));
-        const linked:Row[]=(a.data.openBanking?.accounts||[]).filter((x:Row)=>x.type==='CARD'&&live.has(x.consentId));
-        const picked=linked.find(x=>x.id===selAcc)||linked[0];
-        return (
-         <>
-          <View style={os.flowHeroWhite}>
-           <View style={{flex:1,paddingRight:12}}>
-            <Text style={os.flowHeroTitleDark}>Bank kartından artım</Text>
-            <Text style={os.flowHeroSubDark}>Açıq bankçılıqla bağladığınız kartdan Kampus balansına vəsait köçürün. Kartın aylıq limiti keçərlidir.</Text>
-           </View>
-           <Image source={CARD_IMAGES.topupBank} style={os.flowHeroSideImg} resizeMode="cover"/>
-          </View>
-          {!linked.length?(
-           <>
-            <Empty text="Hələ bağlı bank kartın yoxdur. Kartı bağla, sonra buradan balansı artır." icon="card-outline"/>
-            <Button title="Bank kartı əlavə et" icon="add" onPress={()=>a.open('link-bank')}/>
-           </>
-          ):(
-           <>
-            <Text style={S.label}>Kartı seçin</Text>
-            <View style={{gap:10,marginBottom:18}}>
-             {linked.map(x=>(
-              <Pressable key={x.id} accessibilityRole="button" accessibilityLabel={x.bankName+' '+x.masked} onPress={()=>setSelAcc(x.id)} style={[os.selectRowCard,picked?.id===x.id&&os.selectRowCardActive]}>
-               <View style={os.selectRowIcon}><Icon name="card-outline" size={20} color={C.ink}/></View>
-               <View style={{flex:1}}>
-                <Text style={{fontSize:13,fontWeight:'700',color:C.ink}}>{x.bankName}</Text>
-                <Text style={{fontSize:11,color:C.muted,marginTop:2}}>{x.name} · {x.masked} · {money(x.balanceMinor)}</Text>
-               </View>
-               <Icon name={picked?.id===x.id?'checkmark-circle':'ellipse-outline'} size={20} color={picked?.id===x.id?C.ink:C.muted}/>
-              </Pressable>
-             ))}
-            </View>
-            <Field label="Məbləğ · AZN" value={amount} onChange={setAmount} numeric/>
-            <Box style={{backgroundColor:'#ede9f8',borderColor:'#c1b6e2'}}>
-             <View style={[S.between,{marginBottom:4}]}>
-              <Text style={S.muted}>Komissiya</Text>
-              <Text style={S.h3}>0.00 ₼</Text>
-             </View>
-             <View style={S.between}>
-              <Text style={S.muted}>Yekun mədaxil</Text>
-              <Text style={S.h3}>{parsedAzn.toFixed(2)} ₼</Text>
-             </View>
-            </Box>
-            <Button
-             title={`Kartdan +${parsedAzn.toFixed(2)} ₼ artır`}
-             disabled={a.busy||parsedAzn<=0||!picked}
-             icon="arrow-forward"
-             onPress={()=>run(async()=>{await a.act('topups',{amountMinor:minor(amount),source:'BANK_CARD',accountId:picked.id});close();})}
-            />
-           </>
-          )}
-         </>
-        );
-       })()}
-
-       {source==='TERMINAL'&&(
-        <>
-         <View style={os.flowHeroWhite}>
-          <View style={{flex:1,paddingRight:12}}>
-           <Text style={os.flowHeroTitleDark}>Ödəniş terminalı ilə artım</Text>
-           <Text style={os.flowHeroSubDark}>MilliÖN və eManat terminallarında 8 rəqəmli birdəfəlik kodla nağd mədaxil.</Text>
-          </View>
-          <Image source={CARD_IMAGES.topupTerminal} style={os.flowHeroSideImg} resizeMode="cover"/>
-         </View>
-
-         {!termCode?(
-          <>
-           <View style={os.terminalStepsBox}>
-            {[
-             ['1','Məbləği daxil edib 8 rəqəmli ödəniş kodu yaradın'],
-             ['2','MilliÖN və ya eManat ekranda Kampus seçib kodu yığın'],
-             ['3','Nağd əsginası daxil edin — balans dərhal yenilənir']
-            ].map(([num,txt])=>(
-             <View key={num} style={os.terminalStepRow}>
-              <View style={os.terminalStepNum}><Text style={{fontSize:11,fontWeight:'800',color:C.ink}}>{num}</Text></View>
-              <Text style={{fontSize:12,color:C.ink,flex:1,lineHeight:18}}>{txt}</Text>
-             </View>
-            ))}
-           </View>
-
-           <Field label="Məbləğ · AZN" value={amount} onChange={setAmount} numeric/>
-           <Button
-            title="8 rəqəmli terminal kodu yarat"
-            disabled={a.busy||parsedAzn<=0}
-            icon="keypad-outline"
-            onPress={()=>run(async()=>{setTermCode(await a.act('topups/terminal-code',{amountMinor:minor(amount)}));})}
-           />
-          </>
-         ):(
-          <>
-           <View style={os.terminalCodeCard}>
-            <Text style={{fontSize:12,color:C.muted,fontWeight:'600'}}>TERMİNAL ÖDƏNİŞ KODU</Text>
-            <Text style={os.terminalCodeDigits}>
-             {String(termCode.code).slice(0,4)} {String(termCode.code).slice(4)}
-            </Text>
-            <Text style={{fontSize:14,fontWeight:'700',color:C.ink,marginTop:6}}>
-             Məbləğ: {parsedAzn.toFixed(2)} ₼
-            </Text>
-            <Text style={{fontSize:11,color:C.muted,marginTop:6,textAlign:'center'}}>
-             MilliÖN / eManat terminalında bu kodu daxil edin. Kod 15 dəqiqə ərzində aktivdir.
-            </Text>
-           </View>
-
-           <Button
-            title="Terminalda ödənişi tamamla"
-            disabled={a.busy}
-            icon="checkmark"
-            onPress={()=>run(async()=>{await a.act('topups/terminal-redeem',{code:termCode.code});close();})}
-           />
-          </>
-         )}
-        </>
-       )}
-      </>
-     )}
-    </Animated.View>
-   )}
+   {kind==='add'&&<TopUpFlow close={close}/>}
 
    {(kind==='send'||kind==='request')&&(
     <>
@@ -693,24 +447,4 @@ export function Operations({sheet,close,hidden=false}:{sheet:string;close:()=>vo
 const os=StyleSheet.create({
  myQrFrame:{width:154,height:154,borderRadius:24,backgroundColor:'#ebe8f5',alignItems:'center',justifyContent:'center',marginBottom:16,borderWidth:1,borderColor:C.line},
  dotInline:{width:8,height:8,borderRadius:4,backgroundColor:'#6147ad',marginTop:4},
- bentoGrid:{gap:12},
- bentoRow:{flexDirection:'row',gap:12},
- topupMethodCard:{flex:1,height:152,backgroundColor:'#FFFFFF',borderRadius:22,padding:16,overflow:'hidden',justifyContent:'space-between',position:'relative',borderWidth:1,borderColor:C.line},
- topupMethodTitle:{fontSize:16,fontWeight:'800',color:C.ink,letterSpacing:-0.3},
- topupMethodSub:{fontSize:11,fontWeight:'500',color:C.muted,marginTop:4},
- topupMethodImg:{position:'absolute',right:-6,bottom:-6,width:92,height:92,borderRadius:18},
- flowBackRow:{flexDirection:'row',alignItems:'center',gap:8,marginBottom:14,minHeight:48,paddingVertical:6,alignSelf:'flex-start'},
- flowBackText:{fontSize:13,fontWeight:'700',color:C.ink},
- flowHeroWhite:{flexDirection:'row',alignItems:'center',backgroundColor:'#FFFFFF',borderRadius:22,padding:16,marginBottom:18,borderWidth:1,borderColor:C.line,overflow:'hidden'},
- flowHeroTitleDark:{fontSize:16,fontWeight:'800',color:C.ink,letterSpacing:-0.3},
- flowHeroSubDark:{fontSize:11,color:C.muted,lineHeight:17,marginTop:5},
- flowHeroSideImg:{width:76,height:76,borderRadius:16},
- selectRowCard:{flexDirection:'row',alignItems:'center',gap:12,backgroundColor:'#FFFFFF',borderRadius:18,padding:14,minHeight:64,borderWidth:1.5,borderColor:C.line},
- selectRowCardActive:{borderColor:C.ink,backgroundColor:'#ede9f8'},
- selectRowIcon:{width:40,height:40,borderRadius:13,backgroundColor:'#ebe8f5',alignItems:'center',justifyContent:'center'},
- terminalStepsBox:{backgroundColor:'#FFFFFF',borderRadius:18,padding:16,gap:12,marginBottom:18,borderWidth:1,borderColor:C.line},
- terminalStepRow:{flexDirection:'row',alignItems:'center',gap:12},
- terminalStepNum:{width:26,height:26,borderRadius:9,backgroundColor:C.lime,alignItems:'center',justifyContent:'center'},
- terminalCodeCard:{backgroundColor:'#FFFFFF',borderRadius:22,padding:22,alignItems:'center',marginBottom:18,borderWidth:1,borderColor:C.line},
- terminalCodeDigits:{fontSize:34,fontWeight:'800',color:C.ink,letterSpacing:4,marginTop:10}
 });
