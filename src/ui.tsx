@@ -48,6 +48,8 @@ function faceFor(name:string){
 
 /** `avatar` is the face the person picked when registering (0-7); older accounts and contacts without one get a face from their name. */
 export function Avatar({name,size=48,avatar}:{name:string;size?:number;dark?:boolean;avatar?:number|null}){
+ // -1 means "someone outside Kampus": a neutral picture instead of a random face
+ if(avatar===-1)return <View accessibilityLabel={name} style={{width:size,height:size,borderRadius:size/2,backgroundColor:'#e6e0f7',alignItems:'center',justifyContent:'center'}}><Icon name="person" size={Math.round(size*0.5)} color={C.primary}/></View>;
  const index=typeof avatar==='number'&&avatar>=0&&avatar<ILLUSTRATIONS.avatars.length?avatar:faceFor(name);
  return <Image accessibilityLabel={name} source={ILLUSTRATIONS.avatars[index]} style={{width:size,height:size,borderRadius:size/2}} resizeMode="cover"/>;
 }
@@ -447,6 +449,7 @@ export function Tx({t,onPress}:{t:Row;onPress?:()=>void}){
      {flag==='RECURRING'&&<View style={{backgroundColor:C.lav,borderRadius:6,paddingHorizontal:6,paddingVertical:2}}><Text style={{fontSize:9,fontWeight:'800',color:C.primary}}>TƏKRAR</Text></View>}
     </View>
     <Text numberOfLines={1} style={[S.muted,{fontSize:11,marginTop:2}]}>{fmtDate(t.createdAt)} · {t.category}{external?' · '+t.bankName:''}</Text>
+    {!!t.note&&<Text numberOfLines={1} style={{fontSize:12,color:C.ink,marginTop:2,fontStyle:'italic'}}>“{t.note}”</Text>}
    </View>
    <Text style={{fontWeight:'600',fontSize:13,color:isIn?C.green:C.red}}>
     {isIn?'+':'−'}{money(t.amountMinor)}

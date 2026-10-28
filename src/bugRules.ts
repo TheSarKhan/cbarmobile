@@ -24,5 +24,5 @@ export function initialRecipient(data:any,phone:string):{name:string;phone:strin
  const recent=recentRecipients(data).find(person=>person.phone===phone);
  if(recent)return recent;
  const saved=(data.trustedBeneficiaries||[]).find((person:any)=>person.phone===phone);
- return saved?{name:saved.nickname||saved.maskedName||'Alıcı',phone,avatar:saved.avatar}:{name:'Alıcı',phone};
+ return saved?{name:saved.nickname||saved.maskedName||'Alıcı',phone,avatar:saved.avatar}:{name:'Alıcı',phone,avatar:-1};
 }

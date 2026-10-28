@@ -100,7 +100,7 @@ export function TransferFlow({initialPhone,hidden,close}:{initialPhone:string;hi
   setBusy(true);setLocal('');
   try{
    const r=await a.call('transfers/resolve?phone='+encodeURIComponent(target.phone));
-   setTarget({name:r.maskedName||target.name,phone:target.phone,avatar:r.avatar??target.avatar});
+   setTarget({name:r.maskedName||target.name,phone:target.phone,avatar:r.channel==='ANIPAY'?-1:(r.avatar??target.avatar)});
    setRecipientToken(r.recipientToken||'');
    setStep('confirm');
   }catch(e){setLocal((e as Error).message);}

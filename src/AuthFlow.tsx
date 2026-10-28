@@ -53,7 +53,7 @@ type Props={
  onReplayIntro:()=>void;
 };
 
-type LastUser={phone:string;name:string;pinLength?:number};
+type LastUser={phone:string;name:string;pinLength?:number;avatar?:number|null};
 const PHONE_FULL=/^\+994[0-9]{9}$/;
 
 const formatPhone=(digits:string)=>{
@@ -273,7 +273,7 @@ export default function AuthFlow({base,device,onAuthenticated,onConfig,onReplayI
   try{
    const r=await call('auth/login',{phone,pin:pinValue,deviceId:device});
    if(r.user.role!=='USER')throw new Error('Mobil tətbiqə tələbə hesabı ilə daxil olun.');
-   storage.set('lastUser',JSON.stringify({phone,name:r.user.name,pinLength:Number(r.user.pinLength)||pinLength})).catch(()=>{});
+   storage.set('lastUser',JSON.stringify({phone,name:r.user.name,pinLength:Number(r.user.pinLength)||pinLength,avatar:r.user.avatar??null})).catch(()=>{});
    await onAuthenticated(r.accessToken);
   }catch(e){setPin('');throw e;}
  });
@@ -327,7 +327,7 @@ export default function AuthFlow({base,device,onAuthenticated,onConfig,onReplayI
    livenessMode:kyc.mode,livenessActions:kyc.actions,selfie:kyc.selfie,
    pin:pinValue,deviceId:device,termsAccepted:consent,dataConsent:consent,avatar
   });
-  storage.set('lastUser',JSON.stringify({phone,name:`${first.trim()} ${last.trim()}`,pinLength:NEW_PIN_LENGTH})).catch(()=>{});
+  storage.set('lastUser',JSON.stringify({phone,name:`${first.trim()} ${last.trim()}`,pinLength:NEW_PIN_LENGTH,avatar})).catch(()=>{});
   await onAuthenticated(r.accessToken);
  },true).finally(()=>{setNewPin('');setNewPinAgain('');});
 
@@ -372,7 +372,7 @@ export default function AuthFlow({base,device,onAuthenticated,onConfig,onReplayI
    >
     <View style={s.pinTop}>
      <View style={s.avatar}>
-      {known?<Avatar name={known.name} size={88}/>:<Icon name="person" size={38} color="#9a9a9e"/>}
+      {known?<Avatar name={known.name} avatar={known.avatar} size={88}/>:<Icon name="person" size={38} color="#9a9a9e"/>}
      </View>
      <Text style={s.pinName}>{known?known.name.toUpperCase():`+994 ${formatPhone(digits)}`}</Text>
      <Text style={s.pinHint}>Giriş üçün PIN kodu daxil et</Text>

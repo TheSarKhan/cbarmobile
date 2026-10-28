@@ -53,6 +53,7 @@ function Home({navigation}:any){
  useEffect(()=>{if(!visibilityKey)return;let alive=true;storage.get(visibilityKey).then(value=>{if(alive)setHide(value==='1');}).catch(()=>{});return()=>{alive=false;};},[visibilityKey]);
  const toggleBalance=()=>setHide(previous=>{const next=!previous;if(visibilityKey)storage.set(visibilityKey,next?'1':'0').catch(()=>{});return next;});
  const focused=useIsFocused();
+ const unreadCount=(d.notifications||[]).filter((n:Row)=>!n.read).length;
  const balMinor=d.wallet?.availableBalanceMinor||0;
  const whole=Math.floor(balMinor/100).toLocaleString('en-US').replace(/,/g,' ');
  const frac=String(Math.abs(balMinor%100)).padStart(2,'0');
@@ -76,9 +77,15 @@ function Home({navigation}:any){
      <View style={styles.homeTop}>
       <Avatar name={d.user?.name||'K'} avatar={d.user?.avatar} size={46} dark/>
       <Text style={styles.hello}>Salam,{'\n'}{firstName||'dost'}!</Text>
-      <Pressable accessibilityRole="button" accessibilityLabel="Profil və ayarlar" onPress={()=>navigation.navigate('Profile')} style={styles.gear}>
-       <Icon name="settings-outline" size={22} color="#fff"/>
-      </Pressable>
+      <View style={{flexDirection:'row',alignItems:'center'}}>
+       <Pressable accessibilityRole="button" accessibilityLabel="Bildirişlər" onPress={()=>a.open('notifications')} style={styles.gear}>
+        <Icon name="notifications-outline" size={22} color="#fff"/>
+        {unreadCount>0&&<View style={styles.bellDot}><Text style={styles.bellDotText}>{unreadCount>9?'9+':unreadCount}</Text></View>}
+       </Pressable>
+       <Pressable accessibilityRole="button" accessibilityLabel="Profil və ayarlar" onPress={()=>navigation.navigate('Profile')} style={styles.gear}>
+        <Icon name="settings-outline" size={22} color="#fff"/>
+       </Pressable>
+      </View>
      </View>
 
      <View style={styles.balanceCard}>
@@ -900,6 +907,15 @@ function AnalyticsTab(){
 function ProfileTab(){
  const a=useApp(),d=a.data;
  const [askDelete,setAskDelete]=useState(false);
+ const [pinForm,setPinForm]=useState(false);
+ const [curPin,setCurPin]=useState(''),[newPin,setNewPin]=useState(''),[repeatPin,setRepeatPin]=useState('');
+ const pinLen=Number(d.user?.pinLength)||4;
+ const pinError=newPin&&(!/^[0-9]+$/.test(newPin)||newPin.length!==pinLen)?`Yeni PIN ${pinLen} rəqəm olmalıdır.`:newPin&&newPin===curPin?'Yeni PIN köhnəsindən fərqli olmalıdır.':repeatPin&&repeatPin!==newPin?'PIN-lər uyğun gəlmir.':'';
+ const pinReady=curPin.length>0&&newPin.length===pinLen&&repeatPin===newPin&&!pinError;
+ async function changePin(){
+  try{await a.call('auth/pin/change',{currentPin:curPin,newPin});setPinForm(false);setCurPin('');setNewPin('');setRepeatPin('');a.setMessage('PIN dəyişdirildi.');}
+  catch(e){a.setError((e as Error).message);}
+ }
  const rows:[string,string,string,string][]=[
   ['person-outline','Ad və soyad',d.user?.name||'','#ece6ff'],
   ['call-outline','Mobil nömrə',d.user?.phone||'','#dcf3e4'],
@@ -935,6 +951,18 @@ function ProfileTab(){
     <View style={[styles.switchTrack,d.insightsBrief?.enabled!==false&&{backgroundColor:C.primary}]}><View style={[styles.switchKnob,d.insightsBrief?.enabled!==false&&{alignSelf:'flex-end'}]}/></View>
    </Pressable>
    <Text style={[S.muted,{marginBottom:18}]}>5 dəqiqə aktivlik olmadıqda sessiya avtomatik bağlanır.</Text>
+   {!pinForm?(
+    <Button title="PIN-i dəyiş" secondary icon="key-outline" onPress={()=>setPinForm(true)}/>
+   ):(
+    <View style={{marginBottom:16}}>
+     <Text style={[S.h3,{marginBottom:10}]}>PIN-i dəyiş</Text>
+     <Field label="Cari PIN" value={curPin} onChange={t=>setCurPin(t.replace(/\D/g,'').slice(0,6))} secure numeric/>
+     <Field label={`Yeni PIN (${pinLen} rəqəm)`} value={newPin} onChange={t=>setNewPin(t.replace(/\D/g,'').slice(0,6))} secure numeric error={pinError==='PIN-lər uyğun gəlmir.'?'':pinError} eager/>
+     <Field label="Yeni PIN təkrar" value={repeatPin} onChange={t=>setRepeatPin(t.replace(/\D/g,'').slice(0,6))} secure numeric error={pinError==='PIN-lər uyğun gəlmir.'?pinError:''} eager/>
+     <Button title="PIN-i yadda saxla" disabled={!pinReady||a.busy} onPress={()=>{void changePin();}}/>
+     <Pressable accessibilityRole="button" onPress={()=>{setPinForm(false);setCurPin('');setNewPin('');setRepeatPin('');}} style={{alignItems:'center',padding:14}}><Text style={{color:C.muted,fontWeight:'600'}}>Ləğv et</Text></Pressable>
+    </View>
+   )}
    <Button title="Hesabdan çıx" danger icon="log-out-outline" onPress={a.logout}/>
    {!askDelete?(
     <Pressable accessibilityRole="button" onPress={()=>setAskDelete(true)} style={{alignItems:'center',padding:18}}>
@@ -1351,6 +1379,8 @@ const styles=StyleSheet.create({
  homeTop:{flexDirection:'row',alignItems:'center',gap:12,marginBottom:20},
  hello:{flex:1,color:'#fff',fontSize:15,fontWeight:'600',lineHeight:20},
  gear:{width:44,height:44,alignItems:'center',justifyContent:'center'},
+ bellDot:{position:'absolute',top:5,right:3,minWidth:17,height:17,borderRadius:9,backgroundColor:C.yellow,alignItems:'center',justifyContent:'center',paddingHorizontal:3},
+ bellDotText:{fontSize:10,fontWeight:'800',color:C.ink},
  balanceCard:{backgroundColor:'rgba(255,255,255,0.1)',borderRadius:20,borderWidth:1,borderColor:'rgba(255,255,255,0.14)',paddingTop:18,paddingHorizontal:14,paddingBottom:6,alignItems:'center',width:'100%',maxWidth:430,alignSelf:'center'},
  balanceLabel:{color:'rgba(255,255,255,0.7)',fontSize:12},
  balanceRow:{flexDirection:'row',alignItems:'center',marginTop:6,marginBottom:14},

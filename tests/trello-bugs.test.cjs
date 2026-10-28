@@ -66,5 +66,5 @@ test('recent recipient name and avatar remain visible while the server lookup is
  const {initialRecipient}=require('../src/bugRules.ts');
  const data={user:{phone:'+994501000001'},transfers:[{phone:'+994501000002',recipientName:'Murad Əliyev',avatar:3,status:'COMPLETED'}]};
  assert.deepEqual(initialRecipient(data,'+994501000002'),{name:'Murad Əliyev',phone:'+994501000002',avatar:3});
- assert.deepEqual(initialRecipient(data,'+994501000003'),{name:'Alıcı',phone:'+994501000003'});
+ assert.deepEqual(initialRecipient(data,'+994501000003'),{name:'Alıcı',phone:'+994501000003',avatar:-1});
 });
