@@ -2,7 +2,7 @@ import React,{useState} from 'react';
 import {View,Pressable,StyleSheet,TextInput} from 'react-native';
 import {Text} from './text';
 import {Row,minor,money} from './api';
-import {S,C,Button,Check,Box,Badge,Icon,statusTone} from './ui';
+import {S,C,Button,Check,Box,Badge,Icon,statusTone,linkedCards,cardLabel} from './ui';
 import {BigAmount,MiniCard,groupCard,luhn} from './CardUi';
 
 type Props={
@@ -26,13 +26,15 @@ export function useCardTransferState(){
   [quote,setQuote]=useState<Row|null>(null),
   [transfer,setTransfer]=useState<Row|null>(null),
   [amount,setAmount]=useState(''),
-  [checking,setChecking]=useState(false);
- return {view,setView,number,setNumber,card,setCard,save,setSave,quote,setQuote,transfer,setTransfer,amount,setAmount,checking,setChecking};
+  [checking,setChecking]=useState(false),
+  [funding,setFunding]=useState('WALLET'),
+  [pickerOpen,setPickerOpen]=useState(false);
+ return {funding,setFunding,pickerOpen,setPickerOpen,view,setView,number,setNumber,card,setCard,save,setSave,quote,setQuote,transfer,setTransfer,amount,setAmount,checking,setChecking};
 }
 
 /** The state lives in the caller: the PIN sheet hides this one for a moment and the form must come back as it was. */
 export function CardTransferForm({state,...a}:Props&{state:ReturnType<typeof useCardTransferState>}){
- const {view,setView,number,setNumber,card,setCard,save,setSave,quote,setQuote,transfer,setTransfer,amount,setAmount,checking,setChecking}=state;
+ const {funding,setFunding,pickerOpen,setPickerOpen,view,setView,number,setNumber,card,setCard,save,setSave,quote,setQuote,transfer,setTransfer,amount,setAmount,checking,setChecking}=state;
 
  async function run(fn:()=>Promise<void>){
   a.setError('');
@@ -41,16 +43,13 @@ export function CardTransferForm({state,...a}:Props&{state:ReturnType<typeof use
 
  const digits=number.replace(/\D/g,'');
  const numberError=digits.length===16&&!luhn(digits)?'Kart nömrəsi yanlışdır.':'';
- // a complete, valid number moves on by itself, as the design does
- function typeNumber(raw:string){
-  const grouped=groupCard(raw),d=grouped.replace(/\D/g,'');
-  setNumber(grouped);
-  if(d.length!==16||!luhn(d)||checking)return;
+ async function lookUp(){
   setChecking(true);
-  a.act('card-transfers/card',{number:d})
-   .then(c=>{setCard({...c,saved:false});setQuote(null);setAmount('');setView('amount');})
-   .catch(()=>{})
-   .finally(()=>{setNumber('');setChecking(false);});
+  try{
+   const c=await a.act('card-transfers/card',{number:digits});
+   setCard({...c,saved:false});setQuote(null);setAmount('');setNumber('');setView('amount');
+  }catch{/* the popup explains it */}
+  finally{setChecking(false);}
  }
 
  const current=transfer?(a.data.cardTransfers?.find((x:Row)=>x.id===transfer.id)||transfer):null;
@@ -58,6 +57,11 @@ export function CardTransferForm({state,...a}:Props&{state:ReturnType<typeof use
  const parsed=Math.max(0,Number(amount.replace(',','.'))||0);
  const disabled=a.busy||checking;
  const balance=a.data.wallet?.availableBalanceMinor||0;
+ const sources=[
+  {id:'WALLET',label:'Balans',sub:'Kampus hesabı',balance},
+  ...linkedCards(a.data).map((x:Row)=>({id:String(x.id),label:cardLabel(x),sub:'Açıq bankçılıq kartı',balance:Number(x.balanceMinor||0)}))
+ ];
+ const source=sources.find(o=>o.id===funding)||sources[0];
 
  if(current){
   const done=current.status==='COMPLETED',
@@ -126,11 +130,27 @@ export function CardTransferForm({state,...a}:Props&{state:ReturnType<typeof use
 
     <BigAmount value={amount} onChange={v=>{setAmount(v);setQuote(null);}} hint="Bank tərəfindən komissiya tutula bilər"/>
 
-    <View style={cs.balanceChip}>
-     <Icon name="wallet-outline" size={16} color={C.ink}/>
-     <Text style={{fontSize:14,fontWeight:'700',color:C.ink}}>Balans {money(balance)}</Text>
+    <View style={{alignItems:'center',marginBottom:pickerOpen?8:20}}>
+     <Pressable accessibilityRole="button" accessibilityLabel="Ödəniş mənbəyini seç" accessibilityState={{expanded:pickerOpen}} onPress={()=>setPickerOpen(!pickerOpen)} style={cs.balanceChip}>
+      <Icon name={source.id==='WALLET'?'wallet-outline':'card-outline'} size={16} color={C.ink}/>
+      <Text style={{fontSize:14,fontWeight:'700',color:C.ink}}>{source.label} {money(source.balance)}</Text>
+      <Icon name={pickerOpen?'chevron-up':'chevron-down'} size={16} color={C.ink}/>
+     </Pressable>
     </View>
-
+    {pickerOpen&&(
+     <View style={cs.menu}>
+      {sources.map(o=>(
+       <Pressable key={o.id} accessibilityRole="button" accessibilityLabel={o.label} onPress={()=>{setFunding(o.id);setQuote(null);setPickerOpen(false);}} style={cs.menuRow}>
+        <Icon name={o.id==='WALLET'?'wallet-outline':'card-outline'} size={20} color={C.ink}/>
+        <View style={{flex:1}}>
+         <Text style={{fontSize:14,fontWeight:'700',color:C.ink}}>{o.label}</Text>
+         <Text style={{fontSize:12,color:C.muted,marginTop:1}}>{o.sub}</Text>
+        </View>
+        {source.id===o.id&&<Icon name="checkmark-circle" size={20} color={C.primary}/>}
+       </Pressable>
+      ))}
+     </View>
+    )}
     {!card.saved&&<Check value={save} onChange={setSave} text="Bu kartı yadda saxla, növbəti dəfə nömrə yazmadan seçim."/>}
 
     {quote&&(
@@ -161,6 +181,7 @@ export function CardTransferForm({state,...a}:Props&{state:ReturnType<typeof use
        return;
       }
       const body:Row={quoteId:quote.id,amountMinor:quote.amountMinor,totalMinor:quote.totalMinor,recipientName:quote.bankName+' · •••• '+quote.last4};
+      if(source.id!=='WALLET')body.fundingAccountId=source.id;
       if(!card.saved&&save)body.saveAs=card.bankName+' •••• '+card.last4;
       setTransfer(await a.act('card-transfers',body));
      })}
@@ -176,7 +197,7 @@ export function CardTransferForm({state,...a}:Props&{state:ReturnType<typeof use
     <TextInput
      accessibilityLabel="Kartın nömrəsi"
      value={number}
-     onChangeText={typeNumber}
+     onChangeText={v=>setNumber(groupCard(v))}
      placeholder="Kartın nömrəsi"
      placeholderTextColor="#9a95a7"
      keyboardType="number-pad"
@@ -185,6 +206,8 @@ export function CardTransferForm({state,...a}:Props&{state:ReturnType<typeof use
     />
    </View>
    {!!numberError&&<Text style={{color:C.red,fontSize:13,fontWeight:'600',marginTop:8}}>{numberError}</Text>}
+   <View style={{height:12}}/>
+   <Button title="Davam et" icon="arrow-forward" disabled={disabled||digits.length!==16||!!numberError} onPress={()=>{void lookUp();}}/>
 
    {savedList.length>0&&(
     <>
@@ -206,14 +229,6 @@ export function CardTransferForm({state,...a}:Props&{state:ReturnType<typeof use
     </>
    )}
 
-   <Box style={{marginTop:20,backgroundColor:'#eeecf5'}}>
-    <Text style={[S.label,{marginBottom:6}]}>DEMO TEST KART NÖMRƏLƏRİ</Text>
-    <Text style={[S.muted,{fontSize:11,lineHeight:17}]}>
-     • Kapital: 4169738855551234{'\n'}
-     • ABB: 4098584412345678 · PAŞA: 5222081122334452{'\n'}
-     • Şəbəkə rəddi: 4000000000000002 · Gecikmə: 4000000000009995
-    </Text>
-   </Box>
   </>
  );
 }
@@ -225,5 +240,7 @@ const cs=StyleSheet.create({
  section:{fontSize:12,fontWeight:'700',color:C.muted,letterSpacing:0.4,marginTop:24,marginBottom:10},
  cardRow:{flexDirection:'row',alignItems:'center',gap:14,backgroundColor:'#f4f3f7',borderRadius:20,padding:14,minHeight:72},
  dots:{width:34,height:34,borderRadius:17,backgroundColor:'#e6e4ec',alignItems:'center',justifyContent:'center'},
- balanceChip:{flexDirection:'row',alignItems:'center',gap:8,alignSelf:'center',borderWidth:1.5,borderColor:C.ink,borderRadius:22,paddingHorizontal:16,minHeight:44,marginBottom:20}
+ balanceChip:{flexDirection:'row',alignItems:'center',gap:8,borderWidth:1.5,borderColor:C.ink,borderRadius:22,paddingHorizontal:16,minHeight:44},
+ menu:{backgroundColor:'#f4f3f7',borderRadius:18,padding:6,marginBottom:20},
+ menuRow:{flexDirection:'row',alignItems:'center',gap:12,minHeight:56,paddingHorizontal:12}
 });
