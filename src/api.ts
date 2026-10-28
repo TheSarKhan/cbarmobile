@@ -25,16 +25,6 @@ export function livenessOrigin(){
  if(api&&api.startsWith('https://'))return new URL(api).origin;
  return 'https://apicbar.sarkhan.az';
 }
-/**
- * The hosted pages of the partner simulator (the recipient's bank app). Behind the gateway they share the API's origin; in local
- * development the API says which port its simulator listens on, so the link follows the simulator that is really running.
- */
-export function simAppUrl(base:string,simPort=''){
- const configured=process.env.EXPO_PUBLIC_SIM_URL;
- if(configured)return configured.replace(/\/$/,'')+'/bank-app';
- const api=new URL(base);
- return (simPort?api.protocol+'//'+api.hostname+':'+simPort:api.origin)+'/bank-app';
-}
 export const CONNECTION_ERROR_MESSAGE="Serverlə bağlantı qurulmadı. API ünvanını və Wi-Fi bağlantısını yoxlayın.";
 const CODE_BY_MESSAGE=new Map<string,string>();
 /** The server code behind an error message that was shown to the person, for choosing the popup icon. */

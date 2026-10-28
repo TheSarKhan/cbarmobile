@@ -259,7 +259,7 @@ export function LinkBankFlow({hidden,close}:{hidden:boolean;close:()=>void}){
 }
 
 /** The phone's lock screen where the bank's push notification arrives. */
-function PhoneScreen({consent,onOpen,onCancel}:{consent:Row;onOpen:()=>void;onCancel:()=>void}){
+export function PhoneScreen({consent,onOpen,onCancel,caption='Bankın tətbiqinə keçid edilir…'}:{consent:Row;onOpen:()=>void;onCancel:()=>void;caption?:string}){
  const [slide]=useState(()=>new Animated.Value(-140));
  useEffect(()=>{
   const id=setTimeout(()=>Animated.timing(slide,{toValue:0,duration:420,easing:Easing.out(Easing.cubic),useNativeDriver:false}).start(),900);
@@ -271,7 +271,7 @@ function PhoneScreen({consent,onOpen,onCancel}:{consent:Row;onOpen:()=>void;onCa
    <SafeAreaView style={{flex:1}}>
     <Pressable accessibilityRole="button" accessibilityLabel="Ləğv et" onPress={onCancel} hitSlop={12} style={f.phoneCancel}><Icon name="close" size={22} color="rgba(255,255,255,0.8)"/></Pressable>
     <Text style={f.phoneTime}>9:41</Text>
-    <Text style={f.phoneDate}>Bankın tətbiqinə keçid edilir…</Text>
+    <Text style={f.phoneDate}>{caption}</Text>
     <Animated.View style={[f.banner,{transform:[{translateY:slide}]}]}>
      <Pressable accessibilityRole="button" accessibilityLabel="Bildirişi aç" onPress={onOpen} style={f.bannerInner}>
       <BankMark bank={{color:consent.bankColor,initials:consent.bankInitials}} size={40}/>
@@ -287,7 +287,7 @@ function PhoneScreen({consent,onOpen,onCancel}:{consent:Row;onOpen:()=>void;onCa
 }
 
 /** Frame of the simulated bank app: its own colour, its own header, a footer for its action buttons. */
-function BankShell({bank,title,onBack,children,footer}:{bank:Row;title:string;onBack?:()=>void;children:React.ReactNode;footer?:React.ReactNode}){
+export function BankShell({bank,title,onBack,children,footer}:{bank:Row;title:string;onBack?:()=>void;children:React.ReactNode;footer?:React.ReactNode}){
  return (
   <View style={f.white}>
    <SafeAreaView edges={['top']} style={{backgroundColor:bank.color}}>
@@ -306,7 +306,7 @@ function BankShell({bank,title,onBack,children,footer}:{bank:Row;title:string;on
  );
 }
 
-function BankButton({bank,title,onPress,disabled,ghost,icon}:{bank:Row;title:string;onPress:()=>void;disabled?:boolean;ghost?:boolean;icon?:string}){
+export function BankButton({bank,title,onPress,disabled,ghost,icon}:{bank:Row;title:string;onPress:()=>void;disabled?:boolean;ghost?:boolean;icon?:string}){
  return (
   <Pressable accessibilityRole="button" disabled={disabled} onPress={onPress} style={({pressed})=>[f.bankBtn,{backgroundColor:ghost?'#f1eff7':bank.color},(pressed||disabled)&&{opacity:0.55}]}>
    {!!icon&&<Icon name={icon as any} size={19} color={ghost?bank.color:'#fff'}/>}

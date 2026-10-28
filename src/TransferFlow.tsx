@@ -1,9 +1,9 @@
 import React,{useEffect,useMemo,useState} from 'react';
-import {Linking,Pressable,ScrollView,StyleSheet,View} from 'react-native';
+import {Pressable,ScrollView,StyleSheet,View} from 'react-native';
 import {Text,TextInput} from './text';
 import {SafeAreaProvider,SafeAreaView} from 'react-native-safe-area-context';
 import {Avatar,BackBar,Button,C,ErrorPopup,FullScreen,Icon,ResultArt,S,cardLabel,linkedCards,useApp,useModalHost} from './ui';
-import {errorCode,minor,money,simAppUrl,Row} from './api';
+import {errorCode,minor,money,Row} from './api';
 import {recentRecipients,initialRecipient,transferAmountError} from './bugRules';
 
 type Contact={name:string;phone:string;avatar?:number|null;fin?:string};
@@ -54,7 +54,6 @@ export function TransferFlow({mode='AUTO',initialPhone,hidden,close}:{mode?:'AUT
   [failure,setFailure]=useState(''),
   [source,setSource]=useState('WALLET'),
   [recipientToken,setRecipientToken]=useState(''),
-  [simPort,setSimPort]=useState(''),
   [count,setCount]=useState(5);
 
  const external=(p:string)=>FIN.test(p)||/^\+99455/.test(p);
@@ -95,14 +94,6 @@ export function TransferFlow({mode='AUTO',initialPhone,hidden,close}:{mode?:'AUT
   return()=>{cancelled=true;};
  // eslint-disable-next-line react-hooks/exhaustive-deps
  },[resolveRecipient,recipientPhone]);
-
- // where the partner simulator's pages are served, known before the button is pressed so the browser does not block the new tab
- const aniPay=result?.channel==='ANIPAY';
- const askSim=a.call;
- useEffect(()=>{
-  if(!aniPay)return;
-  askSim('anipay/bank-app').then(r=>setSimPort(r.simPort||'')).catch(()=>{});
- },[aniPay,askSim]);
 
  // the 5-second cancel window of a scheduled transfer
  useEffect(()=>{
@@ -354,7 +345,7 @@ export function TransferFlow({mode='AUTO',initialPhone,hidden,close}:{mode?:'AUT
        )}
        {live?.channel==='ANIPAY'&&live.status!=='REFUNDED'&&live.status!=='COMPLETED'&&(
         <View style={{alignSelf:'stretch',marginBottom:10}}>
-         <Button title="Bank proqramını aç (simulyasiya)" secondary icon="open-outline" onPress={()=>{void Linking.openURL(simAppUrl(a.base,simPort));}}/>
+         <Button title="Alıcının bank proqramı (simulyasiya)" secondary icon="open-outline" onPress={()=>a.open('anipay-bank')}/>
         </View>
        )}
        {result?.status==='SCHEDULED'&&count>0&&(

@@ -8,6 +8,7 @@ import {TopUpFlow} from './TopUpFlow';
 import {BanksSection} from './BanksSection';
 import {TransferFlow} from './TransferFlow';
 import {LinkBankFlow} from './LinkBankFlow';
+import {AniPayBankFlow} from './AniPayBankFlow';
 import {minor,money,Row} from './api';
 import appConfig from '../app.json';
 
@@ -74,6 +75,7 @@ export function Operations({sheet,close,hidden=false}:{sheet:string;close:()=>vo
  const txItem=kind==='tx-detail'?[...(a.data.transactions||[]),...(a.external||[])].find((x:Row)=>String(x.id)===paramId):null;
 
  if(kind==='link-bank')return <LinkBankFlow hidden={hidden} close={close}/>;
+ if(kind==='anipay-bank')return <AniPayBankFlow hidden={hidden} close={close}/>;
  if(kind==='send'||kind==='send-kampus'||kind==='send-anipay')return <TransferFlow mode={kind==='send-kampus'?'KAMPUS':kind==='send-anipay'?'ANIPAY':'AUTO'} initialPhone={sheet.startsWith('send:')?sheet.split(':')[1]:''} hidden={hidden} close={close}/>;
 
  return (
