@@ -970,6 +970,7 @@ function ProfileTab(){
  );
 }
 
+const AWAY_LOCK_MS=300_000;
 const VISIBLE_TABS=['Home','History','QR','Cards','More'];
 const TAB_ICONS:Record<string,[string,string]>={
  Home:['home','home-outline'],
@@ -1135,8 +1136,13 @@ export default function App(){
 
  useEffect(()=>{if(!message)return;const id=setTimeout(()=>setMessage(''),5000);return()=>clearTimeout(id);},[message]);
  useEffect(()=>{
+  // Leaving the app (another tab, camera, gallery, permission dialog) must not log the user out; only a long absence does.
+  let leftAt=0;
   const sub=AppState.addEventListener('change',state=>{
-   if(token&&(state==='background'||state==='active'&&Date.now()-lastInteraction.current>300_000))lock();
+   if(state!=='active'){if(!leftAt)leftAt=Date.now();return;}
+   const away=leftAt?Date.now()-leftAt:0;
+   leftAt=0;
+   if(token&&away>AWAY_LOCK_MS)lock();
   });
   return()=>sub.remove();
  },[lock,token]);
