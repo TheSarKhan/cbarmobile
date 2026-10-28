@@ -43,6 +43,7 @@ export function TransferFlow({mode='AUTO',initialPhone,hidden,close}:{mode?:'AUT
  const [step,setStep]=useState<'pick'|'amount'|'confirm'|'result'>(initialPhone?'amount':'pick');
  const [target,setTarget]=useState<Contact|null>(initialPhone?initialRecipient(a.data,initialPhone):null);
  const [aniLocal,setAniLocal]=useState(''),
+  [byFin,setByFin]=useState(false),
   [fin,setFin]=useState(''),
   [search,setSearch]=useState(''),
   [amount,setAmount]=useState(''),
@@ -126,7 +127,7 @@ export function TransferFlow({mode='AUTO',initialPhone,hidden,close}:{mode?:'AUT
   if(!target)return;
   setBusy(true);setLocal('');
   try{
-   const t=await a.act('transfers',{phone:target.phone,amountMinor:parsed,note,recipientToken,...((fin||target.fin)?{fin:fin||target.fin}:{}),...(source!=='WALLET'?{fundingAccountId:source}:{})});
+   const t=await a.act('transfers',{phone:target.phone,amountMinor:parsed,note,recipientToken,...(source!=='WALLET'?{fundingAccountId:source}:{})});
    setResult(t);setFailure('');setStep('result');
   }catch(e){
    const message=(e as Error).message;
@@ -151,37 +152,45 @@ export function TransferFlow({mode='AUTO',initialPhone,hidden,close}:{mode?:'AUT
       <Text style={t.title}>{mode==='ANIPAY'?'AniPay ilə köçür':mode==='KAMPUS'?'Kampus hesabına':'Kimə köçürürsən'}</Text>
       {mode==='ANIPAY'?(
        <>
-        <Text style={t.fieldLabel}>Alıcının FİN kodu</Text>
-        <TextInput
-         accessibilityLabel="FİN kod"
-         value={fin}
-         onChangeText={v=>setFin(v.toUpperCase().replace(/[^A-Z0-9]/g,'').slice(0,7))}
-         autoCapitalize="characters"
-         placeholder="7 simvol, məsələn 5ABC123"
-         placeholderTextColor="#aaa6bd"
-         style={S.input}
-        />
-        <Text style={[t.fieldLabel,{marginTop:16}]}>Əlaqə nömrəsi</Text>
-        <View style={t.phoneBar}>
-         <Text style={t.prefix}>+994</Text>
-         <TextInput
-          accessibilityLabel="Telefon nömrəsi"
-          value={aniLocal}
-          onChangeText={v=>setAniLocal(v.replace(/\D/g,'').replace(/^(994|0)/,'').slice(0,9))}
-          keyboardType="phone-pad"
-          placeholder="55 000 00 00"
-          placeholderTextColor="#aaa6bd"
-          style={t.phoneInput}
-         />
+        <View style={t.modes}>
+         {[{id:false,label:'Telefon nömrəsi'},{id:true,label:'FİN kod'}].map(o=>(
+          <Pressable key={o.label} accessibilityRole="button" accessibilityState={{selected:byFin===o.id}} onPress={()=>setByFin(o.id)} style={[t.mode,byFin===o.id&&{backgroundColor:C.primary,borderColor:C.primary}]}>
+           <Text style={[t.modeText,byFin===o.id&&{color:'#fff'}]}>{o.label}</Text>
+          </Pressable>
+         ))}
         </View>
-        <Text style={[S.muted,{fontSize:11,marginTop:8,marginBottom:14}]}>Pul alıcının bank proqramında AniPay bölməsində, FİN və nömrə ilə qəbul olunur.</Text>
+        {byFin?(
+         <TextInput
+          accessibilityLabel="FİN kod"
+          value={fin}
+          onChangeText={v=>setFin(v.toUpperCase().replace(/[^A-Z0-9]/g,'').slice(0,7))}
+          autoCapitalize="characters"
+          placeholder="7 simvol, məsələn 5ABC123"
+          placeholderTextColor="#aaa6bd"
+          style={S.input}
+         />
+        ):(
+         <View style={t.phoneBar}>
+          <Text style={t.prefix}>+994</Text>
+          <TextInput
+           accessibilityLabel="Telefon nömrəsi"
+           value={aniLocal}
+           onChangeText={v=>setAniLocal(v.replace(/\D/g,'').replace(/^(994|0)/,'').slice(0,9))}
+           keyboardType="phone-pad"
+           placeholder="55 000 00 00"
+           placeholderTextColor="#aaa6bd"
+           style={t.phoneInput}
+          />
+         </View>
+        )}
+        <Text style={[S.muted,{fontSize:11,marginTop:8,marginBottom:14}]}>Pul alıcının bank proqramında AniPay bölməsində qəbul olunur. İki üsuldan birini seçmək kifayətdir.</Text>
         <Button
          title="Davam et"
-         disabled={!FIN.test(fin)||aniLocal.length!==9}
-         onPress={()=>{setTarget({...initialRecipient(a.data,'+994'+aniLocal),fin});setStep('amount');}}
+         disabled={byFin?!FIN.test(fin):aniLocal.length!==9}
+         onPress={()=>{setTarget(initialRecipient(a.data,byFin?fin:'+994'+aniLocal));setStep('amount');}}
         />
         {frequent.length>0&&<Text style={t.group}>Tez-tez köçürülənlər</Text>}
-        {frequent.map(c=><ContactRow key={'f'+c.phone} c={c} onPress={()=>{setFin(c.fin||'');setTarget(c);setStep('amount');}}/>)}
+        {frequent.map(c=><ContactRow key={'f'+c.phone} c={c} onPress={()=>{setTarget(c);setStep('amount');}}/>)}
        </>
       ):(
        <>
