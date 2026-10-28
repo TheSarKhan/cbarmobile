@@ -54,6 +54,10 @@ type Props={
 
 type LastUser={phone:string;name:string;pinLength?:number;avatar?:number|null};
 const PHONE_FULL=/^\+994[0-9]{9}$/;
+// A half-finished registration survives a page refresh or an app restart for half an hour (the face photo is never stored, so the camera step is redone).
+const DRAFT_KEY='signupDraft';
+const DRAFT_STEPS:string[]=['sms','identity','name','avatar','face','terms','secure'];
+const DRAFT_TTL_MS=1_800_000;
 
 const formatPhone=(digits:string)=>{
  const groups=[2,3,2,2];let at=0;
@@ -236,7 +240,7 @@ export default function AuthFlow({base,device,onAuthenticated,onConfig,onReplayI
 
  // The device remembers who signed in last, so the PIN screen can greet them without the server revealing names.
  useEffect(()=>{
-  storage.get('lastUser').then(raw=>{
+  storage.get('lastUser').then(async raw=>{
    let saved:LastUser|null=null;
    if(raw)try{saved=JSON.parse(raw);}catch{/* a corrupt value is treated as nobody remembered */}
    if(saved&&PHONE_FULL.test(saved.phone)){
@@ -245,12 +249,31 @@ export default function AuthFlow({base,device,onAuthenticated,onConfig,onReplayI
     call('auth/identify',{phone:saved.phone}).then(r=>{
      if(!r.registered)forget();else setPinLength(Number(r.pinLength)||saved.pinLength||6);
     }).catch(()=>{});
+   }else{
+    try{
+     const draft=JSON.parse(await storage.get(DRAFT_KEY)||'null');
+     if(draft&&Date.now()-draft.savedAt<DRAFT_TTL_MS&&PHONE_FULL.test(draft.phone)&&draft.otp&&DRAFT_STEPS.includes(draft.step)){
+      setDigits(draft.phone.slice(4));setOtp(draft.otp);setCode(draft.code||'');setVerified(!!draft.verified);
+      setFin(draft.fin||'');setSeries(draft.series||'');setSeriesLetters(draft.seriesLetters||'AA');
+      setFirst(draft.first||'');setLast(draft.last||'');setBirth(draft.birth||'');setAvatar(typeof draft.avatar==='number'?draft.avatar:null);
+      setConsent(!!draft.consent);setSimaSigned(!!draft.simaSigned);
+      setStep((draft.step==='terms'||draft.step==='secure'?'face':draft.step) as Step);
+     }
+    }catch{/* an unreadable draft means starting from the phone number */}
    }
    setReady(true);
   }).catch(()=>setReady(true));
  // Runs once on mount: it only reads what was saved.
  // eslint-disable-next-line react-hooks/exhaustive-deps
  },[]);
+
+
+ // Keep the draft up to date while a new person registers; leaving the flow (or finishing it) drops it.
+ useEffect(()=>{
+  if(!ready||lastUser||remembered)return;
+  if(!DRAFT_STEPS.includes(step)||!otp){if(step==='phone')storage.remove(DRAFT_KEY).catch(()=>{});return;}
+  storage.set(DRAFT_KEY,JSON.stringify({savedAt:Date.now(),step,phone,otp,code,verified,fin,series,seriesLetters,first,last,birth,avatar,consent,simaSigned})).catch(()=>{});
+ },[ready,lastUser,remembered,step,phone,otp,code,verified,fin,series,seriesLetters,first,last,birth,avatar,consent,simaSigned]);
 
  async function run(task:()=>Promise<void>,redirectOnError=false){
   setBusy(true);setError('');
@@ -331,6 +354,7 @@ export default function AuthFlow({base,device,onAuthenticated,onConfig,onReplayI
    livenessMode:kyc.mode,livenessActions:kyc.actions,selfie:kyc.selfie,
    pin:pinValue,deviceId:device,termsAccepted:consent,dataConsent:consent,avatar
   });
+  storage.remove(DRAFT_KEY).catch(()=>{});
   storage.set('lastUser',JSON.stringify({phone,name:`${first.trim()} ${last.trim()}`,pinLength:NEW_PIN_LENGTH,avatar})).catch(()=>{});
   await onAuthenticated(r.accessToken);
  },true).finally(()=>{setNewPin('');setNewPinAgain('');});
@@ -339,7 +363,7 @@ export default function AuthFlow({base,device,onAuthenticated,onConfig,onReplayI
 
  // "Another number": forget who signed in last and ask for the phone number again.
  function forget(){
-  storage.remove('lastUser').catch(()=>{});
+  storage.remove('lastUser').catch(()=>{});storage.remove(DRAFT_KEY).catch(()=>{});
   setLastUser(null);setRemembered(false);setDigits('');setPin('');setError('');setStep('phone');
  }
 
