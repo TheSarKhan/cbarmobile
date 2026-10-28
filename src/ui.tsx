@@ -236,6 +236,8 @@ export const statusLabel:Record<string,string>={
  FAILED:'Uğursuz · rezerv açıldı',
  HELD:'Rezerv edilib',
  SENT:'Bank şəbəkəsindədir',
+ AWAITING_RECIPIENT:'Alıcı qəbul etməlidir',
+ REFUNDED:'Geri qaytarıldı',
  UNDER_REVIEW:'Admin yoxlamasında',
  AVAILABLE:'Təklif hazırdır',
  DECLINED:'İmtina edildi',
@@ -250,7 +252,7 @@ export const statusLabel:Record<string,string>={
 export function statusTone(status?:string):'success'|'warn'|'danger'|'neutral'{
  if(!status)return 'neutral';
  if(['COMPLETED','PAID','ACCEPTED','ACTIVE','AVAILABLE'].includes(status))return 'success';
- if(['SCHEDULED','HELD','SENT','UNDER_REVIEW','OPEN'].includes(status))return 'warn';
+ if(['SCHEDULED','HELD','SENT','UNDER_REVIEW','OPEN','AWAITING_RECIPIENT'].includes(status))return 'warn';
  if(['CANCELLED','REJECTED','FAILED','DECLINED','CLOSED'].includes(status))return 'danger';
  return 'neutral';
 }

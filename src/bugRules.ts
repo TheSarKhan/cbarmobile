@@ -1,11 +1,11 @@
 /** User-owned history only: seeded contacts and trusted recipients are not recent transfers. */
-export function recentRecipients(data:any):{name:string;phone:string;avatar?:number|null}[]{
- const seen=new Set<string>();const out:{name:string;phone:string;avatar?:number|null}[]=[];
+export function recentRecipients(data:any):{name:string;phone:string;avatar?:number|null;fin?:string}[]{
+ const seen=new Set<string>();const out:{name:string;phone:string;avatar?:number|null;fin?:string}[]=[];
  const transfers=[...(data.transfers||[])].filter((t:any)=>!['CANCELLED','REJECTED','FAILED'].includes(t.status)).sort((a:any,b:any)=>String(b.createdAt||'').localeCompare(String(a.createdAt||'')));
  for(const t of transfers){
   if(!t.phone||t.phone===data.user?.phone||seen.has(t.phone))continue;
   const saved=(data.trustedBeneficiaries||[]).find((x:any)=>x.phone===t.phone);
-  seen.add(t.phone);out.push({phone:t.phone,name:t.recipientName||saved?.nickname||saved?.maskedName||t.phone,avatar:t.avatar??saved?.avatar});
+  seen.add(t.phone);out.push({phone:t.phone,name:t.recipientName||saved?.nickname||saved?.maskedName||t.phone,avatar:t.avatar??saved?.avatar,...(t.fin?{fin:t.fin}:{})});
  }
  return out.slice(0,8);
 }

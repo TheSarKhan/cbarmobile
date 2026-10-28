@@ -1,12 +1,12 @@
 import React,{useEffect,useMemo,useState} from 'react';
-import {Pressable,ScrollView,StyleSheet,View} from 'react-native';
+import {Linking,Pressable,ScrollView,StyleSheet,View} from 'react-native';
 import {Text,TextInput} from './text';
 import {SafeAreaProvider,SafeAreaView} from 'react-native-safe-area-context';
 import {Avatar,BackBar,Button,C,ErrorPopup,FullScreen,Icon,ResultArt,S,cardLabel,linkedCards,useApp,useModalHost} from './ui';
-import {errorCode,minor,money,Row} from './api';
+import {errorCode,minor,money,simAppUrl,Row} from './api';
 import {recentRecipients,initialRecipient,transferAmountError} from './bugRules';
 
-type Contact={name:string;phone:string;avatar?:number|null};
+type Contact={name:string;phone:string;avatar?:number|null;fin?:string};
 const FRIENDS:Contact[]=[
  {name:'Murad Əliyev',phone:'+994501000002'},
  {name:'Leyla Həsənova',phone:'+994501000003'},
@@ -42,9 +42,7 @@ export function TransferFlow({mode='AUTO',initialPhone,hidden,close}:{mode?:'AUT
  const self=a.data.user?.phone;
  const [step,setStep]=useState<'pick'|'amount'|'confirm'|'result'>(initialPhone?'amount':'pick');
  const [target,setTarget]=useState<Contact|null>(initialPhone?initialRecipient(a.data,initialPhone):null);
- const [manual,setManual]=useState(mode==='ANIPAY'),
-  [phone,setPhone]=useState('+994'),
-  [byFin,setByFin]=useState(false),
+ const [aniLocal,setAniLocal]=useState(''),
   [fin,setFin]=useState(''),
   [search,setSearch]=useState(''),
   [amount,setAmount]=useState(''),
@@ -68,8 +66,13 @@ export function TransferFlow({mode='AUTO',initialPhone,hidden,close}:{mode?:'AUT
  },[a.data.trustedBeneficiaries,self,mode]);
  const cards=linkedCards(a.data);
  const frequent=recentRecipients(a.data).filter(c=>mode==='ANIPAY'?external(c.phone):mode==='KAMPUS'?!external(c.phone):true).slice(0,3);
- const needle=search.trim().toLowerCase();
- const shown=needle?contacts.filter(c=>c.name.toLowerCase().includes(needle)||c.phone.includes(needle)):contacts.filter(c=>!frequent.some(x=>x.phone===c.phone));
+ // one field takes a number or a name, as in the design
+ const typedNumber=/^[\d\s+()-]+$/.test(search.trim());
+ const typedDigits=search.replace(/\D/g,'');
+ const typedLocal=typedDigits.replace(/^(994|0)/,'').slice(0,9);
+ const typedPretty='+994 '+[typedLocal.slice(0,2),typedLocal.slice(2,5),typedLocal.slice(5,7),typedLocal.slice(7,9)].filter(Boolean).join(' ');
+ const needle=typedNumber?typedLocal:search.trim().toLowerCase();
+ const shown=needle?contacts.filter(c=>typedNumber?c.phone.replace(/\D/g,'').includes(needle):c.name.toLowerCase().includes(needle)):contacts.filter(c=>!frequent.some(x=>x.phone===c.phone));
 
  const recipientPhone=target?.phone;
  const resolveRecipient=a.call;
@@ -123,7 +126,7 @@ export function TransferFlow({mode='AUTO',initialPhone,hidden,close}:{mode?:'AUT
   if(!target)return;
   setBusy(true);setLocal('');
   try{
-   const t=await a.act('transfers',{phone:target.phone,amountMinor:parsed,note,recipientToken,...(source!=='WALLET'?{fundingAccountId:source}:{})});
+   const t=await a.act('transfers',{phone:target.phone,amountMinor:parsed,note,recipientToken,...((fin||target.fin)?{fin:fin||target.fin}:{}),...(source!=='WALLET'?{fundingAccountId:source}:{})});
    setResult(t);setFailure('');setStep('result');
   }catch(e){
    const message=(e as Error).message;
@@ -134,7 +137,8 @@ export function TransferFlow({mode='AUTO',initialPhone,hidden,close}:{mode?:'AUT
   }finally{setBusy(false);}
  }
 
- const tone:'success'|'failed'|'review'=failure?'failed':result?.status==='UNDER_REVIEW'?'review':'success';
+ const live=result?((a.data.transfers||[]).find((x:Row)=>x.id===result.id)||result):null;
+ const tone:'success'|'failed'|'review'=failure?'failed':live?.status==='UNDER_REVIEW'?'review':live?.status==='REFUNDED'?'failed':'success';
 
  return (
   <FullScreen visible={!hidden} animationType={opened?'none':'slide'} onRequestClose={close}>
@@ -145,61 +149,72 @@ export function TransferFlow({mode='AUTO',initialPhone,hidden,close}:{mode?:'AUT
      <ScrollView contentContainerStyle={t.body} keyboardShouldPersistTaps="handled">
       <BackBar onBack={close}/>
       <Text style={t.title}>{mode==='ANIPAY'?'AniPay ilə köçür':mode==='KAMPUS'?'Kampus hesabına':'Kimə köçürürsən'}</Text>
-      <Pressable accessibilityRole="button" style={t.newRow} onPress={()=>setManual(m=>!m)}>
-       <View style={t.plus}><Icon name="add" size={24} color={C.primary}/></View>
-       <Text style={t.newText}>{mode==='ANIPAY'?'Telefon və ya FİN kod yaz':'Yeni alıcı'}</Text>
-      </Pressable>
-      {manual&&(
-       <View style={{marginTop:10}}>
-        {mode!=='KAMPUS'&&<View style={t.modes}>
-         {[{id:false,label:'Telefon nömrəsi'},{id:true,label:'FİN kod'}].map(o=>(
-          <Pressable key={o.label} accessibilityRole="button" accessibilityState={{selected:byFin===o.id}} onPress={()=>setByFin(o.id)} style={[t.mode,byFin===o.id&&{backgroundColor:C.primary,borderColor:C.primary}]}>
-           <Text style={[t.modeText,byFin===o.id&&{color:'#fff'}]}>{o.label}</Text>
-          </Pressable>
-         ))}
-        </View>}
-        {byFin&&mode!=='KAMPUS'?(
-         <>
-          <TextInput
-           accessibilityLabel="FİN kod"
-           value={fin}
-           onChangeText={v=>setFin(v.toUpperCase().replace(/[^A-Z0-9]/g,'').slice(0,7))}
-           autoCapitalize="characters"
-           placeholder="7 simvol, məsələn 5ABC123"
-           placeholderTextColor="#aaa6bd"
-           style={S.input}
-          />
-          <Text style={[S.muted,{fontSize:11,marginTop:6}]}>FİN kodla başqa bankın müştərisinə AniPay ilə köçürə bilərsən.</Text>
-         </>
-        ):(
+      {mode==='ANIPAY'?(
+       <>
+        <Text style={t.fieldLabel}>Alıcının FİN kodu</Text>
+        <TextInput
+         accessibilityLabel="FİN kod"
+         value={fin}
+         onChangeText={v=>setFin(v.toUpperCase().replace(/[^A-Z0-9]/g,'').slice(0,7))}
+         autoCapitalize="characters"
+         placeholder="7 simvol, məsələn 5ABC123"
+         placeholderTextColor="#aaa6bd"
+         style={S.input}
+        />
+        <Text style={[t.fieldLabel,{marginTop:16}]}>Əlaqə nömrəsi</Text>
+        <View style={t.phoneBar}>
+         <Text style={t.prefix}>+994</Text>
          <TextInput
           accessibilityLabel="Telefon nömrəsi"
-          value={phone}
-          onChangeText={setPhone}
+          value={aniLocal}
+          onChangeText={v=>setAniLocal(v.replace(/\D/g,'').replace(/^(994|0)/,'').slice(0,9))}
           keyboardType="phone-pad"
-          placeholder={mode==='ANIPAY'?'+994 55 000 00 00':'+994 50 000 00 00'}
+          placeholder="55 000 00 00"
           placeholderTextColor="#aaa6bd"
-          style={S.input}
+          style={t.phoneInput}
          />
-        )}
-        <View style={{height:10}}/>
+        </View>
+        <Text style={[S.muted,{fontSize:11,marginTop:8,marginBottom:14}]}>Pul alıcının bank proqramında AniPay bölməsində, FİN və nömrə ilə qəbul olunur.</Text>
         <Button
          title="Davam et"
-         disabled={byFin?!FIN.test(fin):phone.replace(/\D/g,'').length<12}
-         onPress={()=>{const id=byFin?fin:phone.replace(/\s/g,'');setTarget(initialRecipient(a.data,id));setStep('amount');}}
+         disabled={!FIN.test(fin)||aniLocal.length!==9}
+         onPress={()=>{setTarget({...initialRecipient(a.data,'+994'+aniLocal),fin});setStep('amount');}}
         />
-       </View>
+        {frequent.length>0&&<Text style={t.group}>Tez-tez köçürülənlər</Text>}
+        {frequent.map(c=><ContactRow key={'f'+c.phone} c={c} onPress={()=>{setFin(c.fin||'');setTarget(c);setStep('amount');}}/>)}
+       </>
+      ):(
+       <>
+        <View style={t.phoneBar}>
+         <Text style={t.prefix}>+994</Text>
+         <TextInput
+          accessibilityLabel="Telefon nömrəsi və ya ad"
+          value={search}
+          onChangeText={setSearch}
+          placeholder="Telefon nömrəsi və ya ad"
+          placeholderTextColor="#aaa6bd"
+          style={t.phoneInput}
+         />
+         {!!search&&(
+          <Pressable accessibilityRole="button" accessibilityLabel="Təmizlə" hitSlop={10} onPress={()=>setSearch('')}>
+           <Icon name="close" size={20} color="#6e6a85"/>
+          </Pressable>
+         )}
+        </View>
+        {typedNumber&&typedLocal.length===9&&(
+         <Pressable accessibilityRole="button" accessibilityLabel={typedPretty} style={t.contact} onPress={()=>{setTarget(initialRecipient(a.data,'+994'+typedLocal));setStep('amount');}}>
+          <View style={t.numIcon}><Icon name="person-outline" size={22} color={C.ink}/></View>
+          <Text style={[t.contactName,{flex:1,fontWeight:'500',fontSize:17}]}>{typedPretty}</Text>
+          <Icon name="chevron-forward" size={18} color="#8d89a3"/>
+         </Pressable>
+        )}
+        {!needle&&frequent.length>0&&<Text style={t.group}>TEZ-TEZ KÖÇÜRÜLƏNLƏR</Text>}
+        {!needle&&frequent.map(c=><ContactRow key={'f'+c.phone} c={c} onPress={()=>{setTarget(c);setStep('amount');}}/>)}
+        {shown.length>0&&<Text style={t.group}>{needle?'NƏTİCƏLƏR':'KONTAKTLAR'}</Text>}
+        {shown.map(c=><ContactRow key={c.phone} c={c} onPress={()=>{setTarget(c);setStep('amount');}}/>)}
+        {!shown.length&&!(typedNumber&&typedLocal.length===9)&&<Text style={[S.muted,{marginTop:16}]}>Kontakt tapılmadı. Tam telefon nömrəsini yaz.</Text>}
+       </>
       )}
-      {mode!=='ANIPAY'&&<View style={t.or}><View style={t.orLine}/><Text style={t.orText}>və ya</Text><View style={t.orLine}/></View>}
-      {mode!=='ANIPAY'&&<View style={t.search}>
-       <Icon name="search-outline" size={20} color="#6e6a85"/>
-       <TextInput accessibilityLabel="Kontakt axtar" value={search} onChangeText={setSearch} placeholder="Kontakt axtar" placeholderTextColor="#aaa6bd" style={t.searchInput}/>
-      </View>}
-      {!needle&&frequent.length>0&&<Text style={t.group}>Tez-tez köçürülənlər</Text>}
-      {!needle&&frequent.map(c=><ContactRow key={'f'+c.phone} c={c} onPress={()=>{setTarget(c);setStep('amount');}}/>)}
-      {mode!=='ANIPAY'&&<Text style={t.group}>{needle?'Nəticələr':'Bütün kontaktlar'}</Text>}
-      {mode!=='ANIPAY'&&shown.map(c=><ContactRow key={c.phone} c={c} onPress={()=>{setTarget(c);setStep('amount');}}/>)}
-      {mode!=='ANIPAY'&&!shown.length&&<Text style={[S.muted,{marginTop:12}]}>Kontakt tapılmadı. “Yeni alıcı” ilə telefon nömrəsi və ya FİN kod əlavə edə bilərsən.</Text>}
      </ScrollView>
     )}
 
@@ -307,16 +322,21 @@ export function TransferFlow({mode='AUTO',initialPhone,hidden,close}:{mode?:'AUT
       <ScrollView contentContainerStyle={[t.body,{alignItems:'center',paddingTop:40}]}>
        <ResultArt tone={tone}/>
        <Text style={[t.resultTitle]}>
-        {tone==='failed'?'Köçürmə alınmadı':tone==='review'?'Yoxlamaya göndərildi':'Köçürmə göndərildi'}
+        {failure?'Köçürmə alınmadı':live?.status==='REFUNDED'?'Köçürmə geri qaytarıldı':tone==='review'?'Yoxlamaya göndərildi':live?.status==='AWAITING_RECIPIENT'?'AniPay-də gözləyir':live?.status==='COMPLETED'&&live.channel==='ANIPAY'?'Alıcı qəbul etdi':'Köçürmə göndərildi'}
        </Text>
        <Text style={t.resultText}>
-        {tone==='failed'?failure:tone==='review'?'Əməliyyat admin yoxlamasındadır. Vəsait rezerv edilib.':result?.status==='SCHEDULED'&&count>0?'Köçürmə '+count+' saniyəyə icra ediləcək.':'Nəticəni tarixçədə izləyə bilərsən.'}
+        {failure?failure:live?.status==='REFUNDED'?'Alıcı vaxtında qəbul etmədi, məbləğ balansına qayıtdı.':tone==='review'?'Əməliyyat admin yoxlamasındadır. Vəsait rezerv edilib.':live?.status==='SCHEDULED'&&count>0?'Köçürmə '+count+' saniyəyə icra ediləcək.':live?.status==='AWAITING_RECIPIENT'?'Alıcı öz bank proqramında AniPay bölməsində FİN və nömrə ilə köçürməni qəbul etməlidir. Qəbul etməsə, məbləğ geri qayıdır.':live?.status==='COMPLETED'&&live.channel==='ANIPAY'?String(live.receivedTo||'Köçürmə alıcının hesabına çatdı.'):'Nəticəni tarixçədə izləyə bilərsən.'}
        </Text>
        {tone!=='failed'&&result&&(
         <View style={t.details}>
          <Detail label="Alan" value={String(result.recipientName||target?.name||'')}/>
          <Detail label="Məbləğ" value={money(result.amountMinor)}/>
          <Detail label="Əməliyyat no." value={String(result.id||'').slice(0,18)}/>
+        </View>
+       )}
+       {live?.channel==='ANIPAY'&&live.status!=='REFUNDED'&&live.status!=='COMPLETED'&&(
+        <View style={{alignSelf:'stretch',marginBottom:10}}>
+         <Button title="Bank proqramını aç (simulyasiya)" secondary icon="open-outline" onPress={()=>{void Linking.openURL(simAppUrl(a.base));}}/>
         </View>
        )}
        {result?.status==='SCHEDULED'&&count>0&&(
@@ -374,6 +394,11 @@ const t=StyleSheet.create({
  or:{flexDirection:'row',alignItems:'center',gap:12,marginVertical:14},
  orLine:{flex:1,height:1,backgroundColor:'#ebe8f4'},
  orText:{fontSize:12,color:'#76738a'},
+ fieldLabel:{fontSize:12,fontWeight:'700',color:'#76738a',marginBottom:6},
+ phoneBar:{flexDirection:'row',alignItems:'center',gap:10,backgroundColor:'#ebeaf0',borderRadius:18,paddingHorizontal:16,minHeight:60},
+ prefix:{fontSize:17,color:'#8d89a3'},
+ phoneInput:{flex:1,fontSize:17,color:C.ink,minHeight:56,outlineStyle:'none' as any},
+ numIcon:{width:48,height:48,borderRadius:16,backgroundColor:'#ebeaf0',alignItems:'center',justifyContent:'center'},
  search:{flexDirection:'row',alignItems:'center',gap:10,borderWidth:1,borderColor:'#dedaeb',borderRadius:10,paddingHorizontal:12,minHeight:50},
  searchInput:{flex:1,fontSize:15,color:C.ink,minHeight:48},
  group:{fontSize:12,color:'#76738a',marginTop:18,marginBottom:4},
