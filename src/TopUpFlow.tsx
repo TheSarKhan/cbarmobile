@@ -3,7 +3,7 @@ import {View,Pressable,StyleSheet,Share} from 'react-native';
 import {LinearGradient} from 'expo-linear-gradient';
 import {toQR} from 'toqr';
 import {Text} from './text';
-import {C,S,useApp,linkedCards,Icon,Button,Field,Check,Badge,Box,Empty} from './ui';
+import {C,S,useApp,linkedCards,Icon,Button,Field,Badge,Box,Empty} from './ui';
 import {minor,money,Row} from './api';
 
 const luhn=(n:string)=>{
@@ -65,7 +65,6 @@ export function TopUpFlow({close}:{close:()=>void}){
   [number,setNumber]=useState(''),
   [expiry,setExpiry]=useState(''),
   [cvv,setCvv]=useState(''),
-  [save,setSave]=useState(false),
   [qr,setQr]=useState<Row|null>(null);
  const parsed=Math.max(0,Number(amount.replace(',','.'))||0);
 
@@ -84,7 +83,7 @@ export function TopUpFlow({close}:{close:()=>void}){
  const month=Number(expiry.slice(0,2)),year=2000+Number(expiry.slice(3,5)),now=new Date();
  const numberError=digits.length===16&&!luhn(digits)?'Kart nömrəsi yanlışdır.':'';
  const expiryError=expiry.length===5&&(month<1||month>12||year<now.getFullYear()||(year===now.getFullYear()&&month<now.getMonth()+1))?'Kartın müddəti yanlışdır.':'';
- const cardReady=digits.length===16&&!numberError&&expiry.length===5&&!expiryError&&cvv.length===3&&parsed>0;
+ const cardReady=digits.length===16&&!numberError&&expiry.length===5&&!expiryError&&cvv.length===3;
 
  const back=(
   <Pressable accessibilityRole="button" onPress={()=>{setView('home');setQr(null);}} style={st.backRow}>
@@ -172,15 +171,14 @@ export function TopUpFlow({close}:{close:()=>void}){
      <View style={{flex:1}}><Field label="Bitmə tarixi" value={expiry} onChange={t=>setExpiry(formatExpiry(t))} placeholder="AA/İİ" digits maxLength={5} error={expiryError} eager/></View>
      <View style={{flex:1}}><Field label="CVV" value={cvv} onChange={t=>setCvv(t.replace(/\D/g,'').slice(0,3))} placeholder="•••" secure digits maxLength={3}/></View>
     </View>
-    {amountBox('Balansa əlavə olunacaq məbləğ')}
-    <Check value={save} onChange={setSave} text="Bu kartı növbəti artımlar üçün yadda saxla. Kartın nömrəsi və CVV saxlanmır, yalnız token və son 4 rəqəm. İstədiyin vaxt silə bilərsən."/>
+    <Text style={[S.muted,{marginBottom:16,fontSize:12,lineHeight:18}]}>Kart yadda saxlanılır: nömrə və CVV saxlanmır, yalnız token və son 4 rəqəm. Növbəti artımlarda CVV tələb olunmur. İstədiyin vaxt silə bilərsən.</Text>
     <Button
-     title={`Kartdan +${parsed.toFixed(2)} ₼ artır`}
-     icon="arrow-forward"
+     title="Kartı əlavə et"
+     icon="add"
      disabled={a.busy||!cardReady}
      onPress={()=>run(async()=>{
-      await a.act('topups',{amountMinor:minor(amount),source:'NEW_CARD',card:{number:digits,expiry,cvv},saveCard:save});
-      close();
+      const added=await a.act('saved-cards',{card:{number:digits,expiry,cvv}});
+      setNumber('');setExpiry('');setCvv('');setPicked('S:'+added.id);setView('home');
      })}
     />
    </>
@@ -233,7 +231,7 @@ export function TopUpFlow({close}:{close:()=>void}){
     <View style={{marginTop:18}}>
      {amountBox('Balansa əlavə olunacaq məbləğ')}
      <Button
-      title={`${current.title} kartından +${parsed.toFixed(2)} ₼ artır`}
+      title={`Balansa +${parsed.toFixed(2)} ₼ artır`}
       icon="arrow-forward"
       disabled={a.busy||parsed<=0}
       onPress={()=>run(async()=>{
