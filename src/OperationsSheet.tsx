@@ -1,7 +1,7 @@
 import React,{useState,useEffect} from 'react';
 import {View,Pressable,StyleSheet,ActivityIndicator} from 'react-native';
 import {Text} from './text';
-import {C,S,useApp,fmtDate,fmtDateTime,statusLabel,statusTone,Icon,Button,Field,Check,Badge,Box,Empty,Sheet,Tx,EXPENSE_CATEGORIES} from './ui';
+import {C,S,useApp,fmtDate,fmtDateTime,statusLabel,statusTone,Icon,Button,Field,Check,Badge,Box,Empty,Sheet,Tx} from './ui';
 import {CardTransferForm} from './CardTransferSheet';
 import {CreditSection} from './HubSections';
 import {TopUpFlow} from './TopUpFlow';
@@ -180,24 +180,6 @@ export function Operations({sheet,close,hidden=false}:{sheet:string;close:()=>vo
         <Text style={[S.muted,{fontWeight:'700',color:C.ink}]}>#{String(txItem.id).slice(0,12)}</Text>
        </View>
       </Box>
-
-      {txItem.direction==='OUT'&&(
-      <Box>
-       <Text style={[S.label,{marginBottom:10}]}>KATEQORİYANI DƏYİŞ</Text>
-       <View style={{flexDirection:'row',flexWrap:'wrap',gap:8}}>
-        {EXPENSE_CATEGORIES.map(c=>(
-         <Pressable
-          key={c}
-          accessibilityRole="button"
-          onPress={()=>a.act('transactions/'+txItem.id+'/category',{category:c}).catch(()=>{})}
-          style={[S.tab,txItem.category===c&&{backgroundColor:C.lime,borderColor:C.ink}]}
-         >
-          <Text style={[S.tabText,txItem.category===c&&{color:C.ink,fontWeight:'700'}]}>{c}</Text>
-         </Pressable>
-        ))}
-       </View>
-      </Box>
-      )}
 
       {txItem.direction==='OUT'&&(
        <Button title="Bu xərci dostlarla böl" secondary icon="people-outline" onPress={()=>a.open('split')}/>
