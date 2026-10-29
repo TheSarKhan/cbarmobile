@@ -4,7 +4,7 @@ import {Text} from './text';
 import {C,S,Avatar,Button,Icon,useApp} from './ui';
 import type {Row} from './api';
 
-/** Kampus friends: made by scanning each other's static QR, they show up in transfers and shared bills. */
+/** Kampus friends: made by scanning each other's static QR, they show up in transfers. */
 export function FriendsSection({close}:{close:()=>void}){
  const a=useApp();
  const [open,setOpen]=useState('');

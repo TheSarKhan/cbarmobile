@@ -1,9 +1,8 @@
 import React,{useState,useEffect} from 'react';
 import {View,Pressable,StyleSheet,ActivityIndicator,Share} from 'react-native';
 import {Text} from './text';
-import {C,S,useApp,fmtDate,fmtDateTime,statusLabel,statusTone,Icon,Button,Field,Check,Badge,Box,Empty,Sheet,Tx} from './ui';
+import {C,S,useApp,fmtDateTime,statusLabel,statusTone,Icon,Button,Field,Badge,Box,Empty,Sheet,Tx} from './ui';
 import {CardTransferForm,useCardTransferState} from './CardTransferSheet';
-import {CreditSection} from './HubSections';
 import {TopUpFlow} from './TopUpFlow';
 import {BanksSection} from './BanksSection';
 import {TransferFlow} from './TransferFlow';
@@ -27,10 +26,6 @@ export function Operations({sheet,close,hidden=false}:{sheet:string;close:()=>vo
   [transfer,setTransfer]=useState<Row|null>(null),
   [count,setCount]=useState(5);
  const [myQr,setMyQr]=useState<Row|null>(null);
- const [detail,setDetail]=useState<any>(null),
-  [selected,setSelected]=useState<string[]>([]),
-  [splitMode,setSplitMode]=useState<'EQUAL'|'CUSTOM'>('EQUAL'),
-  [customShares,setCustomShares]=useState<Record<string,string>>({});
  const kind=sheet.split(':')[0];
  const paramId=sheet.split(':')[1]||'';
 
@@ -45,10 +40,6 @@ export function Operations({sheet,close,hidden=false}:{sheet:string;close:()=>vo
   'tx-detail':'Əməliyyat detalları',
   'banks-hub':'Digər banklar',
   'card-transfer':'Karta köçürmə',
-  split:'Hesabı böl',
-  'split-view':'Hesabın irəliləyişi',
-  schedule:'Ödəniş qrafiki',
-  'credit-hub':'Sonra ödə və Kredit',
   help:'Kömək',
   contact:'Bizimlə əlaqə',
   about:'Kampus haqqında'
@@ -71,14 +62,6 @@ export function Operations({sheet,close,hidden=false}:{sheet:string;close:()=>vo
   if(kind==='my-qr')a.call('friends/qr',{}).then(setMyQr).catch(e=>a.setError(e.message));
  // eslint-disable-next-line react-hooks/exhaustive-deps
  },[kind]);
-
- useEffect(()=>{
-  if(kind==='schedule'||kind==='split-view'){
-   a.call(kind==='schedule'?'partner-loans/'+paramId+'/schedule':'splits/'+paramId)
-    .then(setDetail)
-    .catch(e=>a.setError(e.message));
-  }
- },[a,kind,paramId,a.data.transactions?.length]);
 
  const txItem=kind==='tx-detail'?[...(a.data.transactions||[]),...(a.external||[])].find((x:Row)=>String(x.id)===paramId):null;
 
@@ -107,7 +90,6 @@ export function Operations({sheet,close,hidden=false}:{sheet:string;close:()=>vo
     </View>
    )}
    {kind==='card-transfer'&&<CardTransferForm state={cardState} {...a}/>}
-   {kind==='credit-hub'&&<CreditSection/>}
    {kind==='banks-hub'&&<BanksSection/>}
 
    {kind==='help'&&(
@@ -217,9 +199,6 @@ export function Operations({sheet,close,hidden=false}:{sheet:string;close:()=>vo
        </View>
       </Box>
 
-      {txItem.direction==='OUT'&&(
-       <Button title="Bu xərci dostlarla böl" secondary icon="people-outline" onPress={()=>a.open('split')}/>
-      )}
       <Button title="Bağla" secondary onPress={close}/>
      </>
     ):(
@@ -316,122 +295,6 @@ export function Operations({sheet,close,hidden=false}:{sheet:string;close:()=>vo
        </Text>
       </>
      )}
-    </>
-   )}
-
-   {kind==='split'&&(
-    <>
-     <Field label="Ümumi hesab · AZN" value={amount} onChange={setAmount} numeric/>
-     <Field label="Qeyd" value={note} onChange={setNote} placeholder="Pizza 🍕"/>
-     <View style={{flexDirection:'row',gap:8,marginBottom:18}}>
-      {[['EQUAL','Bərabər böl'],['CUSTOM','Xüsusi məbləğ']].map(([id,label])=>(
-       <Pressable
-        key={id}
-        accessibilityRole="button"
-        onPress={()=>setSplitMode(id as 'EQUAL'|'CUSTOM')}
-        style={[S.tab,splitMode===id&&{backgroundColor:C.lime,borderColor:C.ink},{flex:1,alignItems:'center'}]}
-       >
-        <Text style={S.h3}>{label}</Text>
-       </Pressable>
-      ))}
-     </View>
-     <Text style={[S.label,{marginBottom:12}]}>Öz payın avtomatik daxil edilir. Dostları seç:</Text>
-     {!(a.data.friends||[]).length&&(
-      <Box>
-       <Text style={S.muted}>Hesabı bölmək üçün əvvəl dost əlavə et. Dostun “Mənim QR” ekranını açıb səni oxutsun və ya sən onunkunu oxut.</Text>
-       <Button title="Dostlar" secondary icon="people-outline" onPress={()=>a.open('friends')}/>
-      </Box>
-     )}
-     {(a.data.friends||[]).map((f:Row)=>(
-      <View key={f.id}>
-       <Check value={selected.includes(f.phone)} text={f.name} onChange={v=>setSelected(v?[...selected,f.phone]:selected.filter(x=>x!==f.phone))}/>
-       {splitMode==='CUSTOM'&&selected.includes(f.phone)&&(
-        <Field label={f.name+' payı · AZN'} value={customShares[f.phone]||'5'} numeric onChange={v=>setCustomShares(old=>({...old,[f.phone]:v}))}/>
-       )}
-      </View>
-     ))}
-     <Box>
-      <Text style={S.muted}>
-       {splitMode==='EQUAL'
-        ?'Hesab '+(selected.length+1)+' nəfər arasında bərabər bölünür. Qalıq qəpik sənin payına düşür.'
-        :'Seçilmiş dostların xüsusi payları cəmi ümumi hesabdan çıxılır, qalanı sənin payındır.'}
-      </Text>
-     </Box>
-     <Button
-      title="Böl və sorğuları göndər"
-      disabled={a.busy||!selected.length}
-      onPress={()=>run(async()=>{
-       const r=await a.act('splits',{
-        totalMinor:minor(amount),
-        mode:splitMode,
-        participants:selected.map(p=>splitMode==='CUSTOM'?{phone:p,amountMinor:minor(customShares[p]||'0')}:{phone:p}),
-        note
-       });
-       a.open('split-view:'+r.id);
-      })}
-     />
-    </>
-   )}
-
-   {kind==='split-view'&&(
-    <>
-     {detail?(
-      <>
-       <Box style={{alignItems:'center',paddingVertical:20}}>
-        <Badge text="ORTAQ HESAB" tone="success"/>
-        <Text style={[S.amount,{marginVertical:10}]}>{money(detail.totalMinor)}</Text>
-        <Text style={S.h3}>{detail.note||'Ortaq hesab'}</Text>
-        <Text style={[S.muted,{marginTop:6}]}>
-         {detail.paidCount}/{detail.participantCount} ödəyib · {money(detail.paidMinor)} / {money(detail.totalMinor)}
-        </Text>
-       </Box>
-       <Box>
-        <View style={S.between}>
-         <Text style={S.muted}>Sənin payın (Təşkilatçı)</Text>
-         <Text style={S.h3}>{money(detail.organizerShareMinor)}</Text>
-        </View>
-       </Box>
-       {detail.requests?.map((r:Row)=>(
-        <Box key={r.id}>
-         <View style={S.between}>
-          <View>
-           <Text style={S.h3}>{r.recipientName||r.phone||'İştirakçı'}</Text>
-           <Text style={S.muted}>{money(r.amountMinor)}</Text>
-          </View>
-          <Badge text={statusLabel[r.status]||r.status} tone={statusTone(r.status)}/>
-         </View>
-        </Box>
-       ))}
-       <Button title="Yenilə" secondary icon="refresh-outline" onPress={()=>a.call('splits/'+paramId).then(setDetail).catch(()=>{})}/>
-      </>
-     ):<ActivityIndicator color={C.ink}/>}
-    </>
-   )}
-
-   {kind==='schedule'&&(
-    <>
-     {detail?.map((inst:Row)=>(
-      <Box key={inst.id}>
-       <View style={[S.between,{marginBottom:12}]}>
-        <View>
-         <Text style={S.h3}>{inst.number}-ci ödəniş</Text>
-         <Text style={S.muted}>{fmtDate(inst.dueDate)||new Date(inst.dueDate).toLocaleDateString('az-AZ')}</Text>
-        </View>
-        <Text style={S.h3}>{money(inst.amountMinor)}</Text>
-       </View>
-       {inst.status==='PAID'?(
-        <Badge text="ÖDƏNİLİB" tone="success"/>
-       ):(
-        <Button
-         title="İndi ödə"
-         disabled={a.busy}
-         secondary
-         onPress={()=>a.act('partner-loans/'+paramId+'/installments/'+inst.id+'/pay',{amountMinor:inst.amountMinor}).catch(()=>{})}
-        />
-       )}
-      </Box>
-     ))}
-     {!detail&&<ActivityIndicator color={C.ink}/>}
     </>
    )}
 

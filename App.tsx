@@ -159,70 +159,6 @@ function Home({navigation}:any){
  );
 }
 
-/** Shared bills: the ones the customer started and the shares other people ask them to pay. */
-function SplitBills(){
- const a=useApp(),d=a.data;
- return (
-  <>
-   {d.splits?.length>0&&(
-    <>
-     <View style={S.section}><Text style={S.h3}>Bölünmüş hesablar</Text></View>
-     {d.splits.map((split:Row)=>(
-      <Pressable key={split.id} accessibilityRole="button" onPress={()=>a.open('split-view:'+split.id)}>
-       <Box>
-        <View style={S.between}>
-         <Text style={S.h3}>{split.note||'Ortaq hesab'}</Text>
-         <Text style={S.h3}>{money(split.totalMinor)}</Text>
-        </View>
-        <Text style={[S.muted,{marginTop:4}]}>
-         {split.participantCount} iştirakçı · {split.mode==='CUSTOM'?'Xüsusi məbləğ':'Bərabər bölgü'} · İrəliləyişə bax →
-        </Text>
-       </Box>
-      </Pressable>
-     ))}
-    </>
-   )}
-
-   {d.requests?.some((r:Row)=>r.status==='OPEN')&&(
-    <>
-    <View style={S.section}><Text style={S.h3}>Gələn hesab payları</Text></View>
-    <Box>
-    {d.requests?.filter((r:Row)=>r.status==='OPEN').map((r:Row)=>(
-     <View key={r.id} style={{marginBottom:16}}>
-      <View style={[S.between,{marginBottom:12}]}>
-       <View style={{flex:1}}>
-        <Text style={{fontWeight:'700',fontSize:13,color:C.ink}}>{r.requesterName}</Text>
-        <Text style={S.muted}>{r.note}</Text>
-       </View>
-       <Text style={S.h3}>{money(r.amountMinor)}</Text>
-      </View>
-      <View style={{flexDirection:'row',gap:10}}>
-       <View style={{flex:1}}>
-        <Button
-         disabled={a.busy}
-         title="Ödə"
-         onPress={()=>a.act('payment-requests/'+r.id+'/pay',{amountMinor:r.amountMinor,recipientName:r.requesterName}).catch(()=>{})}
-        />
-       </View>
-       <View style={{flex:1}}>
-        <Button
-         disabled={a.busy}
-         title="İmtina et"
-         secondary
-         onPress={()=>a.act('payment-requests/'+r.id+'/decline',{}).catch(()=>{})}
-        />
-       </View>
-      </View>
-     </View>
-    ))}
-    </Box>
-    </>
-   )}
-
-  </>
- );
-}
-
 function QrTab(){
  const focused=useIsFocused();
  const a=useApp();
@@ -370,7 +306,6 @@ function QrTab(){
       Ödəniş uğurla icra edildi və əməliyyat tarixçəsinə əlavə olundu.
      </Text>
      <View style={{width:'100%'}}>
-      <Button title="Bu hesabı dostlarla böl" icon="people-outline" onPress={()=>{setQrPaid(null);a.open('split');}}/>
       <Button title="Yeni QR skan et" secondary onPress={()=>{setQrPaid(null);setQr(null);setPayload('');setCamera(true);}}/>
      </View>
     </Box>
@@ -396,7 +331,7 @@ function QrTab(){
 
      <Text style={S.label}>Ödəniş mənbəyi</Text>
      <View style={{flexDirection:'row',gap:8,marginBottom:16,flexWrap:'wrap'}}>
-      {[['WALLET','Balans'],['BNPL','Sonra ödə'],...linkedCards(a.data).map((x:Row)=>['CARD:'+x.id,cardLabel(x)])].map(([id,label])=>(
+      {[['WALLET','Balans'],...linkedCards(a.data).map((x:Row)=>['CARD:'+x.id,cardLabel(x)])].map(([id,label])=>(
        <Pressable
         key={id}
         accessibilityRole="button"
@@ -423,11 +358,6 @@ function QrTab(){
       </View>
      </Box>
 
-     {funding==='BNPL'&&(
-      <Text style={[S.muted,{marginBottom:16}]}>
-       30 günə qaytar · faiz və komissiya 0% · mövcud limit {money(a.data.bnplAvailableMinor)}
-      </Text>
-     )}
      <Button
       title="Ödənişi təsdiqlə"
       disabled={a.busy}
@@ -714,14 +644,11 @@ function MoreTab({navigation}:any){
     <MoreRow {...P} icon="swap-horizontal" label="Pul köçür" onPress={()=>a.open('send-menu')}/>
     <MoreRow {...G} icon="arrow-up" label="Balansı artır" onPress={()=>a.open('add')}/>
     <MoreRow {...R} icon="card-outline" label="Karta çıxar" onPress={()=>a.open('card-transfer')}/>
-    <MoreRow {...P} icon="people-outline" label="Hesabı böl" onPress={()=>a.open('split')}/>
     <MoreRow {...B} icon="business-outline" label="Bank proqramı (simulyasiya)" sub="AniPay qəbul hesabını təyin et" onPress={()=>a.open('anipay-bank')} last/>
    </View>
-   <SplitBills/>
    <View style={styles.moreGroup}>
     <MoreRow {...P} icon="pie-chart-outline" label="Analitika və büdcə" sub="Proqnoz, abunəliklər, qeyri-adi ödənişlər" onPress={()=>navigation.navigate('Analytics')}/>
     <MoreRow {...B} icon="business-outline" label="Digər banklar" sub={banks>0?`${banks} bank bağlı · ${money(d.openBanking?.totalBalanceMinor||0)}`:'Kartlarını və xərclərini bir yerdə izlə'} onPress={()=>a.open('banks-hub')}/>
-    <MoreRow {...G} icon="school-outline" label="Sonra ödə və kredit" sub={`0% BNPL · ${money(d.bnplAvailableMinor)}`} onPress={()=>a.open('credit-hub')}/>
     <MoreRow {...P} icon="people-circle-outline" label="Dostlar" sub="Kampus dostların" onPress={()=>a.open('friends')}/>
     <MoreRow {...B} icon="qr-code-outline" label="Mənim QR kodum" onPress={()=>a.open('my-qr')} last/>
    </View>
@@ -1283,11 +1210,8 @@ export default function App(){
        {sca?.body.phone&&<Text style={[S.muted,{marginTop:8}]}>Alan: {sca.body.phone}</Text>}
        {sca?.body.fundingSource&&(
         <Text style={[S.muted,{marginTop:8}]}>
-         Ödəniş: {({BNPL:'Sonra ödə',WALLET:'Kampus balansı',BANK_CARD:'Bank kartı'} as any)[sca.body.fundingSource]}
+         Ödəniş: {({WALLET:'Kampus balansı',BANK_CARD:'Bank kartı'} as any)[sca.body.fundingSource]}
         </Text>
-       )}
-       {sca?.path.includes('loan-offers/')&&(
-        <Text style={[S.muted,{marginTop:8}]}>Partnyorun demo kredit müqaviləsinin qəbulunu təsdiqləyirsən.</Text>
        )}
       </Box>
       <PinPad
