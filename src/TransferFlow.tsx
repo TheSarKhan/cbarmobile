@@ -216,7 +216,7 @@ export function TransferFlow({mode='AUTO',initialPhone,hidden,close}:{mode?:'AUT
         {shownFriends.map(c=><ContactRow key={c.phone} c={c} onPress={()=>{setTarget(c);setStep('amount');}}/>)}
         {shownOthers.length>0&&<Text style={t.group}>{needle?'NƏTİCƏLƏR':'KONTAKTLAR'}</Text>}
         {shownOthers.map(c=><ContactRow key={c.phone} c={c} onPress={()=>{setTarget(c);setStep('amount');}}/>)}
-        {!shown.length&&!frequent.length&&!(typedNumber&&typedLocal.length===9)&&<Text style={[S.muted,{marginTop:16}]}>Kontakt tapılmadı. Tam telefon nömrəsini yaz və ya Dostlar bölməsindən dost əlavə et.</Text>}
+        {!shown.length&&(needle||!frequent.length)&&!(typedNumber&&typedLocal.length===9)&&<Text style={[S.muted,{marginTop:16}]}>Kontakt tapılmadı. Tam telefon nömrəsini yaz və ya Dostlar bölməsindən dost əlavə et.</Text>}
        </>
       )}
      </ScrollView>
