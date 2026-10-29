@@ -4,7 +4,7 @@ import {useFocusEffect} from '@react-navigation/native';
 import {Text} from './text';
 import {money} from './api';
 import type {Row} from './api';
-import {Badge,Box,Button,C,Empty,Icon,S,fmtDate,useApp} from './ui';
+import {Badge,Box,Button,C,Empty,Icon,S,useApp} from './ui';
 
 const TONES:Record<string,{bg:string;fg:string}>={
  info:{bg:'#ece6ff',fg:'#5632c0'},
@@ -14,7 +14,7 @@ const TONES:Record<string,{bg:string;fg:string}>={
 const WEEKDAYS=['B.e.','Ç.a.','Çər','C.a.','Cümə','Şən','Baz'];
 const MONTHS=['Yan','Fev','Mar','Apr','May','İyn','İyl','Avq','Sen','Okt','Noy','Dek'];
 
-/** The analytics screen: forecast, friendly cards, unusual payments, categories, recurring payments and budgets. */
+/** The analytics screen: forecast, friendly cards, unusual payments, categories and budgets. */
 export function AnalyticsView(){
  const a=useApp();
  const [data,setData]=useState<Row|null>(null);
@@ -42,7 +42,7 @@ export function AnalyticsView(){
     <Box style={{alignItems:'center',paddingVertical:26}}>
      <View style={s.bigIcon}><Icon name="pie-chart-outline" size={30} color={C.primary}/></View>
      <Text style={[S.h3,{marginTop:12}]}>Xərc təhlili söndürülüb</Text>
-     <Text style={[S.muted,{textAlign:'center',marginTop:6,marginBottom:16}]}>Aktiv edəndə xərc proqnozu, abunəliklər, qeyri-adi ödənişlər və büdcə təklifləri görünəcək. İstədiyin vaxt söndürə bilərsən.</Text>
+     <Text style={[S.muted,{textAlign:'center',marginTop:6,marginBottom:16}]}>Aktiv edəndə xərc proqnozu, qeyri-adi ödənişlər və büdcə təklifləri görünəcək. İstədiyin vaxt söndürə bilərsən.</Text>
      <Button title="Xərc təhlilini aktiv et" icon="sparkles-outline" disabled={busy} onPress={()=>{void post('analytics/consent',{enabled:true});}}/>
     </Box>
    </>
@@ -51,7 +51,7 @@ export function AnalyticsView(){
 
  if(data.spendingCount===0)return <><Text style={s.title}>Analitika</Text><Empty text="Xərc tarixçən hələ boşdur. Tamamlanmış ödənişlərin olduqda xərc təhlili burada görünəcək. Demo üçün yaradılmış tarixçə hesablamaya daxil edilmir."/></>;
  const f:Row=data.forecast||{},b:Row=data.breakdown||{};
- const cards:Row[]=(data.cards||[]).filter((c:Row)=>c.kind!=='FORECAST'&&c.kind!=='ANOMALY');
+ const cards:Row[]=(data.cards||[]).filter((c:Row)=>c.kind!=='FORECAST'&&c.kind!=='ANOMALY'&&c.kind!=='RECURRING');
  const categories:Row[]=b.categories||[];
  const months:Row[]=b.months||[];
  const maxMonth=Math.max(1,...months.map(x=>x.amountMinor));
@@ -142,24 +142,6 @@ export function AnalyticsView(){
      })}
     </View>
    </Box>
-
-   {(data.recurring||[]).length>0&&(
-    <>
-     <Text style={s.section}>Təkrarlanan ödənişlər</Text>
-     <Box style={{paddingVertical:4}}>
-      {data.recurring.map((r:Row,i:number)=>(
-       <View key={r.key} style={[s.recRow,i===data.recurring.length-1&&{borderBottomWidth:0}]}>
-        <View style={[s.cardIcon,{backgroundColor:TONES.info.bg}]}><Icon name="repeat-outline" size={18} color={C.primary}/></View>
-        <View style={{flex:1}}>
-         <Text style={s.catName}>{r.label}</Text>
-         <Text style={s.cardBody}>Növbəti: {fmtDate(r.nextOn)} · {r.period==='MONTHLY'?'hər ay':r.period==='WEEKLY'?'hər həftə':'iki həftədən bir'}</Text>
-        </View>
-        <Text style={s.catAmount}>{money(r.typicalMinor)}</Text>
-       </View>
-      ))}
-     </Box>
-    </>
-   )}
 
    {((data.budgetRisks||[]).length>0||(data.budgetSuggestions||[]).length>0)&&<Text style={s.section}>Büdcə</Text>}
    {(data.budgetRisks||[]).map((r:Row)=>(

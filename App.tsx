@@ -647,7 +647,7 @@ function MoreTab({navigation}:any){
     <MoreRow {...B} icon="business-outline" label="Bank proqramı (simulyasiya)" sub="AniPay qəbul hesabını təyin et" onPress={()=>a.open('anipay-bank')} last/>
    </View>
    <View style={styles.moreGroup}>
-    <MoreRow {...P} icon="pie-chart-outline" label="Analitika və büdcə" sub="Proqnoz, abunəliklər, qeyri-adi ödənişlər" onPress={()=>navigation.navigate('Analytics')}/>
+    <MoreRow {...P} icon="pie-chart-outline" label="Analitika və büdcə" sub="Proqnoz, qeyri-adi ödənişlər, büdcə" onPress={()=>navigation.navigate('Analytics')}/>
     <MoreRow {...B} icon="business-outline" label="Digər banklar" sub={banks>0?`${banks} bank bağlı · ${money(d.openBanking?.totalBalanceMinor||0)}`:'Kartlarını və xərclərini bir yerdə izlə'} onPress={()=>a.open('banks-hub')}/>
     <MoreRow {...P} icon="people-circle-outline" label="Dostlar" sub="Kampus dostların" onPress={()=>a.open('friends')}/>
     <MoreRow {...B} icon="qr-code-outline" label="Mənim QR kodum" onPress={()=>a.open('my-qr')} last/>
@@ -834,7 +834,7 @@ function ProfileTab(){
     <View style={[styles.moreIcon,{backgroundColor:C.lav}]}><Icon name="sparkles-outline" size={19} color={C.primary}/></View>
     <View style={{flex:1}}>
      <Text style={styles.moreLabel}>Xərc təhlili</Text>
-     <Text style={styles.moreSub}>Proqnoz, abunəliklər və qeyri-adi ödəniş xəbərdarlıqları</Text>
+     <Text style={styles.moreSub}>Proqnoz və qeyri-adi ödəniş xəbərdarlıqları</Text>
     </View>
     <View style={[styles.switchTrack,d.insightsBrief?.enabled!==false&&{backgroundColor:C.primary}]}><View style={[styles.switchKnob,d.insightsBrief?.enabled!==false&&{alignSelf:'flex-end'}]}/></View>
    </Pressable>

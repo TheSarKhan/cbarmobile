@@ -212,7 +212,7 @@ export function linkedCards(data:Row):Row[]{
 export const cardLabel=(x:Row)=>String(x.bankName).split(' ')[0]+' · '+String(x.masked).replace(/\D/g,'').slice(-4);
 
 export const AZ_MONTHS=['Yan','Fev','Mar','Apr','May','İyn','İyl','Avq','Sen','Okt','Noy','Dek'];
-export const EXPENSE_CATEGORIES=['Yemək','Abunəliklər','Köçürmələr','Nəqliyyat','Əyləncə','Alış-veriş','Kommunal','Digər'];
+export const EXPENSE_CATEGORIES=['Yemək','Köçürmələr','Nəqliyyat','Əyləncə','Alış-veriş','Kommunal','Digər'];
 
 export function fmtDate(v:any){
  const d=new Date(v);
