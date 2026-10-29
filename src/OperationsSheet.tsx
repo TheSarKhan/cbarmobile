@@ -1,5 +1,5 @@
 import React,{useState,useEffect} from 'react';
-import {View,Pressable,StyleSheet,ActivityIndicator} from 'react-native';
+import {View,Pressable,StyleSheet,ActivityIndicator,Share} from 'react-native';
 import {Text} from './text';
 import {C,S,useApp,fmtDate,fmtDateTime,statusLabel,statusTone,Icon,Button,Field,Check,Badge,Box,Empty,Sheet,Tx} from './ui';
 import {CardTransferForm,useCardTransferState} from './CardTransferSheet';
@@ -9,6 +9,8 @@ import {BanksSection} from './BanksSection';
 import {TransferFlow} from './TransferFlow';
 import {LinkBankFlow} from './LinkBankFlow';
 import {AniPayBankFlow} from './AniPayBankFlow';
+import {FriendsSection} from './FriendsSection';
+import {QrCode} from './QrCode';
 import {minor,money,Row} from './api';
 import appConfig from '../app.json';
 
@@ -19,15 +21,16 @@ export function Operations({sheet,close,hidden=false}:{sheet:string;close:()=>vo
  const a=useApp();
  const cardState=useCardTransferState();
  const [amount,setAmount]=useState(''),
-  [phone,setPhone]=useState(sheet.startsWith('send:')?sheet.split(':')[1]:'+994501000002'),
+  [phone,setPhone]=useState(sheet.startsWith('send:')||sheet.startsWith('request:')?sheet.split(':')[1]:''),
   [note,setNote]=useState(''),
   [recipient,setRecipient]=useState<Row|null>(null),
   [transfer,setTransfer]=useState<Row|null>(null),
   [count,setCount]=useState(5);
+ const [myQr,setMyQr]=useState<Row|null>(null);
  const [detail,setDetail]=useState<any>(null),
-  [selected,setSelected]=useState<string[]>(['+994501000002','+994501000003','+994501000004'].filter(p=>p!==a.data.user?.phone)),
+  [selected,setSelected]=useState<string[]>([]),
   [splitMode,setSplitMode]=useState<'EQUAL'|'CUSTOM'>('EQUAL'),
-  [customShares,setCustomShares]=useState<Record<string,string>>({'+994501000002':'5','+994501000003':'5','+994501000004':'5'});
+  [customShares,setCustomShares]=useState<Record<string,string>>({});
  const kind=sheet.split(':')[0];
  const paramId=sheet.split(':')[1]||'';
 
@@ -37,6 +40,7 @@ export function Operations({sheet,close,hidden=false}:{sheet:string;close:()=>vo
   'send-menu':'Köçür',
   request:'Pul istə',
   'my-qr':'Mənim QR kodum',
+  friends:'Dostlar',
   notifications:'Bildirişlər',
   history:'Əməliyyat tarixçəsi',
   'tx-detail':'Əməliyyat detalları',
@@ -63,6 +67,11 @@ export function Operations({sheet,close,hidden=false}:{sheet:string;close:()=>vo
   a.setError('');
   try{await fn();}catch(e){a.setError((e as Error).message);}
  }
+
+ useEffect(()=>{
+  if(kind==='my-qr')a.call('friends/qr',{}).then(setMyQr).catch(e=>a.setError(e.message));
+ // eslint-disable-next-line react-hooks/exhaustive-deps
+ },[kind]);
 
  useEffect(()=>{
   if(kind==='schedule'||kind==='split-view'){
@@ -138,19 +147,25 @@ export function Operations({sheet,close,hidden=false}:{sheet:string;close:()=>vo
     </Box>
    )}
 
+   {kind==='friends'&&<FriendsSection close={close}/>}
+
    {kind==='my-qr'&&(
     <>
-     <Box style={{alignItems:'center',paddingVertical:24}}>
-      <View style={os.myQrFrame}>
-       <Icon name="qr-code-outline" size={96} color={C.ink}/>
-      </View>
-      <Text style={S.h2}>{a.data.user?.name}</Text>
-      <Text style={[S.muted,{marginTop:4}]}>{a.data.user?.phone}</Text>
-      <View style={{marginTop:10}}>
-       <Badge text="KAMPUS DAXİLİ · 0% KOMİSSİYA" tone="success"/>
-      </View>
+     <Box style={{alignItems:'center',paddingVertical:22}}>
+      {myQr?<QrCode value={myQr.qrPayload} caption="Kampus dostu"/>:<ActivityIndicator color={C.primary} style={{marginVertical:80}}/>}
+      <Text style={[S.h2,{marginTop:16}]}>{a.data.user?.name}</Text>
+      <Text style={[S.muted,{marginTop:4,textAlign:'center'}]}>Dostun bu QR-ı Kampus-da oxutsun, ikiniz də bir-birinin dostu olursunuz.</Text>
      </Box>
-     <Button title="Pul istə" icon="arrow-down" onPress={()=>a.open('request')}/>
+     <Button
+      title="QR-ı paylaş"
+      icon="share-social-outline"
+      disabled={!myQr}
+      onPress={()=>run(async()=>{
+       // closing the share sheet without sharing is the user's choice, not an error
+       await Share.share({message:`${a.data.user?.name} səni Kampus dostu olmağa çağırır. Kampus tətbiqində QR skan et və ya bu kodu daxil et: ${myQr?.qrPayload}`}).catch(()=>{});
+      })}
+     />
+     <Button title="Dostlarım" secondary icon="people-outline" onPress={()=>a.open('friends')}/>
     </>
    )}
 
@@ -245,7 +260,19 @@ export function Operations({sheet,close,hidden=false}:{sheet:string;close:()=>vo
       </>
      ):(
       <>
-       <Field label="Telefon nömrəsi" value={phone} onChange={v=>{setPhone(v);setRecipient(null);}} placeholder="+994501000002"/>
+       {kind==='request'&&(a.data.friends||[]).length>0&&(
+        <>
+         <Text style={S.label}>Dostlar</Text>
+         <View style={{flexDirection:'row',flexWrap:'wrap',gap:8,marginBottom:16}}>
+          {(a.data.friends||[]).map((f:Row)=>(
+           <Pressable key={f.id} accessibilityRole="button" accessibilityLabel={f.name} onPress={()=>{setPhone(f.phone);setRecipient(null);}} style={[S.tab,phone===f.phone&&{backgroundColor:C.lime,borderColor:C.ink}]}>
+            <Text style={[S.tabText,phone===f.phone&&{color:C.ink,fontWeight:'700'}]}>{String(f.name).split(' ')[0]}</Text>
+           </Pressable>
+          ))}
+         </View>
+        </>
+       )}
+       <Field label="Telefon nömrəsi" value={phone} onChange={v=>{setPhone(v);setRecipient(null);}} placeholder="+994 50 000 00 00"/>
        <Field label="Məbləğ · AZN" value={amount} onChange={setAmount} numeric/>
        <Field label="Qeyd" value={note} onChange={setNote} placeholder="Məsələn, pizza 🍕"/>
        {recipient&&(
@@ -325,11 +352,17 @@ export function Operations({sheet,close,hidden=false}:{sheet:string;close:()=>vo
       ))}
      </View>
      <Text style={[S.label,{marginBottom:12}]}>Öz payın avtomatik daxil edilir. Dostları seç:</Text>
-     {[['Murad Əliyev','+994501000002'],['Leyla Həsənova','+994501000003'],['Kamran Quliyev','+994501000004'],['Aytən Məmmədova','+994501000001']].filter(x=>x[1]!==a.data.user?.phone).map(([name,p])=>(
-      <View key={p}>
-       <Check value={selected.includes(p)} text={name} onChange={v=>setSelected(v?[...selected,p]:selected.filter(x=>x!==p))}/>
-       {splitMode==='CUSTOM'&&selected.includes(p)&&(
-        <Field label={name+' payı · AZN'} value={customShares[p]||'5'} numeric onChange={v=>setCustomShares(old=>({...old,[p]:v}))}/>
+     {!(a.data.friends||[]).length&&(
+      <Box>
+       <Text style={S.muted}>Hesabı bölmək üçün əvvəl dost əlavə et. Dostun “Mənim QR” ekranını açıb səni oxutsun və ya sən onunkunu oxut.</Text>
+       <Button title="Dostlar" secondary icon="people-outline" onPress={()=>a.open('friends')}/>
+      </Box>
+     )}
+     {(a.data.friends||[]).map((f:Row)=>(
+      <View key={f.id}>
+       <Check value={selected.includes(f.phone)} text={f.name} onChange={v=>setSelected(v?[...selected,f.phone]:selected.filter(x=>x!==f.phone))}/>
+       {splitMode==='CUSTOM'&&selected.includes(f.phone)&&(
+        <Field label={f.name+' payı · AZN'} value={customShares[f.phone]||'5'} numeric onChange={v=>setCustomShares(old=>({...old,[f.phone]:v}))}/>
        )}
       </View>
      ))}

@@ -7,11 +7,6 @@ import {errorCode,minor,money,Row} from './api';
 import {recentRecipients,initialRecipient,transferAmountError} from './bugRules';
 
 type Contact={name:string;phone:string;avatar?:number|null;fin?:string};
-const FRIENDS:Contact[]=[
- {name:'Murad Əliyev',phone:'+994501000002'},
- {name:'Leyla Həsənova',phone:'+994501000003'},
- {name:'Kamran Quliyev',phone:'+994501000004'}
-];
 
 const FIN=/^[A-Z0-9]{7}$/;
 /** A recipient is either a phone number or an AniPay FIN code; both travel in the contact's phone field. */
@@ -62,9 +57,9 @@ export function TransferFlow({mode='AUTO',initialPhone,hidden,close}:{mode?:'AUT
   const out:Contact[]=[];
   const add=(name:string,p:string,avatar?:number|null)=>{if(!p||p===self||seen.has(p))return;seen.add(p);out.push({name,phone:p,avatar});};
   (a.data.trustedBeneficiaries||[]).forEach((t:Row)=>add(t.nickname||t.maskedName||t.phone,t.phone,t.avatar));
-  FRIENDS.forEach(f=>add(f.name,f.phone));
+  (a.data.friends||[]).forEach((x:Row)=>add(x.name,x.phone,x.avatar));
   return mode==='KAMPUS'?out.filter(c=>!external(c.phone)):out;
- },[a.data.trustedBeneficiaries,self,mode]);
+ },[a.data.trustedBeneficiaries,a.data.friends,self,mode]);
  const cards=linkedCards(a.data);
  const frequent=recentRecipients(a.data).filter(c=>mode==='ANIPAY'?external(c.phone):mode==='KAMPUS'?!external(c.phone):true).slice(0,3);
  // one field takes a number or a name, as in the design
@@ -74,6 +69,8 @@ export function TransferFlow({mode='AUTO',initialPhone,hidden,close}:{mode?:'AUT
  const typedPretty='+994 '+[typedLocal.slice(0,2),typedLocal.slice(2,5),typedLocal.slice(5,7),typedLocal.slice(7,9)].filter(Boolean).join(' ');
  const needle=typedNumber?typedLocal:search.trim().toLowerCase();
  const shown=needle?contacts.filter(c=>typedNumber?c.phone.replace(/\D/g,'').includes(needle):c.name.toLowerCase().includes(needle)):contacts.filter(c=>!frequent.some(x=>x.phone===c.phone));
+ const friendPhones=new Set<string>((a.data.friends||[]).map((x:Row)=>x.phone));
+ const shownFriends=shown.filter(c=>friendPhones.has(c.phone)),shownOthers=shown.filter(c=>!friendPhones.has(c.phone));
 
  const recipientPhone=target?.phone;
  const resolveRecipient=a.call;
@@ -219,9 +216,11 @@ export function TransferFlow({mode='AUTO',initialPhone,hidden,close}:{mode?:'AUT
         )}
         {!needle&&frequent.length>0&&<Text style={t.group}>TEZ-TEZ KÖÇÜRÜLƏNLƏR</Text>}
         {!needle&&frequent.map(c=><ContactRow key={'f'+c.phone} c={c} onPress={()=>{setTarget(c);setStep('amount');}}/>)}
-        {shown.length>0&&<Text style={t.group}>{needle?'NƏTİCƏLƏR':'KONTAKTLAR'}</Text>}
-        {shown.map(c=><ContactRow key={c.phone} c={c} onPress={()=>{setTarget(c);setStep('amount');}}/>)}
-        {!shown.length&&!(typedNumber&&typedLocal.length===9)&&<Text style={[S.muted,{marginTop:16}]}>Kontakt tapılmadı. Tam telefon nömrəsini yaz.</Text>}
+        {shownFriends.length>0&&<Text style={t.group}>DOSTLAR</Text>}
+        {shownFriends.map(c=><ContactRow key={c.phone} c={c} onPress={()=>{setTarget(c);setStep('amount');}}/>)}
+        {shownOthers.length>0&&<Text style={t.group}>{needle?'NƏTİCƏLƏR':'KONTAKTLAR'}</Text>}
+        {shownOthers.map(c=><ContactRow key={c.phone} c={c} onPress={()=>{setTarget(c);setStep('amount');}}/>)}
+        {!shown.length&&!frequent.length&&!(typedNumber&&typedLocal.length===9)&&<Text style={[S.muted,{marginTop:16}]}>Kontakt tapılmadı. Tam telefon nömrəsini yaz və ya Dostlar bölməsindən dost əlavə et.</Text>}
        </>
       )}
      </ScrollView>

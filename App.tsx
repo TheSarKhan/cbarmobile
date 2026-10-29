@@ -339,6 +339,7 @@ function QrTab(){
   [qr,setQr]=useState<Row|null>(null),
   [qrPaid,setQrPaid]=useState<Row|null>(null),
   [topupReq,setTopupReq]=useState<Row|null>(null),
+  [friendReq,setFriendReq]=useState<Row|null>(null),
   [camera,setCamera]=useState(true),
   [torch,setTorch]=useState(false),
   [manualOpen,setManualOpen]=useState(false),
@@ -388,6 +389,11 @@ function QrTab(){
 
  /** A scanned code is either a merchant EMV QR or a Kampus top-up request from another customer. */
  async function openCode(data:string){
+  const friend=data.match(/kampus-friend:([0-9a-f-]{36})/i);
+  if(friend){
+   setFriendReq({...await a.call('friends/qr/'+friend[1]),qrId:friend[1]});
+   return;
+  }
   const topup=data.match(/kampus-topup:([0-9a-f-]{36})/i);
   if(topup){
    setTopupReq(await a.call('topups/qr/'+topup[1]));
@@ -395,6 +401,31 @@ function QrTab(){
    return;
   }
   setQr(await a.act('payments/qr/parse',{qrPayload:data}));
+ }
+
+ if(friendReq){
+  const added=friendReq.added,self=friendReq.self;
+  return (
+   <Page>
+    <Box style={{alignItems:'center',paddingVertical:26}}>
+     <Avatar name={friendReq.name} avatar={friendReq.avatar} size={84}/>
+     <View style={{marginTop:14}}>
+      <Badge text={added||friendReq.alreadyFriend?'DOST':'KAMPUS DOSTU'} tone={added||friendReq.alreadyFriend?'success':'neutral'}/>
+     </View>
+     <Text style={[S.h2,{marginTop:12}]}>{friendReq.name}</Text>
+     <Text style={[S.muted,{marginVertical:14,textAlign:'center'}]}>
+      {self?'Bu sənin öz QR kodundur. Dostun səni oxutsun.':added?'İndi '+friendReq.name+' ilə dostsunuz. Bir-birinizin siyahısında görünürsünüz.':friendReq.alreadyFriend?'Artıq dostsunuz.':'Dostluğa əlavə etsən, ikiniz də bir-birinizin dostlar siyahısında görünəcəksiniz.'}
+     </Text>
+     <View style={{width:'100%'}}>
+      {!self&&!added&&!friendReq.alreadyFriend&&(
+       <Button title="Dostluğa əlavə et" icon="person-add-outline" disabled={a.busy} onPress={()=>run(async()=>{await a.act('friends/add',{qrId:friendReq.qrId});setFriendReq({...friendReq,added:true});})}/>
+      )}
+      {(added||friendReq.alreadyFriend)&&<Button title="Dostlarım" icon="people-outline" onPress={()=>{setFriendReq(null);setCamera(true);a.open('friends');}}/>}
+      <Button title="Yeni QR skan et" secondary onPress={()=>{setFriendReq(null);setPayload('');setCamera(true);}}/>
+     </View>
+    </Box>
+   </Page>
+  );
  }
 
  if(topupReq){
@@ -800,6 +831,7 @@ function MoreTab({navigation}:any){
     <MoreRow {...P} icon="pie-chart-outline" label="Analitika və büdcə" sub="Proqnoz, abunəliklər, qeyri-adi ödənişlər" onPress={()=>navigation.navigate('Analytics')}/>
     <MoreRow {...B} icon="business-outline" label="Digər banklar" sub={banks>0?`${banks} bank bağlı · ${money(d.openBanking?.totalBalanceMinor||0)}`:'Kartlarını və xərclərini bir yerdə izlə'} onPress={()=>a.open('banks-hub')}/>
     <MoreRow {...G} icon="school-outline" label="Sonra ödə və kredit" sub={`0% BNPL · ${money(d.bnplAvailableMinor)}`} onPress={()=>a.open('credit-hub')}/>
+    <MoreRow {...P} icon="people-circle-outline" label="Dostlar" sub="Kampus dostların" onPress={()=>a.open('friends')}/>
     <MoreRow {...B} icon="qr-code-outline" label="Mənim QR kodum" onPress={()=>a.open('my-qr')} last/>
    </View>
    <View style={styles.moreGroup}>
