@@ -11,6 +11,7 @@ import {createBottomTabNavigator} from '@react-navigation/bottom-tabs';
 import {LinearGradient} from 'expo-linear-gradient';
 import {CameraView,useCameraPermissions} from 'expo-camera';
 import './src/qrWasm';
+import {BigAmount,SourcePicker} from './src/CardUi';
 import {C,S,ILLUSTRATIONS,Avatar,BackBar,ErrorPopup,fmtDate,fmtDateTime,cardLabel,linkedCards,AppContextType,Context,useApp,statusLabel,statusTone,Icon,Button,Field,Check,Badge,Box,Empty,Sheet,Tx,EXPENSE_CATEGORIES} from './src/ui';
 import {Operations} from './src/OperationsSheet';
 import AuthFlow from './src/AuthFlow';
@@ -173,7 +174,8 @@ function QrTab(){
   [manualOpen,setManualOpen]=useState(false),
   [permission,askPermission]=useCameraPermissions(),
   [funding,setFunding]=useState('WALLET'),
-  [amount,setAmount]=useState('15');
+  [pickerOpen,setPickerOpen]=useState(false),
+  [amount,setAmount]=useState('');
 
  const [enterAnim]=useState(()=>new Animated.Value(0));
  const scanLock=useRef(false),scanFailed=useRef(false);
@@ -229,6 +231,7 @@ function QrTab(){
    return;
   }
   setQr(await a.act('payments/qr/parse',{qrPayload:data}));
+  setAmount('');setFunding('WALLET');setPickerOpen(false);
  }
 
  if(friendReq){
@@ -272,18 +275,16 @@ function QrTab(){
        <Text style={[S.muted,{marginBottom:22,textAlign:'center'}]}>Ödəniş tamamlandı. Pul {topupReq.requesterName} adlı istifadəçinin balansına keçdi.</Text>
       </>
      ):(
-      <Text style={[S.muted,{marginVertical:14,textAlign:'center'}]}>Ödəmək istədiyin məbləği yaz. Pul sənin balansından çıxıb bu istifadəçinin balansına keçəcək.</Text>
+      <BigAmount value={amount} onChange={setAmount} hint="Komissiyasız"/>
      )}
      <View style={{width:'100%'}}>
       {!paid&&(
-       <>
-        <Field label="Məbləğ · AZN" value={amount} onChange={setAmount} numeric/>
-        <Button
-         title={`${typed>0?typed.toFixed(2)+' ₼ ':''}ödə`}
-         disabled={a.busy||typed<=0}
-         onPress={()=>run(async()=>{setTopupReq(await a.act('topups/qr/'+topupReq.id+'/pay',{amountMinor:minor(amount)}));})}
-        />
-       </>
+       <Button
+        title="Ödə"
+        icon="arrow-forward"
+        disabled={a.busy||typed<=0}
+        onPress={()=>run(async()=>{setTopupReq(await a.act('topups/qr/'+topupReq.id+'/pay',{amountMinor:minor(amount)}));})}
+       />
       )}
       <Button title="Yeni QR skan et" secondary onPress={()=>{setTopupReq(null);setPayload('');setCamera(true);}}/>
      </View>
@@ -314,72 +315,57 @@ function QrTab(){
  }
 
  if(qr){
-  const effectiveMinor=qr.amountMinor||minor(amount||'0');
+  const effectiveMinor=qr.amountMinor||(()=>{try{return amount?minor(amount):0;}catch{return 0;}})();
   return (
    <Page>
-    <Box>
-     <View style={{alignItems:'center',marginBottom:20}}>
-      <View style={[S.tile,{width:64,height:64,borderRadius:22,marginBottom:12,backgroundColor:C.lime}]}>
-       <Icon name="cafe-outline" size={30}/>
-      </View>
-      <Badge text="EMVCo · KASSA QR"/>
-      <Text style={[S.h2,{marginTop:10}]}>{qr.merchantName}</Text>
-      {qr.amountMinor>0&&<Text style={[S.amount,{marginTop:10}]}>{money(qr.amountMinor)}</Text>}
+    <View style={{alignItems:'center',marginBottom:4}}>
+     <View style={[S.tile,{width:64,height:64,borderRadius:22,marginBottom:12,backgroundColor:C.lime}]}>
+      <Icon name="cafe-outline" size={30}/>
      </View>
+     <View><Badge text="EMVCo · KASSA QR"/></View>
+     <Text style={[S.h2,{marginTop:10}]}>{qr.merchantName}</Text>
+    </View>
 
-     {qr.amountMinor===0&&<Field label="Məbləğ · AZN" value={amount} onChange={setAmount} numeric/>}
-
-     <Text style={S.label}>Ödəniş mənbəyi</Text>
-     <View style={{flexDirection:'row',gap:8,marginBottom:16,flexWrap:'wrap'}}>
-      {[['WALLET','Balans'],...linkedCards(a.data).map((x:Row)=>['CARD:'+x.id,cardLabel(x)])].map(([id,label])=>(
-       <Pressable
-        key={id}
-        accessibilityRole="button"
-        onPress={()=>setFunding(id)}
-        style={[S.tab,funding===id&&{backgroundColor:C.lime,borderColor:C.ink}]}
-       >
-        <Text style={[S.tabText,funding===id&&{color:C.ink,fontWeight:'700'}]}>{label}</Text>
-       </Pressable>
-      ))}
+    {qr.amountMinor>0?(
+     <View style={{alignItems:'center',paddingTop:36,paddingBottom:44}}>
+      <Text style={{fontSize:56,fontWeight:'800',color:C.ink}}>{money(qr.amountMinor)}</Text>
+      <Text style={{fontSize:13,color:C.muted,marginTop:8}}>Komissiyasız</Text>
      </View>
+    ):<BigAmount value={amount} onChange={setAmount} hint="Komissiyasız"/>}
 
-     <Box style={{backgroundColor:'#ede9f8',borderColor:'#c1b6e2'}}>
-      <View style={[S.between,{marginBottom:6}]}>
-       <Text style={S.muted}>Satıcı</Text>
-       <Text style={S.h3}>{qr.merchantName}</Text>
-      </View>
-      <View style={[S.between,{marginBottom:6}]}>
-       <Text style={S.muted}>Komissiya</Text>
-       <Text style={S.h3}>0.00 ₼</Text>
-      </View>
-      <View style={S.between}>
-       <Text style={S.muted}>Yekun ödəniş</Text>
-       <Text style={S.h3}>{money(effectiveMinor)}</Text>
-      </View>
-     </Box>
+    <SourcePicker
+     sources={[
+      {id:'WALLET',label:'Balans',sub:'Kampus hesabı',balance:Number(a.data.wallet?.availableBalanceMinor||0)},
+      ...linkedCards(a.data).map((x:Row)=>({id:'CARD:'+x.id,label:cardLabel(x),sub:'Açıq bankçılıq kartı',balance:Number(x.balanceMinor||0)}))
+     ]}
+     value={funding}
+     onChange={setFunding}
+     open={pickerOpen}
+     setOpen={setPickerOpen}
+    />
 
-     <Button
-      title="Ödənişi təsdiqlə"
-      disabled={a.busy}
-      onPress={()=>run(async()=>{
-       try{
-        const paid=await a.act('payments/qr',{
-         qrPayload:qr.qrPayload,
-         paymentToken:qr.paymentToken,
-         amountMinor:effectiveMinor,
-         fundingSource:funding.startsWith('CARD:')?'BANK_CARD':funding,
-         ...(funding.startsWith('CARD:')?{accountId:funding.slice(5)}:{})
-        });
-        setQrPaid(paid);
-       }catch(e){
-        // an expired or spent payment session cannot be retried: go back to the scanner for a fresh one
-        if(errorCode((e as Error).message).startsWith('TOKEN_')){setQr(null);setCamera(true);}
-        throw e;
-       }
-      })}
-     />
-     <Button title="Başqa QR skan et" secondary onPress={()=>{setQr(null);setCamera(true);}}/>
-    </Box>
+    <Button
+     title="Ödə"
+     icon="arrow-forward"
+     disabled={a.busy||effectiveMinor<=0}
+     onPress={()=>run(async()=>{
+      try{
+       const paid=await a.act('payments/qr',{
+        qrPayload:qr.qrPayload,
+        paymentToken:qr.paymentToken,
+        amountMinor:effectiveMinor,
+        fundingSource:funding.startsWith('CARD:')?'BANK_CARD':funding,
+        ...(funding.startsWith('CARD:')?{accountId:funding.slice(5)}:{})
+       });
+       setQrPaid(paid);
+      }catch(e){
+       // an expired or spent payment session cannot be retried: go back to the scanner for a fresh one
+       if(errorCode((e as Error).message).startsWith('TOKEN_')){setQr(null);setCamera(true);}
+       throw e;
+      }
+     })}
+    />
+    <Button title="Yeni QR skan et" secondary onPress={()=>{setQr(null);setCamera(true);}}/>
    </Page>
   );
  }
