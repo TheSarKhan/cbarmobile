@@ -98,14 +98,14 @@ export function CardTransferForm({state,...a}:Props&{state:ReturnType<typeof use
      <Text style={[S.h3,{color:C.muted}]}>{current.bankName} · {current.brand} •••• {current.last4}</Text>
      <Text style={[S.muted,{textAlign:'center',marginTop:4}]}>
       {cancelled
-       ?'Məbləğ və komissiya geri qaytarıldı.'
+       ?'Məbləğ geri qaytarıldı.'
        :failed
-       ?'Rezerv açıldı. Məbləğ və komissiya balansınızda qaldı.'
+       ?'Rezerv açıldı. Məbləğ balansınızda qaldı.'
        :done
-       ?'Məbləğ və komissiya ikili qeydiyyat jurnalında (ledger) rəsmiləşdirildi.'
+       ?'Məbləğ ikili qeydiyyat jurnalında (ledger) rəsmiləşdirildi.'
        :review
        ?'Şəbəkədən yekun cavab gözlənilir. Məbləğ rezervdədir; nəticə admin paneldə də izlənir.'
-       :'Məbləğ və komissiya rezerv edilib. Şəbəkə cavabı gələndə nəticə avtomatik yenilənəcək.'}
+       :'Məbləğ rezerv edilib. Şəbəkə cavabı gələndə nəticə avtomatik yenilənəcək.'}
      </Text>
     </Box>
     {scheduled&&<Button title={`Köçürməni ləğv et (${count}s)`} danger onPress={()=>{void a.act('card-transfers/'+current.id+'/cancel',{}).catch(()=>{});}}/>}
@@ -141,7 +141,7 @@ export function CardTransferForm({state,...a}:Props&{state:ReturnType<typeof use
      <MiniCard brand={card.brand}/>
     </View>
 
-    <BigAmount value={amount} onChange={v=>{setAmount(v);setQuote(null);}} hint="Bank tərəfindən komissiya tutula bilər"/>
+    <BigAmount value={amount} onChange={v=>{setAmount(v);setQuote(null);}} hint=""/>
 
     <SourcePicker sources={sources} value={source.id} onChange={id=>{setFunding(id);setQuote(null);}} open={pickerOpen} setOpen={setPickerOpen}/>
     {!card.saved&&<Check value={save} onChange={setSave} text="Bu kartı yadda saxla, növbəti dəfə nömrə yazmadan seçim."/>}
@@ -151,10 +151,6 @@ export function CardTransferForm({state,...a}:Props&{state:ReturnType<typeof use
       <View style={[S.between,{marginBottom:8}]}>
        <Text style={S.muted}>Karta çatacaq</Text>
        <Text style={S.h3}>{money(quote.amountMinor)}</Text>
-      </View>
-      <View style={[S.between,{marginBottom:8}]}>
-       <Text style={S.muted}>{quote.purpose==='WITHDRAW_OWN'?'Komissiya (ayda 500 ₼-dək 0%)':'Komissiya (0.5%, min. 0.30 ₼)'}</Text>
-       <Text style={{color:C.ink,fontWeight:'600'}}>{money(quote.feeMinor)}</Text>
       </View>
       <View style={S.line}/>
       <View style={S.between}>

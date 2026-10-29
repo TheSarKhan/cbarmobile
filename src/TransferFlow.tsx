@@ -69,7 +69,7 @@ export function TransferFlow({mode='AUTO',initialPhone,hidden,close}:{mode?:'AUT
  const wrongChannel=(r:Row)=>mode==='KAMPUS'&&r.channel!=='INTERNAL'
   ?'Bu nömrə Kampus-da qeydiyyatdan keçməyib. Başqa banka göndərmək üçün “AniPay ilə” seçimini istifadə et.'
   :mode==='ANIPAY'&&r.channel==='INTERNAL'
-   ?'Bu şəxs Kampus istifadəçisidir. Komissiyasız göndərmək üçün “Kampus hesabına” seçimini istifadə et.'
+   ?'Bu şəxs Kampus istifadəçisidir. Göndərmək üçün “Kampus hesabına” seçimini istifadə et.'
    :'';
  useEffect(()=>{
   if(!recipientPhone)return;
@@ -235,7 +235,7 @@ export function TransferFlow({mode='AUTO',initialPhone,hidden,close}:{mode?:'AUT
          <Text style={t.personPhone}>{identifier(target.phone)}</Text>
         </View>
        </View>
-       <BigAmount value={amount} onChange={setAmount} hint="Komissiyasız"/>
+       <BigAmount value={amount} onChange={setAmount} hint=""/>
        <SourcePicker sources={sources} value={source} onChange={setSource} open={pickerOpen} setOpen={setPickerOpen}/>
        {!!amountError&&<Text accessibilityRole="alert" style={[t.error,{marginBottom:12}]}>{amountError}</Text>}
        <Button title="Davam et" icon="arrow-forward" disabled={busy||parsed<=0||!!amountError} onPress={()=>{void resolveAndContinue();}}/>
@@ -267,10 +267,6 @@ export function TransferFlow({mode='AUTO',initialPhone,hidden,close}:{mode?:'AUT
          placeholderTextColor="#aaa6bd"
          style={S.input}
         />
-        <View style={[S.between,{marginTop:16}]}>
-         <Text style={S.muted}>Komissiya</Text>
-         <Text style={S.h3}>0.00 ₼</Text>
-        </View>
         {/uduş|depozit|kredit|bonus|investisiya/i.test(note)&&(
          <View style={[S.error,{marginTop:14}]}>
           <Text style={S.errorText}>Fırıldaqçılar uduş və depozit vəd edərək pul istəyə bilər. Bu şəxsi tanıdığına əmin ol.</Text>

@@ -125,7 +125,7 @@ export function TopUpFlow({close}:{close:()=>void}){
   return (
    <>
     {back}
-    <BigAmount value={amount} onChange={setAmount} hint="Komissiyasız"/>
+    <BigAmount value={amount} onChange={setAmount} hint=""/>
     <Pressable accessibilityRole="button" accessibilityLabel="Kartı dəyiş" onPress={()=>setView('home')} style={st.pickedRow}>
      <MiniCard brand={current.brand}/>
      <View style={{flex:1}}>

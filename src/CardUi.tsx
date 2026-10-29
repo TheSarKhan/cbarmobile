@@ -45,7 +45,7 @@ export function BigAmount({value,onChange,hint}:{value:string;onChange:(v:string
     />
     <Text style={st.unit}>₼</Text>
    </View>
-   <Text style={st.hint}>{hint}</Text>
+   {!!hint&&<Text style={st.hint}>{hint}</Text>}
   </View>
  );
 }

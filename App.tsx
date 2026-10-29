@@ -275,7 +275,7 @@ function QrTab(){
        <Text style={[S.muted,{marginBottom:22,textAlign:'center'}]}>Ödəniş tamamlandı. Pul {topupReq.requesterName} adlı istifadəçinin balansına keçdi.</Text>
       </>
      ):(
-      <BigAmount value={amount} onChange={setAmount} hint="Komissiyasız"/>
+      <BigAmount value={amount} onChange={setAmount} hint=""/>
      )}
      <View style={{width:'100%'}}>
       {!paid&&(
@@ -329,9 +329,8 @@ function QrTab(){
     {qr.amountMinor>0?(
      <View style={{alignItems:'center',paddingTop:36,paddingBottom:44}}>
       <Text style={{fontSize:56,fontWeight:'800',color:C.ink}}>{money(qr.amountMinor)}</Text>
-      <Text style={{fontSize:13,color:C.muted,marginTop:8}}>Komissiyasız</Text>
      </View>
-    ):<BigAmount value={amount} onChange={setAmount} hint="Komissiyasız"/>}
+    ):<BigAmount value={amount} onChange={setAmount} hint=""/>}
 
     <SourcePicker
      sources={[
@@ -1191,7 +1190,6 @@ export default function App(){
         <Text style={[S.muted,{flex:1}]}>Təhlükəsizlik üçün bu əməliyyatı PIN ilə təsdiqlə.</Text>
        </View>
        {sca?.body.amountMinor&&<Text style={[S.amount,{fontSize:32,marginTop:18}]}>{money(sca.body.amountMinor)}</Text>}
-       {sca?.body.totalMinor&&<Text style={[S.muted,{marginTop:8}]}>Komissiya daxil cəmi: {money(sca.body.totalMinor)}</Text>}
        {sca?.body.recipientName&&<Text style={[S.muted,{marginTop:8}]}>Alan: {sca.body.recipientName}</Text>}
        {sca?.body.phone&&<Text style={[S.muted,{marginTop:8}]}>Alan: {sca.body.phone}</Text>}
        {sca?.body.fundingSource&&(

@@ -74,7 +74,7 @@ export function Operations({sheet,close,hidden=false}:{sheet:string;close:()=>vo
    {kind==='send-menu'&&(
     <View style={{gap:6,paddingBottom:8}}>
      {[
-      ['Kampus hesabına','Telefon nömrəsi ilə, komissiyasız','person-outline','send-kampus'],
+      ['Kampus hesabına','Telefon nömrəsi ilə','person-outline','send-kampus'],
       ['Bank kartına','Visa və Mastercard, istənilən bank','card-outline','card-transfer'],
       ['AniPay ilə','Telefon və ya FİN kodla başqa banka','flash-outline','send-anipay']
      ].map(([label,sub,icon,target])=>(
@@ -187,12 +187,6 @@ export function Operations({sheet,close,hidden=false}:{sheet:string;close:()=>vo
          <Text style={S.h3}>{txItem.category||'Digər'}</Text>
         </View>
        )}
-       {txItem.source!=='OPEN_BANKING'&&(
-        <View style={[S.between,{marginBottom:8}]}>
-         <Text style={S.muted}>Komissiya</Text>
-         <Text style={S.h3}>0.00 ₼</Text>
-        </View>
-       )}
        <View style={S.between}>
         <Text style={S.muted}>Əməliyyat kodu</Text>
         <Text style={[S.muted,{fontWeight:'700',color:C.ink}]}>#{String(txItem.id).slice(0,12)}</Text>
@@ -248,7 +242,7 @@ export function Operations({sheet,close,hidden=false}:{sheet:string;close:()=>vo
            <Text style={S.label}>ALAN ŞƏXS</Text>
            <Text style={[S.h3,{marginTop:2}]}>{recipient.maskedName}</Text>
            <Text style={S.muted}>
-            {recipient.channel==='INTERNAL'?'Kampus · komissiyasız':'AniPay · '+recipient.bankName}
+            {recipient.channel==='INTERNAL'?'Kampus':'AniPay · '+recipient.bankName}
            </Text>
           </View>
           <Pressable
@@ -260,10 +254,6 @@ export function Operations({sheet,close,hidden=false}:{sheet:string;close:()=>vo
           </Pressable>
          </View>
          <View style={S.line}/>
-         <View style={[S.between,{marginBottom:4}]}>
-          <Text style={S.muted}>Komissiya</Text>
-          <Text style={S.h3}>0.00 ₼</Text>
-         </View>
          <View style={S.between}>
           <Text style={S.muted}>Yekun ödəniş</Text>
           <Text style={[S.amount,{fontSize:24}]}>{(()=>{try{return money(minor(amount));}catch{return '—';}})()}</Text>
