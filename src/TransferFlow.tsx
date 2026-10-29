@@ -51,7 +51,9 @@ export function TransferFlow({mode='AUTO',initialPhone,hidden,close}:{mode?:'AUT
   return mode==='KAMPUS'?out.filter(c=>!external(c.phone)):out;
  },[a.data.trustedBeneficiaries,a.data.friends,self,mode]);
  const cards=linkedCards(a.data);
- const frequent=recentRecipients(a.data).filter(c=>mode==='ANIPAY'?external(c.phone):mode==='KAMPUS'?!external(c.phone):true).slice(0,3);
+ const friendPhones=new Set<string>((a.data.friends||[]).map((x:Row)=>x.phone));
+ // friends have their own section, so the recents list leaves them out
+ const frequent=recentRecipients(a.data).filter(c=>mode==='ANIPAY'?external(c.phone):mode==='KAMPUS'?!external(c.phone):true).filter(c=>mode==='ANIPAY'||!friendPhones.has(c.phone)).slice(0,3);
  // one field takes a number or a name, as in the design
  const typedNumber=/^[\d\s+()-]+$/.test(search.trim());
  const typedDigits=search.replace(/\D/g,'');
@@ -59,7 +61,6 @@ export function TransferFlow({mode='AUTO',initialPhone,hidden,close}:{mode?:'AUT
  const typedPretty='+994 '+[typedLocal.slice(0,2),typedLocal.slice(2,5),typedLocal.slice(5,7),typedLocal.slice(7,9)].filter(Boolean).join(' ');
  const needle=typedNumber?typedLocal:search.trim().toLowerCase();
  const shown=needle?contacts.filter(c=>typedNumber?c.phone.replace(/\D/g,'').includes(needle):c.name.toLowerCase().includes(needle)):contacts.filter(c=>!frequent.some(x=>x.phone===c.phone));
- const friendPhones=new Set<string>((a.data.friends||[]).map((x:Row)=>x.phone));
  const shownFriends=shown.filter(c=>friendPhones.has(c.phone)),shownOthers=shown.filter(c=>!friendPhones.has(c.phone));
 
  const recipientPhone=target?.phone;
