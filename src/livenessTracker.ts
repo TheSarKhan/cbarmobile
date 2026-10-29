@@ -3,13 +3,19 @@ export type Pose={ratio:number;blink:number;smile:number};
 export function createLivenessTracker(actions:string[]){
  const valid=['TURN_LEFT','TURN_RIGHT','BLINK','SMILE'];
  if(!actions.length||actions.some(a=>!valid.includes(a)))throw new Error('Canlılıq tapşırığı boşdur və ya düzgün deyil. Yenidən başlayın.');
- let index=0,phase='baseline',since=-1,closedAt=-1,photoSince=-1,lastTime=-1;
+ let index=0,phase='baseline',since=-1,closedAt=-1,photoSince=-1,lastTime=-1,lastSeen=-1;
  const done:string[]=[];
  function resetCurrent(){phase='baseline';since=-1;closedAt=-1;photoSince=-1;}
  function sample(p:Pose|null,now:number){
   if(!Number.isFinite(now)||now<=lastTime)return {index,ready:false};lastTime=now;
-  if(!p||![p.ratio,p.blink,p.smile].every(Number.isFinite)){resetCurrent();return {index,ready:false};}
-  const frontal=p.ratio>0.42&&p.ratio<0.58;
+  if(!p||![p.ratio,p.blink,p.smile].every(Number.isFinite)){
+   // the detector often drops the face for a few frames at the far end of a head turn: that must not cancel the turn
+   const turning=index<actions.length&&actions[index].startsWith('TURN')&&phase==='action'&&since>=0;
+   if(turning&&now-lastSeen<400)return {index,ready:false,actions:done.slice()};
+   resetCurrent();return {index,ready:false};
+  }
+  lastSeen=now;
+  const frontal=p.ratio>0.43&&p.ratio<0.57;
   const neutral=frontal&&p.blink<0.25;
   if(index===actions.length){
    if(!neutral)photoSince=-1;
@@ -30,7 +36,7 @@ export function createLivenessTracker(actions:string[]){
    if(closedAt>=0&&now-closedAt>1500){resetCurrent();return {index,ready:false};}
    if(closedAt>=0&&p.blink<0.25){if(now-closedAt>=30){done.push(action);index++;resetCurrent();}else closedAt=-1;}
   }else if(phase==='action'){
-   const active=action==='TURN_LEFT'?p.ratio>0.64:action==='TURN_RIGHT'?p.ratio<0.36:p.smile>0.5;
+   const active=action==='TURN_LEFT'?p.ratio>0.6:action==='TURN_RIGHT'?p.ratio<0.4:p.smile>0.5;
    if(!active)since=-1;
    else if(since<0)since=now;
    if(since>=0&&now-since>=200){phase='return';since=-1;}

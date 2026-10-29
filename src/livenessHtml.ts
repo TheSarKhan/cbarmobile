@@ -34,7 +34,7 @@ button{margin-top:14px;border:0;border-radius:14px;padding:13px 22px;font-size:1
 <script type="module">
 const BASE=${JSON.stringify(base)};
 const ACTIONS=${JSON.stringify(safeActions)};
-const TEXT={TURN_LEFT:'Başınızı yavaşca sola çevirin',TURN_RIGHT:'Başınızı yavaşca sağa çevirin',BLINK:'Gözünüzü qırpın',SMILE:'Gülümsəyin'};
+const TEXT={TURN_LEFT:'Başınızı sola çevirin və bir an saxlayın',TURN_RIGHT:'Başınızı sağa çevirin və bir an saxlayın',BLINK:'Gözünüzü qırpın',SMILE:'Gülümsəyin'};
 const STEP_SECONDS=10,MAX_WIDTH=640;
 const makeTracker=(${LIVENESS_FACTORY_SOURCE});let tracker=makeTracker(ACTIONS);
 const $=id=>document.getElementById(id);
