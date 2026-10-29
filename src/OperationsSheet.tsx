@@ -21,7 +21,7 @@ export function Operations({sheet,close,hidden=false}:{sheet:string;close:()=>vo
  const a=useApp();
  const cardState=useCardTransferState();
  const [amount,setAmount]=useState(''),
-  [phone,setPhone]=useState(sheet.startsWith('send:')||sheet.startsWith('request:')?sheet.split(':')[1]:''),
+  [phone,setPhone]=useState(sheet.startsWith('send:')?sheet.split(':')[1]:''),
   [note,setNote]=useState(''),
   [recipient,setRecipient]=useState<Row|null>(null),
   [transfer,setTransfer]=useState<Row|null>(null),
@@ -38,7 +38,6 @@ export function Operations({sheet,close,hidden=false}:{sheet:string;close:()=>vo
   add:'Balans artımı',
   send:'Pul göndər',
   'send-menu':'Köçür',
-  request:'Pul istə',
   'my-qr':'Mənim QR kodum',
   friends:'Dostlar',
   notifications:'Bildirişlər',
@@ -230,7 +229,7 @@ export function Operations({sheet,close,hidden=false}:{sheet:string;close:()=>vo
 
    {kind==='add'&&<TopUpFlow close={close}/>}
 
-   {(kind==='send'||kind==='request')&&(
+   {kind==='send'&&(
     <>
      {transfer?(
       <>
@@ -260,18 +259,6 @@ export function Operations({sheet,close,hidden=false}:{sheet:string;close:()=>vo
       </>
      ):(
       <>
-       {kind==='request'&&(a.data.friends||[]).length>0&&(
-        <>
-         <Text style={S.label}>Dostlar</Text>
-         <View style={{flexDirection:'row',flexWrap:'wrap',gap:8,marginBottom:16}}>
-          {(a.data.friends||[]).map((f:Row)=>(
-           <Pressable key={f.id} accessibilityRole="button" accessibilityLabel={f.name} onPress={()=>{setPhone(f.phone);setRecipient(null);}} style={[S.tab,phone===f.phone&&{backgroundColor:C.lime,borderColor:C.ink}]}>
-            <Text style={[S.tabText,phone===f.phone&&{color:C.ink,fontWeight:'700'}]}>{String(f.name).split(' ')[0]}</Text>
-           </Pressable>
-          ))}
-         </View>
-        </>
-       )}
        <Field label="Telefon nömrəsi" value={phone} onChange={v=>{setPhone(v);setRecipient(null);}} placeholder="+994 50 000 00 00"/>
        <Field label="Məbləğ · AZN" value={amount} onChange={setAmount} numeric/>
        <Field label="Qeyd" value={note} onChange={setNote} placeholder="Məsələn, pizza 🍕"/>
@@ -312,15 +299,12 @@ export function Operations({sheet,close,hidden=false}:{sheet:string;close:()=>vo
         </View>
        )}
        <Button
-        title={kind==='request'?'Sorğu göndər':recipient?'Təsdiqlə və göndər':'Alıcını yoxla'}
+        title={recipient?'Təsdiqlə və göndər':'Alıcını yoxla'}
         icon="arrow-forward"
         disabled={a.busy}
         onPress={()=>run(async()=>{
          const amountMinor=minor(amount);
-         if(kind==='request'){
-          await a.act('payment-requests',{phone,amountMinor,note});
-          close();
-         }else if(!recipient){
+         if(!recipient){
           setRecipient(await a.call('transfers/resolve?phone='+encodeURIComponent(phone)));
          }else{
           setTransfer(await a.act('transfers',{phone,amountMinor,note}));

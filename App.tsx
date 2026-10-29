@@ -159,99 +159,11 @@ function Home({navigation}:any){
  );
 }
 
-function Payments(){
+/** Shared bills: the ones the customer started and the shares other people ask them to pay. */
+function SplitBills(){
  const a=useApp(),d=a.data;
- const [matched,setMatched]=useState<Row[]|null>(null);
  return (
-  <Page back>
-   <Text style={styles.profileTitle}>Ödənişlərim</Text>
-   <Text style={[S.muted,{marginTop:8,marginBottom:20}]}>
-    Pul göndər, bank kartına çıxar, hesabı dostlarla böl və ya pul istə.
-   </Text>
-
-   <View style={{flexDirection:'row',gap:10}}>
-    <View style={{flex:1}}><Button title="Pul göndər" icon="arrow-up" onPress={()=>a.open('send-menu')}/></View>
-    <View style={{flex:1}}><Button title="Pul istə" secondary icon="arrow-down" onPress={()=>a.open('request')}/></View>
-   </View>
-   <View style={{flexDirection:'row',gap:10}}>
-    <View style={{flex:1}}><Button title="Karta köçür" secondary icon="card-outline" onPress={()=>a.open('card-transfer')}/></View>
-    <View style={{flex:1}}><Button title="Hesabı böl" secondary icon="people-outline" onPress={()=>a.open('split')}/></View>
-   </View>
-
-   {d.trustedBeneficiaries?.length>0&&(
-    <>
-     <View style={S.section}><Text style={S.h3}>Etibarlı alıcılar</Text><Badge text="SCA İSTİSNASI" tone="success"/></View>
-     <Box style={{paddingVertical:6}}>
-      {d.trustedBeneficiaries.map((tb:Row)=>(
-       <View key={tb.id} style={S.listRow}>
-        <Pressable accessibilityRole="button" style={[S.row,{flex:1,minHeight:48}]} onPress={()=>a.open('send:'+tb.phone)}>
-         <View style={S.avatar}><Text style={S.avatarText}>{(tb.nickname||tb.maskedName||'K')[0]}</Text></View>
-         <View style={{flex:1}}>
-          <Text style={{color:C.ink,fontSize:13,fontWeight:'700'}}>{tb.nickname||tb.maskedName}</Text>
-          <Text style={[S.muted,{fontSize:11}]}>{tb.phone} · Etibarlı siyahıda</Text>
-         </View>
-        </Pressable>
-        <Pressable
-         accessibilityRole="button"
-         accessibilityLabel="Etibarlı alıcını sil"
-         onPress={()=>a.act('trusted-beneficiaries/'+tb.id+'/delete',{}).catch(()=>{})}
-         style={styles.iconHitTarget}
-        >
-         <Icon name="trash-outline" size={18} color={C.red}/>
-        </Pressable>
-       </View>
-      ))}
-     </Box>
-    </>
-   )}
-
-   <View style={S.section}>
-    <Text style={S.h3}>Kampus dostların</Text>
-    <Pressable
-     accessibilityRole="button"
-     style={{minHeight:40,justifyContent:'center',paddingHorizontal:4}}
-     onPress={()=>hashPhones(['+994501000001','+994501000002','+994501000003','+994501000004']).then(phoneHashes=>a.act('contacts/match',{phoneHashes})).then(r=>setMatched(r.matches)).catch(()=>{})}
-    >
-     <Text style={S.link}>Dostları tap ↗</Text>
-    </Pressable>
-   </View>
-   <Box style={{paddingVertical:6}}>
-    {(matched||[['M','Murad Əliyev','+994501000002',''],['L','Leyla Həsənova','+994501000003',''],['K','Kamran Quliyev','+994501000004','']].filter(x=>x[2]!==d.user?.phone).map(([initial,name,phone,hash])=>({maskedName:name,phone,phoneHash:hash,initial}))).map((c:any)=>(
-     <Pressable key={c.phone} accessibilityRole="button" style={S.listRow} onPress={()=>a.open('send:'+c.phone)}>
-      <View style={S.avatar}><Text style={S.avatarText}>{c.initial||(c.maskedName||'K')[0]}</Text></View>
-      <View style={{flex:1}}>
-       <Text style={{color:C.ink,fontSize:13,fontWeight:'700'}}>{c.maskedName}</Text>
-       <Text style={[S.muted,{fontSize:11}]}>{c.phone}</Text>
-      </View>
-      <Icon name="arrow-up" size={18} color={C.muted}/>
-     </Pressable>
-    ))}
-   </Box>
-
-   {d.cardTransfers?.length>0&&(
-    <>
-     <View style={S.section}><Text style={S.h3}>Kart çıxarışları</Text></View>
-     {d.cardTransfers.slice(0,4).map((t:Row)=>(
-      <Box key={t.id}>
-       <View style={S.between}>
-        <View style={{flex:1}}>
-         <Text style={S.h3}>{t.bankName} · •••• {t.last4}</Text>
-         <Text style={[S.muted,{marginTop:2}]}>
-          {({HELD:'Rezerv edilib',SENT:'Göndərilir',COMPLETED:'Çatdı',FAILED:'Alınmadı · rezerv açıldı',UNDER_REVIEW:'Şəbəkə cavabı gözlənilir'} as any)[t.status]||t.status}
-         </Text>
-        </View>
-        <View style={{alignItems:'flex-end'}}>
-         <Text style={{color:C.ink,fontWeight:'800',fontSize:14}}>{money(t.amountMinor)}</Text>
-         <View style={{marginTop:4}}>
-          <Badge text={statusLabel[t.status]||t.status} tone={statusTone(t.status)}/>
-         </View>
-        </View>
-       </View>
-      </Box>
-     ))}
-    </>
-   )}
-
+  <>
    {d.splits?.length>0&&(
     <>
      <View style={S.section}><Text style={S.h3}>Bölünmüş hesablar</Text></View>
@@ -271,8 +183,10 @@ function Payments(){
     </>
    )}
 
-   <View style={S.section}><Text style={S.h3}>Gələn sorğular</Text></View>
-   <Box>
+   {d.requests?.some((r:Row)=>r.status==='OPEN')&&(
+    <>
+    <View style={S.section}><Text style={S.h3}>Gələn hesab payları</Text></View>
+    <Box>
     {d.requests?.filter((r:Row)=>r.status==='OPEN').map((r:Row)=>(
      <View key={r.id} style={{marginBottom:16}}>
       <View style={[S.between,{marginBottom:12}]}>
@@ -301,33 +215,11 @@ function Payments(){
       </View>
      </View>
     ))}
-    {!d.requests?.some((r:Row)=>r.status==='OPEN')&&<Empty text="Hazırda gələn pul sorğusu yoxdur." icon="mail-open-outline"/>}
-   </Box>
+    </Box>
+    </>
+   )}
 
-   <View style={S.section}><Text style={S.h3}>Köçürmələrin</Text></View>
-   <Box style={{paddingVertical:6}}>
-    {d.transfers?.slice(0,8).map((t:Row)=>(
-     <View style={S.listRow} key={t.id}>
-      <View style={S.tile}><Icon name="arrow-up" size={18}/></View>
-      <View style={{flex:1}}>
-       <Text style={{fontSize:13,fontWeight:'700',color:C.ink}}>{t.recipientName}</Text>
-       <Text style={[S.muted,{fontSize:11}]}>{statusLabel[t.status]||t.status}{t.trustedBeneficiary?' · Etibarlı':''}</Text>
-      </View>
-      <Text style={{fontSize:13,fontWeight:'700',color:C.ink}}>{money(t.amountMinor)}</Text>
-      {t.status==='SCHEDULED'&&(
-       <Pressable
-        accessibilityRole="button"
-        style={styles.cancelInlineBtn}
-        onPress={()=>a.act('transfers/'+t.id+'/cancel',{}).catch(()=>{})}
-       >
-        <Text style={{color:C.red,fontSize:11,fontWeight:'700'}}>Ləğv et</Text>
-       </Pressable>
-      )}
-     </View>
-    ))}
-    {!d.transfers?.length&&<Empty text="Köçürmələrin burada görünəcək."/>}
-   </Box>
-  </Page>
+  </>
  );
 }
 
@@ -820,13 +712,12 @@ function MoreTab({navigation}:any){
   <Page title="Daha çox">
    <View style={styles.moreGroup}>
     <MoreRow {...P} icon="swap-horizontal" label="Pul köçür" onPress={()=>a.open('send-menu')}/>
-    <MoreRow {...B} icon="arrow-down" label="Pul istə" onPress={()=>a.open('request')}/>
     <MoreRow {...G} icon="arrow-up" label="Balansı artır" onPress={()=>a.open('add')}/>
     <MoreRow {...R} icon="card-outline" label="Karta çıxar" onPress={()=>a.open('card-transfer')}/>
     <MoreRow {...P} icon="people-outline" label="Hesabı böl" onPress={()=>a.open('split')}/>
-    <MoreRow {...B} icon="business-outline" label="Bank proqramı (simulyasiya)" sub="AniPay qəbul hesabını təyin et" onPress={()=>a.open('anipay-bank')}/>
-    <MoreRow {...Y} icon="receipt-outline" label="Ödənişlərim" sub="Etibarlı alıcılar, sorğular, bölünmüş hesablar" onPress={()=>navigation.navigate('Payments')} last/>
+    <MoreRow {...B} icon="business-outline" label="Bank proqramı (simulyasiya)" sub="AniPay qəbul hesabını təyin et" onPress={()=>a.open('anipay-bank')} last/>
    </View>
+   <SplitBills/>
    <View style={styles.moreGroup}>
     <MoreRow {...P} icon="pie-chart-outline" label="Analitika və büdcə" sub="Proqnoz, abunəliklər, qeyri-adi ödənişlər" onPress={()=>navigation.navigate('Analytics')}/>
     <MoreRow {...B} icon="business-outline" label="Digər banklar" sub={banks>0?`${banks} bank bağlı · ${money(d.openBanking?.totalBalanceMinor||0)}`:'Kartlarını və xərclərini bir yerdə izlə'} onPress={()=>a.open('banks-hub')}/>
@@ -1060,7 +951,7 @@ const TAB_ICONS:Record<string,[string,string]>={
  More:['wallet','wallet-outline']
 };
 // screens that live under a visible tab keep that tab highlighted
-const TAB_OWNER:Record<string,string>={Payments:'More',Profile:'Home',Analytics:'More'};
+const TAB_OWNER:Record<string,string>={Profile:'Home',Analytics:'More'};
 
 function CustomTabBar({state,descriptors,navigation}:any){
  // Android draws the app behind the system navigation buttons; the bar keeps clear of them.
@@ -1357,7 +1248,6 @@ export default function App(){
        <Tab.Screen name="History" component={HistoryTab} options={{title:'Tarixçə'}}/>
        <Tab.Screen name="Cards" component={CardsTab} options={{title:'Kartlar'}}/>
        <Tab.Screen name="More" component={MoreTab} options={{title:'Daha çox'}}/>
-       <Tab.Screen name="Payments" component={Payments} options={{title:'Ödənişlərim'}}/>
        <Tab.Screen name="QR" component={QrTab} options={{title:'QR'}}/>
        <Tab.Screen name="Profile" component={ProfileTab} options={{title:'Profil'}}/>
        <Tab.Screen name="Analytics" component={AnalyticsTab} options={{title:'Analitika'}}/>

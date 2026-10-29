@@ -4,7 +4,7 @@ import {Text} from './text';
 import {C,S,Avatar,Button,Icon,useApp} from './ui';
 import type {Row} from './api';
 
-/** Kampus friends: made by scanning each other's static QR, they show up in transfers, requests and shared bills. */
+/** Kampus friends: made by scanning each other's static QR, they show up in transfers and shared bills. */
 export function FriendsSection({close}:{close:()=>void}){
  const a=useApp();
  const [open,setOpen]=useState('');
@@ -45,7 +45,6 @@ export function FriendsSection({close}:{close:()=>void}){
      {open===f.id&&(
       <View style={{paddingTop:10}}>
        <Button title="Pul göndər" icon="arrow-up" onPress={()=>a.open('send:'+f.phone)}/>
-       <Button title="Pul istə" secondary icon="arrow-down" onPress={()=>a.open('request:'+f.phone)}/>
        <Button title="Dostluqdan çıxar" danger onPress={()=>{void remove(f);}}/>
       </View>
      )}
