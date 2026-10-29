@@ -1,7 +1,8 @@
 import React from 'react';
-import {View,StyleSheet,TextInput} from 'react-native';
+import {View,Pressable,StyleSheet,TextInput} from 'react-native';
 import {Text} from './text';
-import {C} from './ui';
+import {C,Icon} from './ui';
+import {money} from './api';
 
 export const luhn=(n:string)=>{
  let sum=0,dbl=false;
@@ -49,7 +50,42 @@ export function BigAmount({value,onChange,hint}:{value:string;onChange:(v:string
  );
 }
 
+export type Source={id:string;label:string;sub:string;balance:number};
+
+/** The balance pill under the amount: tapping it drops down the wallet and every shared bank card that can pay. */
+export function SourcePicker({sources,value,onChange,open,setOpen}:{sources:Source[];value:string;onChange:(id:string)=>void;open:boolean;setOpen:(v:boolean)=>void}){
+ const source=sources.find(o=>o.id===value)||sources[0];
+ return (
+  <>
+   <View style={{alignItems:'center',marginBottom:open?8:20}}>
+    <Pressable accessibilityRole="button" accessibilityLabel="Ödəniş mənbəyini seç" accessibilityState={{expanded:open}} onPress={()=>setOpen(!open)} style={st.pill}>
+     <Icon name={source.id==='WALLET'?'wallet-outline':'card-outline'} size={16} color={C.ink}/>
+     <Text style={{fontSize:14,fontWeight:'700',color:C.ink}}>{source.label} {money(source.balance)}</Text>
+     <Icon name={open?'chevron-up':'chevron-down'} size={16} color={C.ink}/>
+    </Pressable>
+   </View>
+   {open&&(
+    <View style={st.menu}>
+     {sources.map(o=>(
+      <Pressable key={o.id} accessibilityRole="button" accessibilityLabel={o.label} onPress={()=>{onChange(o.id);setOpen(false);}} style={st.menuRow}>
+       <Icon name={o.id==='WALLET'?'wallet-outline':'card-outline'} size={20} color={C.ink}/>
+       <View style={{flex:1}}>
+        <Text style={{fontSize:14,fontWeight:'700',color:C.ink}}>{o.label}</Text>
+        <Text style={{fontSize:12,color:C.muted,marginTop:1}}>{o.sub}</Text>
+       </View>
+       {source.id===o.id&&<Icon name="checkmark-circle" size={20} color={C.primary}/>}
+      </Pressable>
+     ))}
+    </View>
+   )}
+  </>
+ );
+}
+
 const st=StyleSheet.create({
+ pill:{flexDirection:'row',alignItems:'center',gap:8,borderWidth:1.5,borderColor:C.ink,borderRadius:22,paddingHorizontal:16,minHeight:44},
+ menu:{backgroundColor:'#f4f3f7',borderRadius:18,padding:6,marginBottom:20},
+ menuRow:{flexDirection:'row',alignItems:'center',gap:12,minHeight:56,paddingHorizontal:12},
  mini:{width:64,height:44,borderRadius:9,alignItems:'center',justifyContent:'center'},
  wrap:{alignItems:'center',paddingTop:36,paddingBottom:44},
  line:{flexDirection:'row',alignItems:'center',justifyContent:'center',gap:6},

@@ -5,24 +5,13 @@ import {SafeAreaProvider,SafeAreaView} from 'react-native-safe-area-context';
 import {Avatar,BackBar,Button,C,ErrorPopup,FullScreen,Icon,ResultArt,S,cardLabel,linkedCards,useApp,useModalHost} from './ui';
 import {errorCode,minor,money,Row} from './api';
 import {recentRecipients,initialRecipient,transferAmountError} from './bugRules';
+import {BigAmount,SourcePicker} from './CardUi';
 
 type Contact={name:string;phone:string;avatar?:number|null;fin?:string};
 
 const FIN=/^[A-Z0-9]{7}$/;
 /** A recipient is either a phone number or an AniPay FIN code; both travel in the contact's phone field. */
 const identifier=(v:string)=>FIN.test(v)?'FİN '+v:v;
-
-const KEYS=[['1','2','3'],['4','5','6'],['7','8','9'],['.','0','del']];
-
-/** Amount keypad: digits, one decimal point with at most two decimals, and a delete key. */
-function typeAmount(current:string,key:string){
- if(key==='del')return current.slice(0,-1);
- if(key==='.')return current.includes('.')?current:(current||'0')+'.';
- const next=current==='0'?key:current+key;
- const [whole,frac]=next.split('.');
- if(whole.length>6||(frac!==undefined&&frac.length>2))return current;
- return next;
-}
 
 /**
  * Full-screen transfer flow in the design's style: pick a contact, type the amount on the keypad,
@@ -48,6 +37,7 @@ export function TransferFlow({mode='AUTO',initialPhone,hidden,close}:{mode?:'AUT
   [result,setResult]=useState<Row|null>(null),
   [failure,setFailure]=useState(''),
   [source,setSource]=useState('WALLET'),
+  [pickerOpen,setPickerOpen]=useState(false),
   [recipientToken,setRecipientToken]=useState(''),
   [count,setCount]=useState(5);
 
@@ -105,9 +95,12 @@ export function TransferFlow({mode='AUTO',initialPhone,hidden,close}:{mode?:'AUT
  },[result]);
 
  const parsed=(()=>{try{return amount?minor(amount):0;}catch{return 0;}})();
- const shownAmount=amount?amount:'0.00';
  const available=Number(source==='WALLET'?a.data.wallet?.availableBalanceMinor||0:cards.find(x=>String(x.id)===source)?.balanceMinor||0);
  const amountError=transferAmountError(parsed,available);
+ const sources=[
+  {id:'WALLET',label:'Balans',sub:'Kampus hesabı',balance:Number(a.data.wallet?.availableBalanceMinor||0)},
+  ...cards.map((x:Row)=>({id:String(x.id),label:cardLabel(x),sub:'Açıq bankçılıq kartı',balance:Number(x.balanceMinor||0)}))
+ ];
 
  async function resolveAndContinue(){
   if(!target||parsed<=0||amountError)return;
@@ -232,45 +225,20 @@ export function TransferFlow({mode='AUTO',initialPhone,hidden,close}:{mode?:'AUT
     {step==='amount'&&target&&(
      <View style={{flex:1}}>
       <View style={t.bodyTight}><BackBar onBack={()=>initialPhone?close():setStep('pick')}/></View>
-      <ScrollView style={{flex:1}} contentContainerStyle={t.center}>
+      <ScrollView style={{flex:1}} contentContainerStyle={t.body} keyboardShouldPersistTaps="handled">
        <Text style={t.titleCenter}>Köçürmə məbləği</Text>
-       <View style={t.person}>
+       <View style={[t.person,{alignSelf:'center'}]}>
         <Avatar name={target.name} avatar={target.avatar} size={64}/>
         <View>
          <Text style={t.personName}>{target.name}</Text>
          <Text style={t.personPhone}>{identifier(target.phone)}</Text>
         </View>
        </View>
-       {cards.length>0&&<View style={{flexDirection:'row',flexWrap:'wrap',gap:6,marginTop:14}}>
-        {[{id:'WALLET',label:'Kampus balansı'},...cards.map(x=>({id:String(x.id),label:cardLabel(x)}))].map(o=><Pressable key={o.id} accessibilityRole="button" accessibilityState={{selected:source===o.id}} onPress={()=>setSource(o.id)} style={[t.sourceChip,source===o.id&&{backgroundColor:C.primary}]}><Text style={[t.sourceText,source===o.id&&{color:'#fff'}]}>{o.label}</Text></Pressable>)}
-       </View>}
-       <Text style={[S.muted,{marginTop:12}]}>Mövcud balans: {money(available)}</Text>
-       <Text style={t.hint}>Məbləği daxil et</Text>
-       <View style={t.amountWrap}>
-        <Text style={[t.amountText,!amount&&{color:'#c9c6d6'}]}>{shownAmount} ₼</Text>
-       </View>
-       {!!amountError&&<Text accessibilityRole="alert" style={t.error}>{amountError}</Text>}
+       <BigAmount value={amount} onChange={setAmount} hint="Komissiyasız"/>
+       <SourcePicker sources={sources} value={source} onChange={setSource} open={pickerOpen} setOpen={setPickerOpen}/>
+       {!!amountError&&<Text accessibilityRole="alert" style={[t.error,{marginBottom:12}]}>{amountError}</Text>}
+       <Button title="Davam et" icon="arrow-forward" disabled={busy||parsed<=0||!!amountError} onPress={()=>{void resolveAndContinue();}}/>
       </ScrollView>
-      <View style={t.padWrap}>
-       {KEYS.map(row=>(
-        <View key={row.join('')} style={t.padRow}>
-         {row.map(k=>(
-          <Pressable
-           key={k}
-           accessibilityRole="button"
-           accessibilityLabel={k==='del'?'Sil':k}
-           onPress={()=>setAmount(v=>typeAmount(v,k))}
-           style={({pressed})=>[t.key,pressed&&{backgroundColor:'#f1eefb'}]}
-          >
-           {k==='del'?<Icon name="backspace-outline" size={26} color={C.ink}/>:<Text style={t.keyText}>{k}</Text>}
-          </Pressable>
-         ))}
-        </View>
-       ))}
-       <View style={{paddingHorizontal:20,paddingTop:6}}>
-        <Button title="Davam et" disabled={busy||parsed<=0||!!amountError} onPress={()=>{void resolveAndContinue();}}/>
-       </View>
-      </View>
      </View>
     )}
 
@@ -289,18 +257,6 @@ export function TransferFlow({mode='AUTO',initialPhone,hidden,close}:{mode?:'AUT
        <Text style={t.hint}>Məbləğ</Text>
        <View style={t.amountWrap}><Text style={t.amountText}>{money(parsed)}</Text></View>
        <View style={{alignSelf:'stretch',marginTop:26}}>
-        {cards.length>0&&(
-         <View style={{marginBottom:16}}>
-          <Text style={[S.label,{marginBottom:8}]}>Haradan köçürülsün</Text>
-          <View style={{flexDirection:'row',flexWrap:'wrap',gap:8}}>
-           {[{id:'WALLET',label:'Kampus balansı'},...cards.map(x=>({id:String(x.id),label:cardLabel(x)}))].map(o=>(
-            <Pressable key={o.id} accessibilityRole="button" accessibilityState={{selected:source===o.id}} onPress={()=>setSource(o.id)} style={[t.sourceChip,source===o.id&&{backgroundColor:C.primary,borderColor:C.primary}]}>
-             <Text style={[t.sourceText,source===o.id&&{color:'#fff'}]}>{o.label}</Text>
-            </Pressable>
-           ))}
-          </View>
-         </View>
-        )}
         {!!amountError&&<Text accessibilityRole="alert" style={t.error}>{amountError}</Text>}
         <TextInput
          accessibilityLabel="Qeyd"
@@ -411,7 +367,6 @@ const t=StyleSheet.create({
  contact:{flexDirection:'row',alignItems:'center',gap:12,minHeight:68,borderBottomWidth:1,borderBottomColor:'#f0eef6'},
  contactName:{fontSize:14,fontWeight:'700',color:C.ink},
  contactPhone:{fontSize:12,color:'#76738a',marginTop:2},
- center:{flex:1,paddingHorizontal:20,alignItems:'center',paddingTop:6},
  person:{flexDirection:'row',alignItems:'center',gap:14,marginTop:22},
  personName:{fontSize:17,fontWeight:'700',color:C.ink},
  personPhone:{fontSize:13,color:'#76738a',marginTop:3},
@@ -419,17 +374,11 @@ const t=StyleSheet.create({
  amountWrap:{minWidth:200,borderBottomWidth:2,borderBottomColor:C.primary,paddingHorizontal:14,paddingVertical:6,marginTop:8,alignItems:'center'},
  amountText:{fontSize:38,fontWeight:'500',color:C.ink,letterSpacing:-0.5},
  error:{color:C.red,fontSize:12,lineHeight:18,textAlign:'center',marginTop:14},
- padWrap:{paddingBottom:12,backgroundColor:'#fff',borderTopWidth:1,borderTopColor:'#f3f1f8'},
- padRow:{flexDirection:'row',justifyContent:'space-around',paddingHorizontal:20},
- key:{flex:1,height:62,alignItems:'center',justifyContent:'center',borderRadius:12},
- keyText:{fontSize:26,fontWeight:'500',color:C.ink},
  footer:{paddingHorizontal:20,paddingBottom:16,paddingTop:8,width:'100%',maxWidth:430,alignSelf:'center'},
  resultTitle:{fontSize:20,fontWeight:'800',color:C.ink,marginTop:14,textAlign:'center'},
  resultText:{fontSize:13,lineHeight:20,color:'#76738a',textAlign:'center',marginTop:8,marginBottom:22,maxWidth:300},
  details:{alignSelf:'stretch',gap:8,marginBottom:14},
  detail:{borderWidth:1,borderColor:'#ebe8f4',borderRadius:10,paddingHorizontal:14,paddingVertical:10},
  detailLabel:{fontSize:11,color:'#76738a'},
- sourceChip:{minHeight:42,paddingHorizontal:14,borderRadius:12,borderWidth:1.5,borderColor:'#dedaeb',alignItems:'center',justifyContent:'center'},
- sourceText:{fontSize:13,fontWeight:'700',color:C.ink},
  detailValue:{fontSize:14,fontWeight:'700',color:C.ink,marginTop:3}
 });

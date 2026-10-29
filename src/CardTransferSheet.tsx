@@ -1,9 +1,9 @@
-import React,{useState} from 'react';
+import React,{useEffect,useState} from 'react';
 import {View,Pressable,StyleSheet,TextInput} from 'react-native';
 import {Text} from './text';
 import {Row,minor,money} from './api';
 import {S,C,Button,Check,Box,Badge,Icon,statusTone,linkedCards,cardLabel} from './ui';
-import {BigAmount,MiniCard,groupCard,luhn} from './CardUi';
+import {BigAmount,MiniCard,SourcePicker,groupCard,luhn} from './CardUi';
 
 type Props={
  base:string;
@@ -53,6 +53,14 @@ export function CardTransferForm({state,...a}:Props&{state:ReturnType<typeof use
  }
 
  const current=transfer?(a.data.cardTransfers?.find((x:Row)=>x.id===transfer.id)||transfer):null;
+ const [count,setCount]=useState(5);
+ useEffect(()=>{
+  if(current?.status!=='SCHEDULED')return;
+  const tick=()=>setCount(Math.max(0,Math.ceil((current.executeAt-Date.now())/1000)));
+  tick();
+  const id=setInterval(tick,200);
+  return()=>clearInterval(id);
+ },[current?.status,current?.executeAt]);
  const savedList:Row[]=a.data.recipientCards||[];
  const parsed=Math.max(0,Number(amount.replace(',','.'))||0);
  const disabled=a.busy||checking;
@@ -66,28 +74,32 @@ export function CardTransferForm({state,...a}:Props&{state:ReturnType<typeof use
  if(current){
   const done=current.status==='COMPLETED',
    failed=current.status==='FAILED',
+   cancelled=current.status==='CANCELLED',
+   scheduled=current.status==='SCHEDULED'&&count>0,
    review=current.status==='UNDER_REVIEW';
   return (
    <>
     <Box style={{alignItems:'center',paddingVertical:24,gap:12}}>
-     <View style={[S.tile,{width:68,height:68,borderRadius:24,backgroundColor:failed?'#fbe8e2':review?'#fcf1df':C.lime}]}>
+     <View style={[S.tile,{width:68,height:68,borderRadius:24,backgroundColor:failed||cancelled?'#fbe8e2':review?'#fcf1df':C.lime}]}>
       <Icon
-       name={done?'checkmark':failed?'close':review?'shield-outline':'time-outline'}
+       name={done?'checkmark':failed||cancelled?'close':review?'shield-outline':'time-outline'}
        size={30}
        color={failed?C.red:C.ink}
       />
      </View>
      <Badge
-      text={done?'TAMAMLANDI':failed?'UĞURSUZ · REZERV AÇILDI':review?'ADMİN YOXLAMASINDA':'GÖNDƏRİLİR'}
+      text={done?'TAMAMLANDI':cancelled?'LƏĞV EDİLDİ':failed?'UĞURSUZ · REZERV AÇILDI':review?'ADMİN YOXLAMASINDA':'GÖNDƏRİLİR'}
       tone={statusTone(current.status)}
      />
      <Text style={S.h2}>
-      {done?'Karta çatdı':failed?'Köçürmə alınmadı':review?'Əlavə yoxlamadadır':'Şəbəkəyə göndərilir…'}
+      {done?'Karta çatdı':cancelled?'Köçürmə ləğv edildi':failed?'Köçürmə alınmadı':review?'Əlavə yoxlamadadır':scheduled?'Köçürmə '+count+' saniyəyə göndəriləcək':'Şəbəkəyə göndərilir…'}
      </Text>
      <Text style={S.amount}>{money(current.amountMinor)}</Text>
      <Text style={[S.h3,{color:C.muted}]}>{current.bankName} · {current.brand} •••• {current.last4}</Text>
      <Text style={[S.muted,{textAlign:'center',marginTop:4}]}>
-      {failed
+      {cancelled
+       ?'Məbləğ və komissiya geri qaytarıldı.'
+       :failed
        ?'Rezerv açıldı. Məbləğ və komissiya balansınızda qaldı.'
        :done
        ?'Məbləğ və komissiya ikili qeydiyyat jurnalında (ledger) rəsmiləşdirildi.'
@@ -96,10 +108,11 @@ export function CardTransferForm({state,...a}:Props&{state:ReturnType<typeof use
        :'Məbləğ və komissiya rezerv edilib. Şəbəkə cavabı gələndə nəticə avtomatik yenilənəcək.'}
      </Text>
     </Box>
+    {scheduled&&<Button title={`Köçürməni ləğv et (${count}s)`} danger onPress={()=>{void a.act('card-transfers/'+current.id+'/cancel',{}).catch(()=>{});}}/>}
     <Button
      title="Yeni köçürmə"
      secondary
-     disabled={!done&&!failed}
+     disabled={!done&&!failed&&!cancelled}
      onPress={()=>{
       setCard(null);
       setQuote(null);
@@ -130,27 +143,7 @@ export function CardTransferForm({state,...a}:Props&{state:ReturnType<typeof use
 
     <BigAmount value={amount} onChange={v=>{setAmount(v);setQuote(null);}} hint="Bank tərəfindən komissiya tutula bilər"/>
 
-    <View style={{alignItems:'center',marginBottom:pickerOpen?8:20}}>
-     <Pressable accessibilityRole="button" accessibilityLabel="Ödəniş mənbəyini seç" accessibilityState={{expanded:pickerOpen}} onPress={()=>setPickerOpen(!pickerOpen)} style={cs.balanceChip}>
-      <Icon name={source.id==='WALLET'?'wallet-outline':'card-outline'} size={16} color={C.ink}/>
-      <Text style={{fontSize:14,fontWeight:'700',color:C.ink}}>{source.label} {money(source.balance)}</Text>
-      <Icon name={pickerOpen?'chevron-up':'chevron-down'} size={16} color={C.ink}/>
-     </Pressable>
-    </View>
-    {pickerOpen&&(
-     <View style={cs.menu}>
-      {sources.map(o=>(
-       <Pressable key={o.id} accessibilityRole="button" accessibilityLabel={o.label} onPress={()=>{setFunding(o.id);setQuote(null);setPickerOpen(false);}} style={cs.menuRow}>
-        <Icon name={o.id==='WALLET'?'wallet-outline':'card-outline'} size={20} color={C.ink}/>
-        <View style={{flex:1}}>
-         <Text style={{fontSize:14,fontWeight:'700',color:C.ink}}>{o.label}</Text>
-         <Text style={{fontSize:12,color:C.muted,marginTop:1}}>{o.sub}</Text>
-        </View>
-        {source.id===o.id&&<Icon name="checkmark-circle" size={20} color={C.primary}/>}
-       </Pressable>
-      ))}
-     </View>
-    )}
+    <SourcePicker sources={sources} value={source.id} onChange={id=>{setFunding(id);setQuote(null);}} open={pickerOpen} setOpen={setPickerOpen}/>
     {!card.saved&&<Check value={save} onChange={setSave} text="Bu kartı yadda saxla, növbəti dəfə nömrə yazmadan seçim."/>}
 
     {quote&&(
@@ -239,8 +232,5 @@ const cs=StyleSheet.create({
  numberInput:{flex:1,fontSize:17,fontWeight:'600',color:C.ink,minHeight:60,outlineStyle:'none' as any},
  section:{fontSize:12,fontWeight:'700',color:C.muted,letterSpacing:0.4,marginTop:24,marginBottom:10},
  cardRow:{flexDirection:'row',alignItems:'center',gap:14,backgroundColor:'#f4f3f7',borderRadius:20,padding:14,minHeight:72},
- dots:{width:34,height:34,borderRadius:17,backgroundColor:'#e6e4ec',alignItems:'center',justifyContent:'center'},
- balanceChip:{flexDirection:'row',alignItems:'center',gap:8,borderWidth:1.5,borderColor:C.ink,borderRadius:22,paddingHorizontal:16,minHeight:44},
- menu:{backgroundColor:'#f4f3f7',borderRadius:18,padding:6,marginBottom:20},
- menuRow:{flexDirection:'row',alignItems:'center',gap:12,minHeight:56,paddingHorizontal:12}
+ dots:{width:34,height:34,borderRadius:17,backgroundColor:'#e6e4ec',alignItems:'center',justifyContent:'center'}
 });
