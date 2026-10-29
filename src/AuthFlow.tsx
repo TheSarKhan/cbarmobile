@@ -88,11 +88,17 @@ function useCountdown(from:number){
  return {left,restart:()=>{setLeft(from);setRound(r=>r+1);}};
 }
 
+/** Keyboard avoidance only where a text field can open the keyboard. */
+function Avoiding({on,style,children}:{on:boolean;style:object;children:React.ReactNode}){
+ return on?<KeyboardAvoidingView style={style} behavior="padding">{children}</KeyboardAvoidingView>:<View style={style}>{children}</View>;
+}
+
 function Screen({onBack,right,title,subtitle,children,footer,scroll=true,hero}:{onBack?:()=>void;right?:React.ReactNode;title?:string;subtitle?:string;children:React.ReactNode;footer?:React.ReactNode;scroll?:boolean;hero?:'phone'|'shield'}){
  const keyboardOpen=useKeyboardOpen();
  return (
   <SafeAreaView style={[s.screen,!!hero&&{backgroundColor:HERO_BG}]}>
-   <KeyboardAvoidingView style={{flex:1}} behavior="padding">
+   {/* the PIN screens have no text input: a keyboard-avoiding scroll view only made the pad jump on Android */}
+   <Avoiding on={scroll} style={{flex:1}}>
     <View style={s.header}>
      {onBack?(
       <Pressable accessibilityRole="button" accessibilityLabel="Geri" hitSlop={12} onPress={onBack} style={s.iconButton}>
@@ -116,17 +122,17 @@ function Screen({onBack,right,title,subtitle,children,footer,scroll=true,hero}:{
       {children}
      </ScrollView>
     ):(
-     <ScrollView keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false} contentContainerStyle={[s.body,{justifyContent:'space-between',minHeight:'100%'}]}>
+     <View style={[s.body,{flex:1,justifyContent:'space-between'}]}>
       {title?<View>
        <Text style={s.title}>{title}</Text>
        {!!subtitle&&<Text style={s.subtitle}>{subtitle}</Text>}
       </View>:null}
       {children}
-     </ScrollView>
+     </View>
     )}
     {!!footer&&<View style={s.footer}>{footer}</View>}
     </View>
-   </KeyboardAvoidingView>
+   </Avoiding>
   </SafeAreaView>
  );
 }
