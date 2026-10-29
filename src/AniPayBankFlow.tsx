@@ -11,8 +11,9 @@ import {BackBar,C,ErrorPopup,FullScreen,Icon,ResultArt,useApp,useModalHost} from
 type Phase='bank'|'home'|'identity'|'sms'|'code'|'accept'|'done';
 
 /**
- * The recipient's side of AniPay, as the person lives it in their own bank app (simulated here in the bank's colours, like the
- * open-banking bank app): AniPay, FİN and contact number, the SMS code, then the card or current account that receives the money.
+ * Setting AniPay up in the customer's own bank app (simulated here in the bank's colours, like the open-banking bank app):
+ * AniPay, FİN and contact number, the SMS code, then the card or current account that receives the money. From then on a transfer
+ * to that FİN or number is booked on the chosen account at once.
  */
 export function AniPayBankFlow({hidden,close}:{hidden:boolean;close:()=>void}){
  const a=useApp();
@@ -25,7 +26,6 @@ export function AniPayBankFlow({hidden,close}:{hidden:boolean;close:()=>void}){
   [session,setSession]=useState<Row|null>(null),
   [code,setCode]=useState(''),
   [found,setFound]=useState<Row|null>(null),
-  [transferId,setTransferId]=useState(''),
   [accountId,setAccountId]=useState(''),
   [done,setDone]=useState<Row|null>(null),
   [busy,setBusy]=useState(false);
@@ -54,24 +54,23 @@ export function AniPayBankFlow({hidden,close}:{hidden:boolean;close:()=>void}){
   try{
    const r=await a.call('anipay-bank/verify',{sessionId:session.sessionId,code});
    setFound(r);
-   setTransferId(r.transfers?.[0]?.transferId||'');
    setAccountId(r.accounts?.[0]?.id||'');
    setPhase('accept');
   }catch(e){fail(e);}
   finally{setBusy(false);}
  }
- async function accept(){
+ async function register(){
   if(!session)return;
   setBusy(true);
   try{
-   setDone(await a.call('anipay-bank/accept',{sessionId:session.sessionId,transferId,accountId}));
+   setDone(await a.call('anipay-bank/register',{sessionId:session.sessionId,accountId}));
    setPhase('done');
   }catch(e){fail(e);}
   finally{setBusy(false);}
  }
  function finish(){a.refresh().catch(()=>{});close();}
 
- const transfers:Row[]=found?.transfers||[],accounts:Row[]=found?.accounts||[];
+ const accounts:Row[]=found?.accounts||[];
 
  return (
   <FullScreen visible={!hidden} onRequestClose={close}>
@@ -81,7 +80,7 @@ export function AniPayBankFlow({hidden,close}:{hidden:boolean;close:()=>void}){
       <ScrollView contentContainerStyle={s.body}>
        <BackBar onBack={close}/>
        <Text style={s.title}>Bank proqramı</Text>
-       <Text style={s.sub}>AniPay ilə göndərilən pulu alan şəxs öz bankının proqramını açır. Bankı seçin.</Text>
+       <Text style={s.sub}>AniPay-i öz bankının proqramında qurursan: pulun hansı karta və ya hesaba düşəcəyini seçirsən. Bankı seç.</Text>
        {!banks.length&&<ActivityIndicator color={C.primary} style={{marginVertical:24}}/>}
        {banks.map(b=>(
         <Pressable key={b.id} accessibilityRole="button" accessibilityLabel={b.name} onPress={()=>{setBank(b);setPhase('home');}} style={({pressed})=>[s.bankRow,pressed&&{opacity:0.7}]}>
@@ -100,7 +99,7 @@ export function AniPayBankFlow({hidden,close}:{hidden:boolean;close:()=>void}){
        <View style={[s.serviceMark,{backgroundColor:colors.color}]}><Text style={s.serviceLetter}>A</Text></View>
        <View style={{flex:1}}>
         <Text style={s.serviceName}>AniPay</Text>
-        <Text style={s.serviceSub}>Pul qəbul et və göndər</Text>
+        <Text style={s.serviceSub}>Pul qəbul etmək üçün hesab təyin et</Text>
        </View>
        <Icon name="chevron-forward" size={18} color="#8d89a3"/>
       </Pressable>
@@ -119,7 +118,7 @@ export function AniPayBankFlow({hidden,close}:{hidden:boolean;close:()=>void}){
     {phase==='identity'&&(
      <BankShell bank={colors} title="AniPay" onBack={()=>setPhase('home')}
       footer={<BankButton bank={colors} title={busy?'Yoxlanılır…':'İrəli'} disabled={busy||!finOk||!phoneOk} onPress={()=>{void start();}}/>}>
-      <Text style={s.lead}>Sizə köçürmə göndərilibsə, FİN kodunuzu və əlaqə nömrənizi yazın.</Text>
+      <Text style={s.lead}>FİN kodunuzu və əlaqə nömrənizi yazın. Bundan sonra AniPay ilə bu FİN və ya nömrəyə göndərilən pul seçdiyiniz hesaba düşəcək.</Text>
       <Text style={s.label}>FİN kod</Text>
       <TextInput
        accessibilityLabel="FİN kod"
@@ -143,7 +142,7 @@ export function AniPayBankFlow({hidden,close}:{hidden:boolean;close:()=>void}){
         style={s.phoneInput}
        />
       </View>
-      <Text style={s.hint}>Köçürməni göndərən sizi FİN kodla və ya nömrə ilə yazıb. İkisindən biri uyğun gəlməlidir.</Text>
+      <Text style={s.hint}>Köçürməni göndərən sizi FİN kodla və ya nömrə ilə tapa bilər, ikisi də eyni hesaba bağlanır.</Text>
      </BankShell>
     )}
 
@@ -177,43 +176,25 @@ export function AniPayBankFlow({hidden,close}:{hidden:boolean;close:()=>void}){
     )}
 
     {phase==='accept'&&found&&(
-     <BankShell bank={colors} title="Köçürməni qəbul et" onBack={()=>setPhase('code')}
-      footer={transfers.length?<BankButton bank={colors} title={busy?'Təsdiqlənir…':'Təsdiqlə və qəbul et'} disabled={busy||!transferId||!accountId} onPress={()=>{void accept();}}/>:<BankButton bank={colors} title="Bağla" onPress={finish}/>}>
-      {!transfers.length?(
-       <Text style={s.lead}>Bu FİN və nömrə üçün gözləyən AniPay köçürməsi yoxdur.</Text>
-      ):(
-       <>
-        <Text style={s.lead}>{transfers.length>1?'Qəbul etmək istədiyiniz köçürməni seçin.':'Sizə köçürmə göndərilib.'}</Text>
-        {transfers.map(t=>{
-         const on=transferId===t.transferId;
-         return (
-          <Pressable key={t.transferId} accessibilityRole="button" accessibilityLabel={t.senderName+' '+money(t.amountMinor)} onPress={()=>setTransferId(t.transferId)} style={[s.pick,on&&{borderColor:colors.color,backgroundColor:'#f6f4ff'}]}>
-           <View style={[s.serviceMark,{backgroundColor:colors.color}]}><Text style={s.serviceLetter}>₼</Text></View>
-           <View style={{flex:1}}>
-            <Text style={s.serviceName}>{t.senderName}</Text>
-            <Text style={s.serviceSub}>AniPay köçürməsi</Text>
-           </View>
-           <Text style={s.amount}>{money(t.amountMinor)}</Text>
-          </Pressable>
-         );
-        })}
-        <Text style={[s.lead,{marginTop:18}]}>Hansı kart və ya hesaba qəbul edək?</Text>
-        {accounts.map(x=>{
-         const on=accountId===x.id;
-         return (
-          <Pressable key={x.id} accessibilityRole="radio" accessibilityState={{selected:on}} accessibilityLabel={x.name+' '+x.masked} onPress={()=>setAccountId(x.id)} style={[s.pick,on&&{borderColor:colors.color,backgroundColor:'#f6f4ff'}]}>
-           <View style={[s.miniCard,{backgroundColor:x.type==='CARD'?colors.color:'#6e6a85'}]}><Icon name={x.type==='CARD'?'card':'wallet'} size={16} color="#fff"/></View>
-           <View style={{flex:1}}>
-            <Text style={s.serviceName}>{x.name}</Text>
-            <Text style={s.serviceSub}>{x.masked}</Text>
-           </View>
-           <Text style={s.balance}>{money(x.balanceMinor)}</Text>
-           <View style={[s.radio,on&&{borderColor:colors.color}]}>{on&&<View style={[s.radioDot,{backgroundColor:colors.color}]}/>}</View>
-          </Pressable>
-         );
-        })}
-       </>
-      )}
+     <BankShell bank={colors} title="Qəbul edən hesab" onBack={()=>setPhase('code')}
+      footer={<BankButton bank={colors} title={busy?'Yadda saxlanılır…':'Təsdiqlə'} disabled={busy||!accountId} onPress={()=>{void register();}}/>}>
+      <Text style={s.lead}>AniPay ilə sizə gələn köçürmələr hansı kart və ya hesaba düşsün?</Text>
+      {!!found.current&&<Text style={s.hint}>Hazırda: {found.current}</Text>}
+      <View style={{height:10}}/>
+      {accounts.map(x=>{
+       const on=accountId===x.id;
+       return (
+        <Pressable key={x.id} accessibilityRole="radio" accessibilityState={{selected:on}} accessibilityLabel={x.name+' '+x.masked} onPress={()=>setAccountId(x.id)} style={[s.pick,on&&{borderColor:colors.color,backgroundColor:'#f6f4ff'}]}>
+         <View style={[s.miniCard,{backgroundColor:x.type==='CARD'?colors.color:'#6e6a85'}]}><Icon name={x.type==='CARD'?'card':'wallet'} size={16} color="#fff"/></View>
+         <View style={{flex:1}}>
+          <Text style={s.serviceName}>{x.name}</Text>
+          <Text style={s.serviceSub}>{x.masked}</Text>
+         </View>
+         <Text style={s.balance}>{money(x.balanceMinor)}</Text>
+         <View style={[s.radio,on&&{borderColor:colors.color}]}>{on&&<View style={[s.radioDot,{backgroundColor:colors.color}]}/>}</View>
+        </Pressable>
+       );
+      })}
      </BankShell>
     )}
 
@@ -221,8 +202,8 @@ export function AniPayBankFlow({hidden,close}:{hidden:boolean;close:()=>void}){
      <SafeAreaView style={s.white}>
       <ScrollView contentContainerStyle={[s.body,{alignItems:'center',paddingTop:40}]}>
        <ResultArt tone="success"/>
-       <Text style={s.doneTitle}>Köçürmə qəbul edildi</Text>
-       <Text style={[s.sub,{textAlign:'center'}]}>{money(done.amountMinor)} məbləği{'\n'}{done.receivedTo}{'\n'}hesabına köçürüldü.</Text>
+       <Text style={s.doneTitle}>AniPay quruldu</Text>
+       <Text style={[s.sub,{textAlign:'center'}]}>Bundan sonra FİN {fin} və +994{local} nömrəsinə AniPay ilə gələn köçürmələr dərhal{'\n'}{done.accountLabel}{'\n'}hesabına düşəcək.</Text>
       </ScrollView>
       <View style={s.footer}><BankButton bank={colors} title="Bağla" onPress={finish}/></View>
      </SafeAreaView>

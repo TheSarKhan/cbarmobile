@@ -824,7 +824,7 @@ function MoreTab({navigation}:any){
     <MoreRow {...G} icon="arrow-up" label="Balansı artır" onPress={()=>a.open('add')}/>
     <MoreRow {...R} icon="card-outline" label="Karta çıxar" onPress={()=>a.open('card-transfer')}/>
     <MoreRow {...P} icon="people-outline" label="Hesabı böl" onPress={()=>a.open('split')}/>
-    <MoreRow {...B} icon="business-outline" label="Bank proqramı (simulyasiya)" sub="AniPay köçürməsini qəbul et" onPress={()=>a.open('anipay-bank')}/>
+    <MoreRow {...B} icon="business-outline" label="Bank proqramı (simulyasiya)" sub="AniPay qəbul hesabını təyin et" onPress={()=>a.open('anipay-bank')}/>
     <MoreRow {...Y} icon="receipt-outline" label="Ödənişlərim" sub="Etibarlı alıcılar, sorğular, bölünmüş hesablar" onPress={()=>navigation.navigate('Payments')} last/>
    </View>
    <View style={styles.moreGroup}>

@@ -87,7 +87,10 @@ export function TransferFlow({mode='AUTO',initialPhone,hidden,close}:{mode?:'AUT
    const wrong=wrongChannel(r);
    if(wrong&&!cancelled){setLocal(wrong);setTarget(null);setStep('pick');return;}
    if(!cancelled)setTarget(current=>current?.phone===recipientPhone?{...current,name:r.maskedName||current.name,avatar:r.avatar??current.avatar}:current);
-  }).catch(()=>{});
+  }).catch(e=>{
+   // an AniPay recipient who has not set AniPay up cannot be paid: say so now, not after the amount
+   if(!cancelled&&mode==='ANIPAY'){setLocal((e as Error).message);setTarget(null);setStep('pick');}
+  });
   return()=>{cancelled=true;};
  // eslint-disable-next-line react-hooks/exhaustive-deps
  },[resolveRecipient,recipientPhone]);
@@ -136,7 +139,7 @@ export function TransferFlow({mode='AUTO',initialPhone,hidden,close}:{mode?:'AUT
  }
 
  const live=result?((a.data.transfers||[]).find((x:Row)=>x.id===result.id)||result):null;
- const tone:'success'|'failed'|'review'=failure?'failed':live?.status==='UNDER_REVIEW'?'review':live?.status==='REFUNDED'?'failed':'success';
+ const tone:'success'|'failed'|'review'=failure?'failed':live?.status==='UNDER_REVIEW'?'review':'success';
 
  return (
   <FullScreen visible={!hidden} animationType={opened?'none':'slide'} onRequestClose={close}>
@@ -180,7 +183,7 @@ export function TransferFlow({mode='AUTO',initialPhone,hidden,close}:{mode?:'AUT
           />
          </View>
         )}
-        <Text style={[S.muted,{fontSize:11,marginTop:8,marginBottom:14}]}>Pul alıcının bank proqramında AniPay bölməsində qəbul olunur. İki üsuldan birini seçmək kifayətdir.</Text>
+        <Text style={[S.muted,{fontSize:11,marginTop:8,marginBottom:14}]}>Alıcı AniPay-i öz bank proqramında qurmalıdır: pul onun seçdiyi kart və ya hesaba dərhal düşür. İki üsuldan birini seçmək kifayətdir.</Text>
         <Button
          title="Davam et"
          disabled={byFin?!FIN.test(fin):aniLocal.length!==9}
@@ -330,21 +333,16 @@ export function TransferFlow({mode='AUTO',initialPhone,hidden,close}:{mode?:'AUT
       <ScrollView contentContainerStyle={[t.body,{alignItems:'center',paddingTop:40}]}>
        <ResultArt tone={tone}/>
        <Text style={[t.resultTitle]}>
-        {failure?'Köçürmə alınmadı':live?.status==='REFUNDED'?'Köçürmə geri qaytarıldı':tone==='review'?'Yoxlamaya göndərildi':live?.status==='AWAITING_RECIPIENT'?'AniPay-də gözləyir':live?.status==='COMPLETED'&&live.channel==='ANIPAY'?'Alıcı qəbul etdi':'Köçürmə göndərildi'}
+        {failure?'Köçürmə alınmadı':tone==='review'?'Yoxlamaya göndərildi':'Köçürmə göndərildi'}
        </Text>
        <Text style={t.resultText}>
-        {failure?failure:live?.status==='REFUNDED'?'Alıcı vaxtında qəbul etmədi, məbləğ balansına qayıtdı.':tone==='review'?'Əməliyyat admin yoxlamasındadır. Vəsait rezerv edilib.':live?.status==='SCHEDULED'&&count>0?'Köçürmə '+count+' saniyəyə icra ediləcək.':live?.status==='AWAITING_RECIPIENT'?'Alıcı öz bank proqramında AniPay bölməsində FİN və nömrə ilə köçürməni qəbul etməlidir. Qəbul etməsə, məbləğ geri qayıdır.':live?.status==='COMPLETED'&&live.channel==='ANIPAY'?String(live.receivedTo||'Köçürmə alıcının hesabına çatdı.'):'Nəticəni tarixçədə izləyə bilərsən.'}
+        {failure?failure:tone==='review'?'Əməliyyat admin yoxlamasındadır. Vəsait rezerv edilib.':live?.status==='SCHEDULED'&&count>0?'Köçürmə '+count+' saniyəyə icra ediləcək.':live?.status==='COMPLETED'&&live.channel==='ANIPAY'?'Pul AniPay ilə alıcının hesabına çatdı: '+String(live.receivedTo||''):'Nəticəni tarixçədə izləyə bilərsən.'}
        </Text>
        {tone!=='failed'&&result&&(
         <View style={t.details}>
          <Detail label="Alan" value={String(result.recipientName||target?.name||'')}/>
          <Detail label="Məbləğ" value={money(result.amountMinor)}/>
          <Detail label="Əməliyyat no." value={String(result.id||'').slice(0,18)}/>
-        </View>
-       )}
-       {live?.channel==='ANIPAY'&&live.status!=='REFUNDED'&&live.status!=='COMPLETED'&&(
-        <View style={{alignSelf:'stretch',marginBottom:10}}>
-         <Button title="Alıcının bank proqramı (simulyasiya)" secondary icon="open-outline" onPress={()=>a.open('anipay-bank')}/>
         </View>
        )}
        {result?.status==='SCHEDULED'&&count>0&&(
