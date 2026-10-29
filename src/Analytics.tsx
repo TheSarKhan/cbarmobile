@@ -103,7 +103,7 @@ export function AnalyticsView(){
         <Text style={[S.h3,{flex:1}]}>{x.merchant}</Text>
         <Text style={s.amountOut}>−{money(x.amountMinor)}</Text>
        </View>
-       <Text style={[S.muted,{marginTop:6}]}>{x.explanation}</Text>
+       <Text style={[S.muted,{marginTop:6}]}>{String(x.explanation||'').replace(/Abunəliklər/g,'Əyləncə')}</Text>
       </Box>
      ))}
     </>
